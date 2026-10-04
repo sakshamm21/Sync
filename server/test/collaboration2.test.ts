@@ -112,7 +112,33 @@ describe('shared event ownership', () => {
     assert.equal(overview.body.data.events.length, 1);
     assert.equal(overview.body.data.events[0].id, event.id);
   });
-});
+
+    it('lets a plain member help run one event without becoming an organiser', async () => {
+      const owner = await createUser({ role: 'organizer' });
+      // Members are the common case on a campus: someone lends a hand on one
+      // event but has no reason to be able to publish their own.
+      const helper = await createUser();
+      const event = await publishEvent(owner);
+      await api().post(`/api/event-staff/${event.id}/staff`).set(owner.auth).send({ email: helper.user.email, role: 'manager' }).expect(201);
+
+      const overview = await api().get('/api/organizer/overview').set(helper.auth).expect(200);
+      assert.equal(overview.body.data.events.length, 1);
+      assert.equal(overview.body.data.events[0].viewer.canManage, true);
+
+      // They cannot publish events of their own, and cannot create one.
+      const own = await api().post('/api/events').set(helper.auth).send(eventInput({ visibility: 'public' }));
+      assert.equal(own.status, 403);
+      // Nor can they apply to be an organiser while they already run an event.
+      assert.equal(helper.user.role, 'member');
+    });
+
+    it('shows an empty console to a member with nothing to run', async () => {
+      const member = await createUser();
+      const overview = await api().get('/api/organizer/overview').set(member.auth).expect(200);
+      assert.deepEqual(overview.body.data.events, []);
+      assert.equal(overview.body.data.stats.totalEvents, 0);
+    });
+  });
 
 describe('scheduling clashes', () => {
   it('reports confirmed events that overlap a new RSVP', async () => {

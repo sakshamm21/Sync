@@ -21,7 +21,9 @@ export const PRIMARY_NAV: NavItem[] = [
 export const SECONDARY_NAV: NavItem[] = [
   { href: '/notes', label: 'Notes', icon: StickyNote },
   { href: '/map', label: 'Map', icon: Map },
-  { href: '/organizer', label: 'Organizer', icon: Megaphone, roles: ['organizer', 'admin'] },
+  // Everyone can open the console: organisers manage their own events, and a
+  // member invited to help run an event finds it there too.
+  { href: '/organizer', label: 'Organizer', icon: Megaphone },
   { href: '/admin', label: 'Admin', icon: ShieldCheck, roles: ['admin'] },
 ];
 

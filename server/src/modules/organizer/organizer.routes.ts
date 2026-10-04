@@ -1,8 +1,7 @@
 import { Router } from 'express';
-import { authenticate, currentUser, requireRole } from '../../middleware/auth';
+import { authenticate, currentUser } from '../../middleware/auth';
 import validate from '../../middleware/validate';
 import { z } from '../../lib/schemas';
-import { ROLES } from '../../constants';
 import * as service from './organizer.service';
 
 const router = Router();
@@ -21,7 +20,12 @@ router.get('/applications/latest', async (req, res) => {
   res.json({ data: await service.latestApplication(currentUser(req)) });
 });
 
-router.get('/overview', requireRole(ROLES.ORGANIZER, ROLES.ADMIN), async (req, res) => {
+/**
+ * The organiser console. Any signed-in user may ask for it: organisers and
+ * admins get their own events, and a member who was invited to help run one
+ * event gets just that event. The service decides what each person sees.
+ */
+router.get('/overview', async (req, res) => {
   res.json({ data: await service.overview(currentUser(req)) });
 });
 

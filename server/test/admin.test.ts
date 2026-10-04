@@ -68,9 +68,20 @@ describe('becoming an organiser', () => {
   });
 
   it('keeps the organiser dashboard for organisers', async () => {
-    const member = await createUser();
-    await api().get('/api/organizer/overview').set(member.auth).expect(403);
-  });
+      const organizer = await createUser({ role: 'organizer' });
+      const overview = await api().get('/api/organizer/overview').set(organizer.auth).expect(200);
+      assert.ok(overview.body.data);
+      assert.deepEqual(overview.body.data.events, []);
+    });
+
+    it('shows a member an empty console rather than hiding the page', async () => {
+      // A member who has been invited to help run one event still needs to
+      // reach the console, so the endpoint is open; the service returns only
+      // what that person is allowed to see.
+      const member = await createUser();
+      const overview = await api().get('/api/organizer/overview').set(member.auth).expect(200);
+      assert.deepEqual(overview.body.data.events, []);
+    });
 });
 
 describe('platform administration', () => {
