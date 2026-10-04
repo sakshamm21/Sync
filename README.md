@@ -22,11 +22,12 @@ Built for CS253 (Software Development and Operations) at IIT Kanpur.
 
 ## Features
 
-- **Discover and RSVP:** search and filter events; capacity limits with an automatic waitlist that moves people up when a seat frees.
-- **Plan:** a calendar of everything you're attending or planning, notes, a venue map, and "Add to calendar" files.
+- **Discover and RSVP:** search and filter events; capacity limits with an automatic waitlist that moves people up when a seat frees; a warning when an RSVP clashes with something already in your calendar.
+- **Plan:** a calendar of everything you're attending or planning, notes, a venue map, QR entry codes for the door, and "Add to calendar" files.
 - **Stay in the loop:** event chats, organizer announcements, notifications and automatic reminders.
 - **Ask Sync:** an AI assistant that answers questions like *"What's on this weekend?"* from live event data.
-- **Organizer and admin consoles:** stats, attendee lists, check-in, CSV export, user management and organizer approvals.
+- **Run events as a team:** invite co-organisers and door staff to an event, scan attendees in by QR, and rate events afterwards.
+- **Organizer and admin consoles:** stats, attendee lists, check-in, CSV export, user management, organizer approvals and an event report queue.
 
 ## Tech stack
 
@@ -37,6 +38,7 @@ Built for CS253 (Software Development and Operations) at IIT Kanpur.
 | Database | MongoDB with Mongoose (MongoDB Atlas in production) |
 | Realtime | Socket.io (polling fallback on serverless hosts) |
 | Auth | JWT and bcrypt, with email verification and password reset |
+| Email | Transactional outbox, delivered by cron or an in-process worker |
 | AI | Any OpenAI-compatible API (OpenAI in production) |
 | Hosting | Vercel |
 
@@ -68,9 +70,22 @@ Settings live in `server/.env` and `client/.env`; the `.env.example` files list 
 | `DB_URI` | MongoDB connection string (required in production) |
 | `JWT_SECRET` | Long random string for signing logins (required in production) |
 | `CLIENT_URL` | Web app address(es) allowed to call the API |
+| `CRON_SECRET` | Bearer token Vercel Cron uses to run the scheduled jobs |
 | `AI_API_KEY`, `AI_BASE_URL`, `AI_MODEL` | Turn on the AI assistant; leave the key empty to turn it off |
 | `BREVO_API_KEY` or `SMTP_*`, plus `MAIL_FROM` | Send real emails (optional) |
 | `NEXT_PUBLIC_API_URL` | Where the web app finds the API |
+| `NEXT_PUBLIC_SITE_URL` | This app's own address, used for shared-link previews |
+
+## Scheduled jobs
+
+On a long-running host these run on in-process timers. On Vercel, `vercel.json`
+schedules them instead, each requiring `Authorization: Bearer $CRON_SECRET`:
+
+| Job | What it does |
+| --- | --- |
+| `/api/jobs/event-reminders` | Emails attendees 24 hours before an event starts. |
+| `/api/jobs/email-outbox` | Delivers queued notification emails. |
+| `/api/jobs/maintenance` | Recomputes `attendeeCount` from the registrations that exist, and prunes old rows. |
 
 ## Project structure
 

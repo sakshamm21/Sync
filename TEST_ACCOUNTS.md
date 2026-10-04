@@ -64,18 +64,25 @@ Plus notes for Kabir and the organizers, and the two organizer applications abov
 **As `member@syncronify.dev`**
 - Dashboard: your tickets, recommendations from your interests, the bell with unread notifications.
 - Explore: search, filter by category, RSVP to something new (and enjoy the confetti).
-- Schedule: your week in a calendar, including private plans; click a day to add one.
+- Schedule: your week in a calendar, including private plans; click a day to add one. Your **entry code** for the next event is at the bottom.
 - Open *Tech Summit 2026* → chat with other attendees.
+- RSVP to something that overlaps an existing plan → you get a *"clashes with…"* warning (the RSVP still goes through).
 - Ask Sync (header button or <kbd>Ctrl</kbd>+<kbd>J</kbd>): *"What's on my calendar this week?"* or *"Any tech events this weekend?"*
 
 **As `organizer@syncronify.dev`**
 - Organizer console: stats, the full hackathon, the draft and the cancelled event.
-- Open an event's **Attendees**: check people in, export CSV.
+- Open *Open Source Contributors Meetup*: **The team** panel lists Asha (co-organiser) and Rahul (door staff). Change a role or remove someone.
+- Open any event's **Door check-in** → **Scan entry codes** (works on a phone with a camera; browsers without `BarcodeDetector` fall back to the attendee list).
+- Open an event's **Attendees**: check people in, export CSV. Door staff can scan but cannot see this list, because it holds everyone's email.
 - Post an **announcement** in an event chat (attendees are notified).
-- Publish the draft, or create a new event with venue search.
+- Rate a finished event (5 stars on *Open Source Contributors Meetup*) or publish the draft.
+
+**As `rahul@syncronify.dev`** (door staff on that meetup)
+- Open the event from your organizer console: you can scan entry codes, but the attendee list and event editing are both hidden.
 
 **As `admin@syncronify.dev`**
 - Approve Asha's application, then sign in as `asha@` and publish an event.
+- **Reports** tab: a member's report on an event. *Cancel event* closes it and cancels the event; *Dismiss* closes it without.
 - Suspend a tester account, then try signing in as it.
 
 **Waitlist in action:** sign in as `member@` and leave the hackathon. Then sign in as `ishaan@`: he's been moved up and notified.
