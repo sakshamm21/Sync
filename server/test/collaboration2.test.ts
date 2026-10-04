@@ -3,6 +3,7 @@ import './setup-env';
 
 import { describe, it, before, after, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
+import { Types } from 'mongoose';
 import { startDatabase, stopDatabase, resetDatabase, api, createUser, eventInput, hoursFromNow } from './helpers';
 import { Event, Registration, EventStaff, Rating, OutboxEmail, Notification } from '../src/models';
 import { recountAttendees, pruneOldData } from '../src/jobs/maintenance';
@@ -315,6 +316,51 @@ describe('self-healing maintenance', () => {
         assert.equal(await OutboxEmail.countDocuments(), 1);
         assert.equal(await Notification.countDocuments(), 1);
     });
+});
+
+describe('events created before shared ownership', () => {
+  /** An event written by the old code: a single owner, no `organizers` array. */
+  async function legacyEvent(overrides = {}) {
+    const owner = await createUser({ role: 'organizer' });
+    const created = await publishEvent(owner, overrides);
+    const raw = await Event.collection.findOneAndUpdate({ _id: new Types.ObjectId(created.id) }, { $unset: { organizers: '' } });
+    assert.ok(raw, 'the event should exist');
+    return owner;
+  }
+
+  it('still shows the creator in their organiser console', async () => {
+    const owner = await legacyEvent({ title: 'Legacy Hackathon' });
+    const overview = await api().get('/api/organizer/overview').set(owner.auth).expect(200);
+    assert.equal(overview.body.data.events.length, 1);
+    assert.equal(overview.body.data.events[0].title, 'Legacy Hackathon');
+    assert.equal(overview.body.data.events[0].viewer.canManage, true);
+  });
+
+  it('still lets the creator edit and delete it', async () => {
+    const owner = await legacyEvent();
+    const list = await api().get('/api/organizer/overview').set(owner.auth).expect(200);
+    const id = list.body.data.events[0].id;
+
+    await api().patch(`/api/events/${id}`).set(owner.auth).send({ title: 'Legacy, edited' }).expect(200);
+    await api().delete(`/api/events/${id}`).set(owner.auth).expect(204);
+  });
+
+  it('keeps the creator as an organiser when someone is invited', async () => {
+    const owner = await legacyEvent();
+    const helper = await createUser({ role: 'organizer' });
+    const list = await api().get('/api/organizer/overview').set(owner.auth).expect(200);
+    const id = list.body.data.events[0].id;
+
+    await api().post(`/api/event-staff/${id}/staff`).set(owner.auth).send({ email: helper.user.email, role: 'manager' }).expect(201);
+
+    const event = await Event.findById(id);
+    const organizers = (event!.organizers ?? []).map(String);
+    // The creator must still be able to manage it after the invite.
+    assert.ok(organizers.includes(String(owner.user._id)), 'the owner stays in the organizers list');
+    assert.ok(organizers.includes(String(helper.user._id)), 'the invitee was added');
+
+    await api().patch(`/api/events/${id}`).set(owner.auth).send({ title: 'Still mine' }).expect(200);
+  });
 });
 
 describe('email outbox', () => {

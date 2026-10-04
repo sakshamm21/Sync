@@ -43,8 +43,10 @@ export async function invite(user: UserDocument, eventId: string, { email, role 
 
   await EventStaff.create({ event: event._id, user: invitee._id, role, invitedBy: user._id });
 
-  // `organizers` is the fast path used on every event read; keep it in step.
-  await Event.updateOne({ _id: event._id }, { $addToSet: { organizers: invitee._id } });
+    // `organizers` is the fast path used on every event read. `$addToSet` would
+    // leave an event that predates shared ownership without its owner in the
+    // array, so the owner is added in the same update.
+    await Event.updateOne({ _id: event._id }, { $addToSet: { organizers: { $each: [invitee._id, event.owner] } } });
 
   await notifications.notify(
     [invitee._id],

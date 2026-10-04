@@ -26,7 +26,11 @@ export function latestApplication(user: UserDocument) {
 /** Headline numbers and per-event registration counts for the organiser dashboard. */
 export async function overview(user: UserDocument) {
   // Events the user created *or* was invited to help run.
-  const events = await Event.find({ organizers: user._id, visibility: EVENT_VISIBILITY.PUBLIC })
+  //
+  // `$or` with the `owner` clause also matches events created before shared
+  // ownership existed, which have no `organizers` array; `isCoOrganizer`
+  // treats their creator as the organiser.
+  const events = await Event.find({ visibility: EVENT_VISIBILITY.PUBLIC, $or: [{ organizers: user._id }, { owner: user._id }] })
     .sort({ startsAt: -1 })
     .populate('owner', OWNER_FIELDS);
 

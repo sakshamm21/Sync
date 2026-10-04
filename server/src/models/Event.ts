@@ -122,6 +122,9 @@ eventSchema.method('isOwnedBy', function isOwnedBy(userId: unknown) {
 /** True for anyone in `organizers`, which always contains the owner. */
 eventSchema.method('isCoOrganizer', function isCoOrganizer(userId: unknown) {
   if (!userId) return false;
+  // Events created before shared ownership existed have no `organizers`
+  // array at all; their creator is still the only organiser.
+  if (!Array.isArray(this.organizers) || this.organizers.length === 0) return this.isOwnedBy(userId);
   return this.organizers.some((id) => String(id) === String(userId));
 });
 

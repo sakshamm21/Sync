@@ -125,8 +125,11 @@ export async function calendarFor(user: UserDocument, { from, to }: CalendarRang
     endsAt: { $gt: from },
     status: { $ne: EVENT_STATUS.DRAFT },
     $or: [
-      // Events the user created or helps run, including their own private plans.
+      // Events the user created or helps run, including their own private
+      // plans. The `owner` clause also covers events created before shared
+      // ownership existed, which have no `organizers` array.
       { organizers: user._id },
+      { owner: user._id },
       { _id: { $in: registeredIds }, visibility: EVENT_VISIBILITY.PUBLIC },
     ],
   })
