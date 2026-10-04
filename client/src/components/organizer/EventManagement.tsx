@@ -11,6 +11,8 @@ import { useCreateEvent } from '@/components/events/CreateEventDialog';
 import { useEventsSync } from '@/context/EventContext';
 import EventCover from '@/components/events/EventCover';
 import EventChat from '@/components/chat/EventChat';
+import QrScanner from '@/components/events/QrTicket';
+import EventTeam from '@/components/organizer/EventTeam';
 import { Button, ButtonLink } from '@/components/ui/button';
 import { Avatar, Badge, Card, EmptyState, StatCard } from '@/components/ui/surface';
 import { Segmented } from '@/components/ui/tabs';
@@ -200,6 +202,18 @@ export default function EventManagement({ eventId }: { eventId: string }) {
           )}
         </Card>
       </div>
-    </div>
-  );
-}
+
+            {event.viewer.canManage && <EventTeam eventId={event.id} />}
+
+            {event.viewer.canCheckIn && (
+              <Card className="p-5">
+                <h2 className="font-semibold">Door check-in</h2>
+                <p className="mt-0.5 mb-4 text-xs text-muted">
+                  Attendees show the code on their event page. Scanning one checks them in.
+                </p>
+                <QrScanner event={event} onScanned={load} />
+              </Card>
+            )}
+          </div>
+        );
+      }

@@ -64,23 +64,36 @@ export default function RsvpButton({ event, onChange, size = 'sm', className }: 
     }
     setPending(true);
     try {
-      const updated = registration ? await eventsApi.unregister(event.id) : await eventsApi.register(event.id);
-      onChange(updated);
-      eventsChanged();
-      if (!registration && updated.viewer.registration === 'going') {
-        celebrate(buttonRef.current);
-        toast.success("You're in! 🎉", { description: "It's on your schedule. We'll nudge you the day before." });
-      } else if (!registration) {
-        toast("You're on the waitlist ⏳", { description: "It's packed rn. If a spot opens, you're in automatically." });
-      } else {
-        toast(registration === 'going' ? 'Plans cancelled. Your spot went back in the pool.' : 'You left the waitlist');
+          if (registration) {
+            onChange(await eventsApi.unregister(event.id));
+            eventsChanged();
+            toast(registration === 'going' ? 'Plans cancelled. Your spot went back in the pool.' : 'You left the waitlist');
+            return;
+          }
+
+          // Registering can report a clash with something already in the calendar.
+          // It is a warning, not a block: the RSVP still goes through.
+          const result = await eventsApi.register(event.id);
+          onChange(result);
+          eventsChanged();
+          if (result.viewer.registration === 'going') {
+            celebrate(buttonRef.current);
+            toast.success("You're in! 🎉", { description: "It's on your schedule. We'll nudge you the day before." });
+          } else {
+            toast("You're on the waitlist ⏳", { description: "It's packed rn. If a spot opens, you're in automatically." });
+          }
+          for (const clash of result.clashes) {
+            toast.warning(`Heads up, clashes with ${clash.title}`, {
+              description: "Both are on your calendar — you can drop one whenever.",
+              action: { label: 'View', onClick: () => router.push(`/events/${clash.id}`) },
+            });
+          }
+        } catch (err) {
+          toast.error(errorMessage(err));
+        } finally {
+          setPending(false);
+        }
       }
-    } catch (err) {
-      toast.error(errorMessage(err));
-    } finally {
-      setPending(false);
-    }
-  }
 
   if (registration) {
     return (

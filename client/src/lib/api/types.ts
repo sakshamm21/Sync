@@ -51,6 +51,8 @@ export interface Session {
 export type RegistrationStatus = 'going' | 'waitlisted';
 export type EventVisibility = 'public' | 'private';
 export type EventStatus = 'draft' | 'published' | 'cancelled';
+/** What a person is allowed to do with an event. */
+export type StaffRole = 'owner' | 'manager' | 'checkin';
 
 export interface Venue {
   name?: string;
@@ -79,8 +81,13 @@ export interface VenueSummary {
 
 export interface EventViewer {
   isOwner: boolean;
+  /** True for the creator and for anyone invited to help run the event. */
+  isOrganizer: boolean;
   canManage: boolean;
+  /** Door rights: organisers, managers and check-in staff. */
+  canCheckIn: boolean;
   canChat: boolean;
+  staffRole: StaffRole | null;
   registration: RegistrationStatus | null;
 }
 
@@ -102,10 +109,22 @@ export interface SyncEvent {
   attendeeCount: number;
   spotsLeft: number | null;
   isPast: boolean;
+  averageRating: number | null;
   createdAt: string;
   updatedAt: string;
   viewer: EventViewer;
 }
+
+/** Confirmed events already on the user's calendar that overlap a new RSVP. */
+export interface Clash {
+  id: string;
+  title: string;
+  startsAt: string;
+  endsAt: string;
+}
+
+/** What RSVPing returns: the event, plus any clash the user should know about. */
+export type RegistrationResponse = SyncEvent & { clashes: Clash[] };
 
 export interface EventInput {
   title: string;
@@ -164,7 +183,8 @@ export type NotificationType =
   | 'waitlist_promoted'
   | 'announcement'
   | 'organizer_approved'
-  | 'organizer_rejected';
+  | 'organizer_rejected'
+  | 'staff_invited';
 
 export interface AppNotification {
   id: string;
@@ -211,6 +231,7 @@ export interface PlatformStats {
   events: { total: number; upcoming: number };
   registrations: number;
   pendingApplications: number;
+  openReports: number;
 }
 
 export interface PageMeta {
@@ -223,4 +244,50 @@ export interface PageMeta {
 export interface Page<T> {
   items: T[];
   meta: PageMeta;
+}
+
+/** Someone helping an event run, and what they may do. */
+export interface StaffMember {
+  id: string;
+  role: StaffRole;
+  user: { id: string; name: string; avatarUrl: string; organization: string } | null;
+  invitedBy: string | null;
+  createdAt: string;
+}
+
+/** The average score for an event, and the viewer's own if they left one. */
+export interface EventRating {
+  average: number | null;
+  count: number;
+  mine: number | null;
+  /** Star-by-star breakdown; index 0 is one star. */
+  breakdown: number[];
+}
+
+export type ReportReason = 'misleading' | 'inappropriate' | 'spam' | 'duplicate' | 'other';
+export type ReportStatus = 'open' | 'reviewed' | 'dismissed';
+
+/** A member's report about an event, as an admin sees it. */
+export interface EventReport {
+  id: string;
+  reason: ReportReason;
+  details: string;
+  status: ReportStatus;
+  createdAt: string;
+  reviewedAt: string | null;
+  event: { id: string; title: string } | null;
+  reporter: { name: string } | null;
+}
+
+/** The signed code an attendee shows at the door. */
+export interface EventTicket {
+  token: string;
+  payload: { reg: string; event: string; user: string };
+}
+
+export interface ScanResult {
+  ok: true;
+  alreadyCheckedIn: boolean;
+  checkedInAt: string | null;
+  attendee: { name: string; avatarUrl: string } | null;
 }

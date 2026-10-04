@@ -1,13 +1,21 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { Plus } from 'lucide-react';
 import Calendar, { CALENDAR_LEGEND } from '@/components/calendar/ScheduleCalendar';
 import { useCreateEvent } from '@/components/events/CreateEventDialog';
+import EntryCodes from '@/components/events/EntryCodes';
+import { meApi, type SyncEvent } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Card, PageHeader } from '@/components/ui/surface';
 
 export default function SchedulePage() {
   const { openCreateEvent } = useCreateEvent();
+  const [mine, setMine] = useState<SyncEvent[]>([]);
+
+  useEffect(() => {
+    meApi.registrations(true).then(setMine).catch(() => setMine([]));
+  }, []);
 
   return (
     <>
@@ -32,6 +40,10 @@ export default function SchedulePage() {
         </div>
         <Calendar onSelectDate={(date) => openCreateEvent({ date })} />
       </Card>
+
+      <div className="mt-10">
+        <EntryCodes events={mine} />
+      </div>
     </>
   );
 }

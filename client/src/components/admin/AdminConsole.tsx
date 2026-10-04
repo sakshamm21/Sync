@@ -1,13 +1,15 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
-import { CalendarDays, Check, Inbox, Megaphone, Search, ShieldCheck, Ticket, UserCheck, UserX, Users, X } from 'lucide-react';
+import { CalendarDays, Check, Flag, Inbox, Megaphone, Search, ShieldCheck, Ticket, UserCheck, UserX, Users, X } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import {
   adminApi,
   errorMessage,
+  type EventReport,
   type OrganizerApplication,
   type PageMeta,
   type PlatformStats,
@@ -23,7 +25,15 @@ import { Avatar, Badge, Card, EmptyState, PageHeader, StatCard } from '@/compone
 import { Segmented } from '@/components/ui/tabs';
 import { Stagger, StaggerItem } from '@/components/ui/motion';
 
-type Tab = 'overview' | 'users' | 'applications';
+type Tab = 'overview' | 'users' | 'applications' | 'reports';
+
+const REPORT_LABELS: Record<EventReport['reason'], string> = {
+  misleading: 'Misleading details',
+  inappropriate: 'Inappropriate',
+  spam: 'Spam',
+  duplicate: 'Duplicate',
+  other: 'Something else',
+};
 
 function Overview({ onOpen }: { onOpen: (tab: Tab) => void }) {
   const [stats, setStats] = useState<PlatformStats | null>(null);
@@ -42,7 +52,8 @@ function Overview({ onOpen }: { onOpen: (tab: Tab) => void }) {
     { label: 'Public events', value: stats.events.total, icon: <CalendarDays />, hint: 'All time' },
     { label: 'Registrations', value: stats.registrations, icon: <Ticket /> },
     { label: 'Pending requests', value: stats.pendingApplications, icon: <Inbox /> },
-  ];
+        { label: 'Open reports', value: stats.openReports, icon: <Flag /> },
+      ];
 
   return (
     <div className="space-y-6">
@@ -295,11 +306,110 @@ function Applications() {
   );
 }
 
+/** Reports raised by members. Closing one as `reviewed` cancels the event. */
+function Reports() {
+  const [filter, setFilter] = useState<EventReport['status']>('open');
+  const [items, setItems] = useState<EventReport[] | null>(null);
+
+  const load = useCallback(() => {
+    adminApi
+      .reports({ status: filter, limit: 20 })
+      .then((page) => setItems(page.items))
+      .catch((err) => {
+        toast.error(errorMessage(err));
+        setItems([]);
+      });
+  }, [filter]);
+
+  useEffect(load, [load]);
+
+  async function resolve(id: string, status: 'reviewed' | 'dismissed') {
+    try {
+      await adminApi.resolveReport(id, status);
+      toast.success(status === 'reviewed' ? 'Marked reviewed — the event is now cancelled.' : 'Report dismissed.');
+      load();
+    } catch (err) {
+      toast.error(errorMessage(err));
+    }
+  }
+
+  return (
+    <Card className="overflow-hidden">
+      <div className="flex flex-col gap-3 border-b border-border p-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h2 className="font-semibold">Reported events</h2>
+          <p className="mt-0.5 text-xs text-muted">
+            Marking a report reviewed cancels the event and notifies its attendees.
+          </p>
+        </div>
+        <Segmented<EventReport['status']>
+          size="sm"
+          value={filter}
+          onChange={setFilter}
+          options={[
+            { value: 'open', label: 'Open' },
+            { value: 'reviewed', label: 'Reviewed' },
+            { value: 'dismissed', label: 'Dismissed' },
+          ]}
+        />
+      </div>
+
+      {items === null ? (
+        <div className="space-y-2 p-4">
+          {Array.from({ length: 3 }, (_, i) => (
+            <div key={i} className="h-16 animate-pulse rounded-xl bg-surface-muted" />
+          ))}
+        </div>
+      ) : items.length === 0 ? (
+        <p className="px-4 py-12 text-center text-sm text-muted">
+          {filter === 'open' ? 'Nothing reported. 🎉' : 'No reports here.'}
+        </p>
+      ) : (
+        <ul className="divide-y divide-border">
+          {items.map((report) => (
+            <li key={report.id} className="p-4">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2">
+                    <Badge tone={report.status === 'open' ? 'warning' : 'neutral'}>{REPORT_LABELS[report.reason]}</Badge>
+                    <span className="text-xs text-muted">
+                      by {report.reporter?.name ?? 'someone'} · {formatRelative(report.createdAt)}
+                    </span>
+                  </div>
+                  {report.event ? (
+                    <Link href={`/events/${report.event.id}`} className="mt-1.5 block font-medium hover:underline">
+                      {report.event.title}
+                    </Link>
+                  ) : (
+                    <p className="mt-1.5 text-sm text-muted">The event has since been deleted.</p>
+                  )}
+                  {report.details && <p className="mt-1 text-sm text-muted">{report.details}</p>}
+                </div>
+
+                {report.status === 'open' && (
+                  <div className="flex shrink-0 gap-2">
+                    <Button size="sm" variant="ghost" onClick={() => resolve(report.id, 'dismissed')}>
+                      <X /> Dismiss
+                    </Button>
+                    <Button size="sm" variant="secondary" onClick={() => resolve(report.id, 'reviewed')}>
+                      <Check /> Cancel event
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Card>
+  );
+}
+
 export default function AdminConsole() {
   const router = useRouter();
   const params = useSearchParams();
   const requested = params.get('tab') as Tab | null;
-  const tab: Tab = requested === 'users' || requested === 'applications' ? requested : 'overview';
+    const tab: Tab = requested === 'users' || requested === 'applications' || requested === 'reports' ? requested : 'overview';
   const setTab = (next: Tab) => router.replace(next === 'overview' ? '/admin' : `/admin?tab=${next}`, { scroll: false });
 
   return (
@@ -313,11 +423,13 @@ export default function AdminConsole() {
           { value: 'overview', label: 'Overview' },
           { value: 'users', label: 'People' },
           { value: 'applications', label: 'Organizer requests' },
-        ]}
+                  { value: 'reports', label: 'Reports' },
+                ]}
       />
       {tab === 'overview' && <Overview onOpen={setTab} />}
       {tab === 'users' && <People />}
       {tab === 'applications' && <Applications />}
-    </>
-  );
-}
+              {tab === 'reports' && <Reports />}
+            </>
+          );
+        }

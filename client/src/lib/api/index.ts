@@ -5,6 +5,9 @@ import type {
   CategoryValue,
   ChatMessage,
   EventInput,
+  EventRating,
+  EventReport,
+  EventTicket,
   Note,
   NoteTag,
   OrganizerApplication,
@@ -13,9 +16,15 @@ import type {
   Place,
   PageMeta,
   PlatformStats,
+  RegistrationResponse,
   RegistrationStatus,
+  ReportReason,
+  ReportStatus,
   Role,
+  ScanResult,
   Session,
+  StaffMember,
+  StaffRole,
   SyncEvent,
   User,
   UserStatus,
@@ -107,12 +116,20 @@ export const eventsApi = {
   update: (id: string, body: Partial<EventInput>) => data<SyncEvent>(http.patch(`/events/${id}`, body)),
   cancel: (id: string, reason = '') => data<SyncEvent>(http.post(`/events/${id}/cancel`, { reason })),
   remove: (id: string) => http.delete(`/events/${id}`).then(() => undefined),
-  register: (id: string) => data<SyncEvent>(http.post(`/events/${id}/registration`)),
+  register: (id: string) => data<RegistrationResponse>(http.post(`/events/${id}/registration`)),
   unregister: (id: string) => data<SyncEvent>(http.delete(`/events/${id}/registration`)),
   attendees: (id: string, status?: RegistrationStatus) =>
     data<AttendeeList>(http.get(`/events/${id}/attendees`, { params: { status } })),
   setCheckIn: (id: string, userId: string, checkedIn: boolean) =>
     data<{ checkedInAt: string | null }>(http.put(`/events/${id}/attendees/${userId}/check-in`, { checkedIn })),
+    /** The signed code this user shows at the door. Null when not attending. */
+    ticket: (id: string) => data<EventTicket | null>(http.get(`/events/${id}/ticket`)),
+    /** Checks a scanned ticket in. Throws with a friendly message if it is not valid. */
+    scan: (id: string, token: string) => data<ScanResult>(http.post(`/events/${id}/scan`, { token })),
+    ratings: (id: string) => data<EventRating>(http.get(`/events/${id}/ratings`)),
+    rate: (id: string, rating: number) => data<EventRating>(http.put(`/events/${id}/ratings`, { rating })),
+    report: (id: string, body: { reason: ReportReason; details?: string }) =>
+      data<{ id: string; status: ReportStatus }>(http.post(`/reports/${id}/report`, body)),
   messages: (id: string, params: { before?: string; after?: string; limit?: number } = {}) =>
     http
       .get<{ data: ChatMessage[]; meta: { hasMore: boolean } }>(`/events/${id}/messages`, { params })
@@ -176,6 +193,18 @@ export const organizerApi = {
   overview: () => data<OrganizerOverview>(http.get('/organizer/overview')),
 };
 
+// --- Event team (co-organisers) ---------------------------------------------------
+
+export const staffApi = {
+  list: (eventId: string) => data<StaffMember[]>(http.get(`/event-staff/${eventId}/staff`)),
+  invite: (eventId: string, body: { email: string; role: Exclude<StaffRole, 'owner'> }) =>
+    data<StaffMember[]>(http.post(`/event-staff/${eventId}/staff`, body)),
+  setRole: (eventId: string, staffId: string, role: StaffRole) =>
+    data<StaffMember[]>(http.patch(`/event-staff/${eventId}/staff/${staffId}`, { role })),
+  remove: (eventId: string, staffId: string) =>
+    data<StaffMember[]>(http.delete(`/event-staff/${eventId}/staff/${staffId}`)),
+};
+
 // --- Platform admin -------------------------------------------------------------
 
 export const adminApi = {
@@ -189,7 +218,12 @@ export const adminApi = {
     data<OrganizerApplication>(http.post(`/admin/organizer-applications/${id}/approve`, { note })),
   reject: (id: string, note = '') =>
     data<OrganizerApplication>(http.post(`/admin/organizer-applications/${id}/reject`, { note })),
-};
+    reports: (query: { status?: ReportStatus; page?: number; limit?: number } = {}) =>
+      page<EventReport>(http.get('/admin/reports', { params: query })),
+    /** Marking a report `reviewed` also cancels the event it was about. */
+    resolveReport: (id: string, status: Exclude<ReportStatus, 'open'>) =>
+      data<EventReport>(http.patch(`/admin/reports/${id}`, { status })),
+  };
 
 // --- AI assistant -----------------------------------------------------------------
 

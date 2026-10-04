@@ -4,7 +4,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import { AnimatePresence, motion } from 'motion/react';
-import { Bell, CalendarClock, CalendarX2, CheckCheck, Megaphone, PartyPopper, ShieldCheck, ShieldX, RefreshCw } from 'lucide-react';
+import { Bell, CalendarClock, CalendarX2, CheckCheck, Megaphone, PartyPopper, ShieldCheck, ShieldX, RefreshCw, Users } from 'lucide-react';
 import { useAuth, usePolling, useSocketEvent } from '@/context/AuthContext';
 import { notificationsApi, type AppNotification, type NotificationType } from '@/lib/api';
 import { formatRelative } from '@/lib/format';
@@ -22,6 +22,7 @@ const ICONS: Record<NotificationType, React.ComponentType<{ className?: string }
   announcement: Megaphone,
   organizer_approved: ShieldCheck,
   organizer_rejected: ShieldX,
+  staff_invited: Users,
 };
 
 export default function NotificationBell() {
