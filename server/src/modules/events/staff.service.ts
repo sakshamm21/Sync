@@ -6,8 +6,23 @@ import { STAFF_ROLES, NOTIFICATION_TYPES } from '../../constants';
 
 const STAFF_FIELDS = 'name avatarUrl organization role';
 
-/** Everyone who can help run an event, with their role on it. */
+/**
+ * Everyone who can help run an event, with their role on it.
+ *
+ * The creator is always listed first. Events created before shared ownership
+ * existed have no `EventStaff` row for them, so one is written on first read
+ * rather than showing the organiser an empty team for their own event.
+ */
 export async function listStaff(eventId: string) {
+  const event = await Event.findById(eventId).select('owner');
+  if (!event) return [];
+
+  await EventStaff.updateOne(
+    { event: eventId, user: event.owner },
+    { $setOnInsert: { role: STAFF_ROLES.OWNER, invitedBy: null } },
+    { upsert: true }
+  );
+
   const rows = await EventStaff.find({ event: eventId })
     .sort({ createdAt: 1 })
     .populate('user', STAFF_FIELDS)

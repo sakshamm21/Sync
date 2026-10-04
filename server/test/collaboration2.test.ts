@@ -30,17 +30,21 @@ describe('shared event ownership', () => {
       .send({ email: helper.user.email, role: 'manager' })
       .expect(201);
 
-    assert.equal(invited.body.data.length, 1);
-    assert.equal(invited.body.data[0].role, 'manager');
+      // The team is the creator plus the invitee.
+      assert.equal(invited.body.data.length, 2);
+      assert.deepEqual(
+        invited.body.data.map((m: { role: string }) => m.role).sort(),
+        ['manager', 'owner']
+      );
 
-    // They can now change it, and the owner is unaffected.
-    const edited = await api()
-      .patch(`/api/events/${event.id}`)
-      .set(helper.auth)
-      .send({ title: 'Robotics Workshop (rescheduled)' })
-      .expect(200);
-    assert.equal(edited.body.data.title, 'Robotics Workshop (rescheduled)');
-  });
+      // They can now change it, and the owner is unaffected.
+      const edited = await api()
+        .patch(`/api/events/${event.id}`)
+        .set(helper.auth)
+        .send({ title: 'Robotics Workshop (rescheduled)' })
+        .expect(200);
+      assert.equal(edited.body.data.title, 'Robotics Workshop (rescheduled)');
+    });
 
   it('gives check-in staff the door but not edit rights', async () => {
     const owner = await createUser({ role: 'organizer' });
@@ -98,7 +102,10 @@ describe('shared event ownership', () => {
       await api().post(`/api/event-staff/${event.id}/staff`).set(owner.auth).send({ email: helper.user.email, role: 'manager' }).expect(201);
       await api().post(`/api/event-staff/${event.id}/staff`).set(owner.auth).send({ email: helper.user.email, role: 'checkin' }).expect(400);
 
-      const ownerRow = await EventStaff.create({ event: event.id, user: owner.user.id, role: 'owner' });
+      // The owner's own row cannot be removed either.
+      const team = await api().get(`/api/event-staff/${event.id}/staff`).set(owner.auth).expect(200);
+      const ownerRow = team.body.data.find((m: { role: string }) => m.role === 'owner');
+      assert.ok(ownerRow, 'the owner is on the team');
       await api().delete(`/api/event-staff/${event.id}/staff/${ownerRow.id}`).set(owner.auth).expect(400);
     });
 
@@ -387,7 +394,29 @@ describe('events created before shared ownership', () => {
 
     await api().patch(`/api/events/${id}`).set(owner.auth).send({ title: 'Still mine' }).expect(200);
   });
-});
+
+    it('lists the creator on the team of a legacy event', async () => {
+      const owner = await legacyEvent();
+      const list = await api().get('/api/organizer/overview').set(owner.auth).expect(200);
+      const id = list.body.data.events[0].id;
+
+      // No EventStaff row exists yet, but the organiser must still see themselves.
+      const team = await api().get(`/api/event-staff/${id}/staff`).set(owner.auth).expect(200);
+      assert.equal(team.body.data.length, 1);
+      assert.equal(team.body.data[0].role, 'owner');
+      assert.equal(team.body.data[0].user.name, owner.user.name);
+
+      // Adding someone keeps the creator on the list.
+      const helper = await createUser({ role: 'organizer' });
+      const after = await api()
+        .post(`/api/event-staff/${id}/staff`)
+        .set(owner.auth)
+        .send({ email: helper.user.email, role: 'checkin' })
+        .expect(201);
+      assert.equal(after.body.data.length, 2);
+      assert.ok(after.body.data.some((m: { role: string }) => m.role === 'owner'));
+    });
+  });
 
 describe('email outbox', () => {
   it('queues instead of sending, and never blocks the caller', async () => {
