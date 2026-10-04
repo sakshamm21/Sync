@@ -12,6 +12,8 @@ import { connectDatabase, disconnectDatabase } from '../src/config/db';
 import * as models from '../src/models';
 import * as events from '../src/modules/events/events.service';
 import * as registrations from '../src/modules/events/registrations.service';
+import * as staff from '../src/modules/events/staff.service';
+import * as ratings from '../src/modules/events/ratings.service';
 import * as chat from '../src/modules/chat/chat.service';
 import * as organizer from '../src/modules/organizer/organizer.service';
 import * as admin from '../src/modules/admin/admin.service';
@@ -93,11 +95,21 @@ async function seed() {
 
     for (const key of spec.leaves ?? []) await registrations.unregister(user(key), created.id);
 
+    // The committee that helps run this event alongside its creator.
+    for (const member of spec.staff ?? []) {
+      await staff.invite(owner, created.id, { email: user(member.user).email, role: member.role });
+    }
+
     for (const message of spec.messages ?? []) {
       await chat.postMessage(user(message.from), created.id, { text: message.text, announcement: Boolean(message.announcement) });
     }
 
     if (spec.cancelledReason) await events.cancel(owner, created.id, { reason: spec.cancelledReason });
+
+    // Ratings only work once the event is over, so they go last.
+    for (const entry of spec.ratings ?? []) {
+      await ratings.rate(user(entry.user), created.id, entry.rating);
+    }
   }
 
   await models.Note.insertMany(

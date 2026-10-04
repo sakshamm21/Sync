@@ -1,5 +1,5 @@
 import type { FilterQuery } from 'mongoose';
-import { User, Event, Registration, OrganizerApplication, type IOrganizerApplication, type IUser, type UserDocument } from '../../models';
+import { User, Event, Registration, OrganizerApplication, Report, type IOrganizerApplication, type IUser, type UserDocument } from '../../models';
 import { badRequest, notFound, conflict } from '../../lib/errors';
 import { escapeRegex, paginationMeta, type Page } from '../../lib/schemas';
 import * as notifications from '../notifications/notifications.service';
@@ -9,6 +9,7 @@ import {
   EVENT_VISIBILITY,
   EVENT_STATUS,
   ORGANIZER_APPLICATION_STATUS,
+  REPORT_STATUS,
   NOTIFICATION_TYPES,
   type OrganizerApplicationStatus,
   type Role,
@@ -18,13 +19,14 @@ import {
 export async function stats() {
   const now = new Date();
   const publicEvents = { visibility: EVENT_VISIBILITY.PUBLIC };
-  const [usersByRole, suspended, upcomingEvents, totalEvents, registrations, pendingApplications] = await Promise.all([
+  const [usersByRole, suspended, upcomingEvents, totalEvents, registrations, pendingApplications, openReports] = await Promise.all([
     User.aggregate<{ _id: Role; count: number }>([{ $group: { _id: '$role', count: { $sum: 1 } } }]),
     User.countDocuments({ status: USER_STATUS.SUSPENDED }),
     Event.countDocuments({ ...publicEvents, status: EVENT_STATUS.PUBLISHED, endsAt: { $gte: now } }),
     Event.countDocuments(publicEvents),
     Registration.countDocuments(),
     OrganizerApplication.countDocuments({ status: ORGANIZER_APPLICATION_STATUS.PENDING }),
+    Report.countDocuments({ status: REPORT_STATUS.OPEN }),
   ]);
 
   const roles = Object.fromEntries(Object.values(ROLES).map((r) => [r, 0])) as Record<Role, number>;
@@ -35,6 +37,7 @@ export async function stats() {
     events: { total: totalEvents, upcoming: upcomingEvents },
     registrations,
     pendingApplications,
+    openReports,
   };
 }
 

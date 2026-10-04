@@ -25,7 +25,8 @@ export function latestApplication(user: UserDocument) {
 
 /** Headline numbers and per-event registration counts for the organiser dashboard. */
 export async function overview(user: UserDocument) {
-  const events = await Event.find({ owner: user._id, visibility: EVENT_VISIBILITY.PUBLIC })
+  // Events the user created *or* was invited to help run.
+  const events = await Event.find({ organizers: user._id, visibility: EVENT_VISIBILITY.PUBLIC })
     .sort({ startsAt: -1 })
     .populate('owner', OWNER_FIELDS);
 

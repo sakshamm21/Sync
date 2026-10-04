@@ -1,16 +1,16 @@
 import type { FilterQuery, SortOrder, Types } from 'mongoose';
-import { Event, Registration, Message, Note, type EventDocument, type IEvent, type UserDocument } from '../../models';
+import { Event, Registration, Message, Note, EventStaff, Report, Rating, type EventDocument, type IEvent, type UserDocument } from '../../models';
 import env from '../../config/env';
 import { forbidden, badRequest } from '../../lib/errors';
 import { paginationMeta, escapeRegex } from '../../lib/schemas';
 import { buildEventCalendar } from '../../lib/ics';
 import * as notifications from '../notifications/notifications.service';
-import { fillFromWaitlist } from './registrations.service';
+import { fillFromWaitlist } from './waitlist.service';
 import {
   OWNER_FIELDS,
   canPublishPublicEvents,
   findViewableEvent,
-  findManageableEvent,
+  loadEvent,
   withViewerContext,
   present,
   type Viewer,
@@ -55,21 +55,23 @@ export async function listPublic(viewer: Viewer, { q, category, organizer, from,
 
 /** Upcoming public events matching the user's interests that they haven't joined yet. */
 export async function recommendedFor(user: UserDocument, limit = 6) {
-  const joined: Types.ObjectId[] = await Registration.find({ user: user.id }).distinct('event');
+  const joined: (string | Types.ObjectId)[] = await Registration.find({ user: user.id }).distinct('event');
   const filter: FilterQuery<IEvent> = { ...publicListing(), startsAt: { $gte: new Date() }, owner: { $ne: user._id } };
-  const byPopularity = { attendeeCount: -1, startsAt: 1 } as const;
+  // Well-rated events outrank merely popular ones, so a club cannot hold the
+  // top slot forever on attendance alone.
+  const byQuality = { ratingSum: -1, ratingCount: -1, attendeeCount: -1, startsAt: 1 } as const;
 
   let events: EventDocument[] = [];
   if (user.interests?.length) {
     events = await Event.find({ ...filter, _id: { $nin: joined }, category: { $in: user.interests } })
-      .sort(byPopularity)
+      .sort(byQuality)
       .limit(limit)
       .populate('owner', OWNER_FIELDS);
   }
-  // Top up with popular events so new users without interests still get suggestions.
+  // Top up with other popular events so new users without interests still get suggestions.
   if (events.length < limit) {
     const more = await Event.find({ ...filter, _id: { $nin: [...joined, ...events.map((e) => e._id)] } })
-      .sort(byPopularity)
+      .sort(byQuality)
       .limit(limit - events.length)
       .populate('owner', OWNER_FIELDS);
     events = events.concat(more);
@@ -122,7 +124,11 @@ export async function calendarFor(user: UserDocument, { from, to }: CalendarRang
     startsAt: { $lt: to },
     endsAt: { $gt: from },
     status: { $ne: EVENT_STATUS.DRAFT },
-    $or: [{ owner: user._id }, { _id: { $in: registeredIds }, visibility: EVENT_VISIBILITY.PUBLIC }],
+    $or: [
+      // Events the user created or helps run, including their own private plans.
+      { organizers: user._id },
+      { _id: { $in: registeredIds }, visibility: EVENT_VISIBILITY.PUBLIC },
+    ],
   })
     .sort({ startsAt: 1 })
     .populate('owner', OWNER_FIELDS);
@@ -148,6 +154,8 @@ export async function create(user: UserDocument, input: CreateEventInput) {
     status: isPublic ? input.status ?? EVENT_STATUS.PUBLISHED : EVENT_STATUS.PUBLISHED,
     capacity: isPublic ? input.capacity ?? null : null,
     owner: user._id,
+    // The creator is always in `organizers` so co-ownership needs no special case.
+    organizers: [user._id],
   });
   await event.populate('owner', OWNER_FIELDS);
   return present(event, user);
@@ -157,7 +165,8 @@ const logisticsSnapshot = (event: EventDocument) =>
   JSON.stringify([event.startsAt, event.endsAt, event.venue, event.onlineUrl]);
 
 export async function update(user: UserDocument, id: string, changes: UpdateEventInput) {
-  const event = await findManageableEvent(user, id);
+  const { event, access } = await loadEvent(user, id);
+  if (!access.canManage) throw forbidden('Only the organiser can change this event');
   if (event.status === EVENT_STATUS.CANCELLED) throw badRequest('Cancelled events cannot be edited');
 
   if (changes.visibility && changes.visibility !== event.visibility) {
@@ -193,7 +202,8 @@ export async function update(user: UserDocument, id: string, changes: UpdateEven
 }
 
 export async function cancel(user: UserDocument, id: string, { reason }: { reason: string }) {
-  const event = await findManageableEvent(user, id);
+  const { event, access } = await loadEvent(user, id);
+  if (!access.canManage) throw forbidden('Only the organiser can cancel this event');
   if (event.visibility !== EVENT_VISIBILITY.PUBLIC) {
     throw badRequest('Only public events can be cancelled. Delete personal events instead.');
   }
@@ -210,7 +220,8 @@ export async function cancel(user: UserDocument, id: string, { reason }: { reaso
 }
 
 export async function remove(user: UserDocument, id: string): Promise<void> {
-  const event = await findManageableEvent(user, id);
+  const { event, access } = await loadEvent(user, id);
+  if (!access.canManage) throw forbidden('Only the organiser can delete this event');
 
   if (event.visibility === EVENT_VISIBILITY.PUBLIC && event.status === EVENT_STATUS.PUBLISHED && !event.isPast) {
     await notifyAttendees(event, {
@@ -223,6 +234,9 @@ export async function remove(user: UserDocument, id: string): Promise<void> {
   await Promise.all([
     Registration.deleteMany({ event: event._id }),
     Message.deleteMany({ event: event._id }),
+    EventStaff.deleteMany({ event: event._id }),
+    Report.deleteMany({ event: event._id }),
+    Rating.deleteMany({ event: event._id }),
     Note.updateMany({ event: event._id }, { $set: { event: null } }),
   ]);
   await event.deleteOne();

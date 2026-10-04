@@ -1,63 +1,34 @@
 import type { FilterQuery, Types } from 'mongoose';
-import { Event, Registration, type EventDocument, type IEvent, type UserDocument } from '../../models';
-import { badRequest, notFound } from '../../lib/errors';
-import * as notifications from '../notifications/notifications.service';
-import { findViewableEvent, findManageableEvent, present, withViewerContext, OWNER_FIELDS } from './events.policy';
-import { REGISTRATION_STATUS, NOTIFICATION_TYPES, type RegistrationStatus } from '../../constants';
+import { Event, Registration, type IEvent, type UserDocument } from '../../models';
+import { badRequest, forbidden, notFound } from '../../lib/errors';
+import { fillFromWaitlist, clashesWith, type Clash } from './waitlist.service';
+import { claimSeat, releaseSeat } from './seats';
+import { loadEvent, withViewerContext, present, OWNER_FIELDS, type PresentedEvent } from './events.policy';
+import { EVENT_STATUS, REGISTRATION_STATUS, type RegistrationStatus } from '../../constants';
 
 type AttendeeUser = Pick<UserDocument, 'id' | 'name' | 'email' | 'avatarUrl'>;
 
 /**
- * Atomically takes a seat if one is free. Two people can never get the last
- * seat because the capacity check and the increment are a single update.
+ * The presented event plus any clash with the user's own plans. The event
+ * stays at the top level so existing callers keep working unchanged.
  */
-async function claimSeat(eventId: Types.ObjectId): Promise<boolean> {
-  const claimed = await Event.updateOne(
-    { _id: eventId, $or: [{ capacity: null }, { $expr: { $lt: ['$attendeeCount', '$capacity'] } }] },
-    { $inc: { attendeeCount: 1 } }
-  );
-  return claimed.modifiedCount === 1;
+export interface RegistrationResult {
+  event: PresentedEvent;
+  status: RegistrationStatus;
+  /** Confirmed events already on the user's calendar that overlap this one. */
+  clashes: Clash[];
 }
 
-const releaseSeat = (eventId: Types.ObjectId) =>
-  Event.updateOne({ _id: eventId, attendeeCount: { $gt: 0 } }, { $inc: { attendeeCount: -1 } });
+/** The API shape for RSVP: the event itself, with `clashes` hung off it. */
+export type RegistrationResponse = PresentedEvent & { clashes: Clash[] };
 
-/** Moves people off the waitlist, first come first served, while seats are free. */
-export async function fillFromWaitlist(event: EventDocument): Promise<Types.ObjectId[]> {
-  if (!event.isOpenForRegistration()) return [];
-  const promoted: Types.ObjectId[] = [];
-
-  while (await Registration.exists({ event: event._id, status: REGISTRATION_STATUS.WAITLISTED })) {
-    if (!(await claimSeat(event._id))) break;
-    const next = await Registration.findOneAndUpdate(
-      { event: event._id, status: REGISTRATION_STATUS.WAITLISTED },
-      { $set: { status: REGISTRATION_STATUS.GOING } },
-      { sort: { createdAt: 1 }, new: true }
-    );
-    if (!next) {
-      await releaseSeat(event._id);
-      break;
-    }
-    promoted.push(next.user);
-  }
-
-  await notifications.notify(
-    promoted,
-    {
-      type: NOTIFICATION_TYPES.WAITLIST_PROMOTED,
-      title: `You're in: ${event.title}`,
-      body: 'A spot opened up and you have been moved off the waitlist.',
-      eventId: event._id,
-    },
-    { email: true }
-  );
-  return promoted;
-}
-
-export async function register(user: UserDocument, eventId: string) {
-  const event = await findViewableEvent(user, eventId);
+export async function register(user: UserDocument, eventId: string): Promise<RegistrationResponse> {
+  const { event } = await loadEvent(user, eventId);
   if (!event.isOpenForRegistration()) throw badRequest('Registration is closed for this event', 'REGISTRATION_CLOSED');
-  if (event.isOwnedBy(user.id)) throw badRequest('You are organising this event', 'OWN_EVENT');
+  if (event.isCoOrganizer(user.id)) throw badRequest('You are organising this event', 'OWN_EVENT');
+
+  // Checked before claiming so the user sees the clash without a seat waitlisting first.
+  const clashes = await clashesWith(user, event);
 
   const existing = await Registration.findOne({ event: event._id, user: user.id });
   if (!existing) {
@@ -75,24 +46,35 @@ export async function register(user: UserDocument, eventId: string) {
     }
   }
 
-  return present(await findViewableEvent(user, eventId), user);
-}
+  // Re-read the event so the caller sees the seat count after their own change.
+    const fresh = await loadEvent(user, eventId);
+    return { ...(await present(fresh.event, user)), clashes };
+  }
 
 export async function unregister(user: UserDocument, eventId: string) {
-  const event = await findViewableEvent(user, eventId);
+  const { event } = await loadEvent(user, eventId);
   const registration = await Registration.findOneAndDelete({ event: event._id, user: user.id });
   if (!registration) throw notFound('You are not registered for this event', 'NOT_REGISTERED');
 
   if (registration.status === REGISTRATION_STATUS.GOING) {
     await releaseSeat(event._id);
-    await fillFromWaitlist(event);
+    // Promoting people off the waitlist queues their emails, but it still
+    // touches several documents; keep it off the request path entirely.
+    void fillFromWaitlist(event).catch(() => {
+      // The outbox drainer and the recount job are the safety net.
+    });
   }
-  return present(await findViewableEvent(user, eventId), user);
+  const fresh = await loadEvent(user, eventId);
+  return present(fresh.event, user);
 }
 
-/** Attendee list for the organiser, including contact email for check-in. */
+/**
+ * The attendee list. Requires management rights rather than door rights: it
+ * contains everyone's email address, so check-in staff do not get it.
+ */
 export async function listForEvent(user: UserDocument, eventId: string, { status }: { status?: RegistrationStatus }) {
-  const event = await findManageableEvent(user, eventId);
+  const { event, access } = await loadEvent(user, eventId);
+  if (!access.canManage) throw forbidden('Only the organiser can see the attendee list');
   const registrations = await Registration.find({ event: event._id, ...(status ? { status } : {}) })
     .sort({ status: 1, createdAt: 1 })
     .populate<{ user: AttendeeUser | null }>('user', 'name email avatarUrl');
@@ -113,8 +95,10 @@ export async function listForEvent(user: UserDocument, eventId: string, { status
   return { items, counts };
 }
 
+/** Requires door rights rather than full management rights. */
 export async function setCheckIn(user: UserDocument, eventId: string, attendeeId: string, checkedIn: boolean) {
-  const event = await findManageableEvent(user, eventId);
+  const { event, access } = await loadEvent(user, eventId);
+  if (!access.canCheckIn) throw forbidden('You cannot check people in for this event');
   const registration = await Registration.findOne({ event: event._id, user: attendeeId });
   if (!registration) throw notFound('This person is not registered for the event');
   if (registration.status !== REGISTRATION_STATUS.GOING) throw badRequest('Waitlisted attendees cannot be checked in');
@@ -129,7 +113,8 @@ export async function listForUser(user: UserDocument, { upcomingOnly }: { upcomi
   const registrations = await Registration.find({ user: user.id }).select('event');
   const filter: FilterQuery<IEvent> = { _id: { $in: registrations.map((r) => r.event) } };
   if (upcomingOnly) filter.endsAt = { $gte: new Date() };
+  filter.status = { $ne: EVENT_STATUS.DRAFT };
 
   const events = await Event.find(filter).sort({ startsAt: upcomingOnly ? 1 : -1 }).populate('owner', OWNER_FIELDS);
-  return withViewerContext(events, user);
-}
+    return withViewerContext(events, user);
+  }

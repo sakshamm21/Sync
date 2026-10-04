@@ -37,6 +37,17 @@ export const REGISTRATION_STATUS = Object.freeze({
 } as const);
 export type RegistrationStatus = ValueOf<typeof REGISTRATION_STATUS>;
 
+/**
+ * What a co-organiser may do with an event. `owner` is the primary contact
+ * who created it; `manager` can do everything; `checkin` can only work the door.
+ */
+export const STAFF_ROLES = Object.freeze({
+  OWNER: 'owner',
+  MANAGER: 'manager',
+  CHECKIN: 'checkin',
+} as const);
+export type StaffRole = ValueOf<typeof STAFF_ROLES>;
+
 export const NOTE_TAGS = Object.freeze(['plan', 'speaker', 'logistics', 'ideas', 'personal'] as const);
 export type NoteTag = (typeof NOTE_TAGS)[number];
 
@@ -55,5 +66,26 @@ export const NOTIFICATION_TYPES = Object.freeze({
   ANNOUNCEMENT: 'announcement',
   ORGANIZER_APPROVED: 'organizer_approved',
   ORGANIZER_REJECTED: 'organizer_rejected',
+  STAFF_INVITED: 'staff_invited',
 } as const);
 export type NotificationType = ValueOf<typeof NOTIFICATION_TYPES>;
+
+/** Why someone reported an event. Drives what the admin reviews first. */
+export const REPORT_REASONS = Object.freeze({
+  MISLEADING: 'misleading',
+  INAPPROPRIATE: 'inappropriate',
+  SPAM: 'spam',
+  DUPLICATE: 'duplicate',
+  OTHER: 'other',
+} as const);
+export type ReportReason = ValueOf<typeof REPORT_REASONS>;
+
+export const REPORT_STATUS = Object.freeze({
+  OPEN: 'open',
+  REVIEWED: 'reviewed',
+  DISMISSED: 'dismissed',
+} as const);
+export type ReportStatus = ValueOf<typeof REPORT_STATUS>;
+
+/** The 1-5 star rating a checked-in attendee leaves after an event. */
+export const MAX_RATING = 5;

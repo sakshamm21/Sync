@@ -2,10 +2,13 @@ import { Router } from 'express';
 import { authenticate, currentUser, optionalAuth } from '../../middleware/auth';
 import validate from '../../middleware/validate';
 import { z, idParams } from '../../lib/schemas';
-import { REGISTRATION_STATUS } from '../../constants';
+import { REGISTRATION_STATUS, MAX_RATING } from '../../constants';
 import * as schemas from './events.schemas';
 import * as events from './events.service';
 import * as registrations from './registrations.service';
+import * as staff from './staff.service';
+import * as ratings from './ratings.service';
+import * as checkin from './checkin.service';
 import * as chat from '../chat/chat.service';
 
 const router = Router();
@@ -79,6 +82,39 @@ router.put(
   validate({ params: schemas.registrationParams, body: schemas.checkIn }, async (req, res) => {
     const { id, userId } = req.params;
     res.json({ data: await registrations.setCheckIn(currentUser(req), id, userId, req.body.checkedIn) });
+  })
+);
+
+// --- Ratings ---------------------------------------------------------------
+
+router.get('/:id/ratings', authenticate, validate({ params: idParams }, async (req, res) => {
+  res.json({ data: await ratings.summaryFor(currentUser(req), req.params.id) });
+}));
+
+const ratingBody = z.object({ rating: z.number().int().min(1).max(MAX_RATING) });
+
+router.put(
+  '/:id/ratings',
+  authenticate,
+  validate({ params: idParams, body: ratingBody }, async (req, res) => {
+    res.json({ data: await ratings.rate(currentUser(req), req.params.id, req.body.rating) });
+  })
+);
+
+// --- Door check-in by QR ---------------------------------------------------
+
+router.get('/:id/ticket', authenticate, validate({ params: idParams }, async (req, res) => {
+  const ticket = await checkin.ticketFor(currentUser(req), req.params.id);
+  res.json({ data: ticket });
+}));
+
+const scanBody = z.object({ token: z.string().trim().min(1, 'Scan a ticket code') });
+
+router.post(
+  '/:id/scan',
+  authenticate,
+  validate({ params: idParams, body: scanBody }, async (req, res) => {
+    res.json({ data: await checkin.checkInByTicket(currentUser(req), req.params.id, req.body.token) });
   })
 );
 

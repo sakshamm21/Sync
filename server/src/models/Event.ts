@@ -28,22 +28,32 @@ export interface IEvent {
   onlineUrl: string;
   visibility: EventVisibility;
   status: EventStatus;
+  /** The primary contact: who created it, and who to ask. */
   owner: Types.ObjectId;
+  /** Everyone who can help run it. Always contains `owner`. */
+  organizers: Types.ObjectId[];
   // Registration (public events only). `capacity: null` means unlimited.
   capacity: number | null;
   attendeeCount: number;
+  /** Sum and number of post-event ratings, kept in step with the Rating collection. */
+  ratingSum: number;
+  ratingCount: number;
   createdAt: Date;
   updatedAt: Date;
 }
 
 interface EventMethods {
   isOwnedBy(userId: unknown): boolean;
+  /** True for the creator and for anyone invited to help run the event. */
+  isCoOrganizer(userId: unknown): boolean;
   isOpenForRegistration(): boolean;
 }
 
 interface EventVirtuals {
   spotsLeft: number | null;
   isPast: boolean;
+  /** Average rating out of 5, or null when nobody has rated it. */
+  averageRating: number | null;
 }
 
 type EventModel = Model<IEvent, {}, EventMethods, EventVirtuals>;
@@ -75,14 +85,19 @@ const eventSchema = new Schema<IEvent, EventModel, EventMethods, {}, EventVirtua
     visibility: { type: String, enum: Object.values(EVENT_VISIBILITY), required: true },
     status: { type: String, enum: Object.values(EVENT_STATUS), default: EVENT_STATUS.PUBLISHED },
     owner: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
+    organizers: [{ type: Schema.Types.ObjectId, ref: 'User', index: true }],
 
     capacity: { type: Number, min: 1, default: null },
     attendeeCount: { type: Number, min: 0, default: 0 },
+    ratingSum: { type: Number, min: 0, default: 0 },
+    ratingCount: { type: Number, min: 0, default: 0 },
   },
   { timestamps: true }
 );
 
 eventSchema.index({ visibility: 1, status: 1, startsAt: 1 });
+// Drives the organiser console and "events I help run".
+eventSchema.index({ organizers: 1, startsAt: -1 });
 
 eventSchema.virtual('spotsLeft').get(function spotsLeft() {
   if (this.capacity == null) return null;
@@ -93,11 +108,21 @@ eventSchema.virtual('isPast').get(function isPast() {
   return this.endsAt < new Date();
 });
 
+eventSchema.virtual('averageRating').get(function averageRating() {
+  return this.ratingCount > 0 ? Math.round((this.ratingSum / this.ratingCount) * 10) / 10 : null;
+});
+
 eventSchema.method('isOwnedBy', function isOwnedBy(userId: unknown) {
   // `owner` is an ObjectId, or a user document once populated.
   const owner = this.owner as Types.ObjectId | { _id: Types.ObjectId };
   const ownerId = '_id' in owner ? owner._id : owner;
   return String(ownerId) === String(userId);
+});
+
+/** True for anyone in `organizers`, which always contains the owner. */
+eventSchema.method('isCoOrganizer', function isCoOrganizer(userId: unknown) {
+  if (!userId) return false;
+  return this.organizers.some((id) => String(id) === String(userId));
 });
 
 eventSchema.method('isOpenForRegistration', function isOpenForRegistration() {

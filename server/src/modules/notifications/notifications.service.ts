@@ -3,7 +3,7 @@ import { Notification, User, type UserDocument } from '../../models';
 import env from '../../config/env';
 import { notFound } from '../../lib/errors';
 import { emitToUser } from '../../lib/realtime';
-import { sendMail } from '../../lib/mailer';
+import { queueMail } from '../../jobs/outbox';
 import * as emails from '../../lib/emailTemplates';
 import { paginationMeta, type Page } from '../../lib/schemas';
 import type { NotificationType } from '../../constants';
@@ -19,7 +19,11 @@ export interface NotificationInput {
 
 /**
  * Creates an in-app notification for each user, pushes it over the socket,
- * and (when `email` is set) emails users who opted in to email updates.
+ * and (when `email` is set) queues an email for users who opted in.
+ *
+ * The email is queued rather than sent, so a burst of notifications — a
+ * cancelled event with 200 attendees, say — returns immediately instead of
+ * holding the request open for 200 SMTP round trips.
  */
 export async function notify(
   userIds: Id[],
@@ -37,9 +41,9 @@ export async function notify(
   if (!email) return;
   const users = await User.find({ _id: { $in: recipients }, 'preferences.emailNotifications': true }).select('name email');
   const url = eventId ? `${env.clientUrl}/events/${eventId}` : env.clientUrl;
-  await Promise.all(
-    users.map((u) => sendMail({ to: u.email, ...emails.notification({ name: u.name, title, body, url }) }))
-  );
+  for (const u of users) {
+    await queueMail({ to: u.email, ...emails.notification({ name: u.name, title, body, url }) });
+  }
 }
 
 export async function list(user: UserDocument, { unreadOnly, page, limit }: Page & { unreadOnly: boolean }) {

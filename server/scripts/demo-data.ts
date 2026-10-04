@@ -55,6 +55,10 @@ export interface DemoEvent {
   leaves?: string[];
   /** Past events only: attendees who were checked in at the door. */
   checkedIn?: string[];
+  /** People invited to help run this event, as `key` + their staff role. */
+  staff?: { user: string; role: 'manager' | 'checkin' }[];
+  /** Past events only: 1-5 stars from the people who attended. */
+  ratings?: { user: string; rating: number }[];
   messages?: { from: string; text: string; announcement?: boolean }[];
   /** Cancel after registrations, with this message to attendees. */
   cancelledReason?: string;
@@ -308,6 +312,15 @@ export const events: DemoEvent[] = [
     venue: { name: 'Library Seminar Hall', address: IITK, latitude: 26.5117, longitude: 80.2307 },
     attendees: ['member', 'rahul', 'priya'],
     checkedIn: ['member', 'priya'],
+    // A committee of three, not one person: Asha can edit, Rahul works the door.
+    staff: [
+      { user: 'asha', role: 'manager' },
+      { user: 'rahul', role: 'checkin' },
+    ],
+    ratings: [
+      { user: 'member', rating: 5 },
+      { user: 'priya', rating: 4 },
+    ],
   },
 
   // --- Cultural Affairs Council --------------------------------------------
@@ -323,6 +336,7 @@ export const events: DemoEvent[] = [
     ends: { day: 10, hour: 23 },
     venue: { name: 'Open Air Theatre', address: IITK, latitude: 26.5091, longitude: 80.2297 },
     attendees: ['asha', 'member', 'ishaan'],
+    staff: [{ user: 'priya', role: 'manager' }],
   },
   {
     key: 'movie-night',

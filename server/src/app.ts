@@ -17,6 +17,8 @@ import notificationsRoutes from './modules/notifications/notifications.routes';
 import organizerRoutes from './modules/organizer/organizer.routes';
 import adminRoutes from './modules/admin/admin.routes';
 import assistantRoutes from './modules/assistant/assistant.routes';
+import staffRoutes from './modules/events/staff.routes';
+import reportsRoutes from './modules/reports/reports.routes';
 
 export function createApp(): Express {
   const app = express();
@@ -50,6 +52,8 @@ export function createApp(): Express {
   app.use('/api/auth', authRoutes);
   app.use('/api/me', meRoutes);
   app.use('/api/events', eventsRoutes);
+  app.use('/api/event-staff', staffRoutes);
+  app.use('/api/reports', reportsRoutes);
   app.use('/api/notes', notesRoutes);
   app.use('/api/places', placesRoutes);
   app.use('/api/notifications', notificationsRoutes);

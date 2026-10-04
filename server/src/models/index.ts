@@ -5,3 +5,7 @@ export { Note, type INote, type NoteDocument } from './Note';
 export { Message, type IMessage, type MessageDocument } from './Message';
 export { Notification, type INotification, type NotificationDocument } from './Notification';
 export { OrganizerApplication, type IOrganizerApplication, type OrganizerApplicationDocument } from './OrganizerApplication';
+export { EventStaff, type IEventStaff, type EventStaffDocument } from './EventStaff';
+export { Report, type IReport, type ReportDocument } from './Report';
+export { Rating, type IRating, type RatingDocument } from './Rating';
+export { OutboxEmail, type IOutboxEmail, type OutboxEmailDocument } from './OutboxEmail';

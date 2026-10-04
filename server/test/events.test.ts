@@ -22,7 +22,12 @@ describe('creating events', () => {
     assert.equal(event.capacity, 50);
     assert.equal(event.spotsLeft, 50);
     assert.equal(event.owner.organization, 'Tech Society');
-    assert.deepEqual(event.viewer, { isOwner: true, canManage: true, canChat: true, registration: null });
+    assert.equal(event.viewer.isOwner, true);
+    assert.equal(event.viewer.isOrganizer, true);
+    assert.equal(event.viewer.canManage, true);
+    assert.equal(event.viewer.canChat, true);
+    assert.equal(event.viewer.staffRole, 'owner');
+    assert.equal(event.viewer.registration, null);
   });
 
   it('makes member events private personal entries', async () => {

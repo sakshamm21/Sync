@@ -5,6 +5,8 @@ import { connectDatabase, disconnectDatabase } from './config/db';
 import { createApp } from './app';
 import { createSocketServer } from './sockets';
 import { startEventReminders } from './jobs/eventReminders';
+import { startOutboxDrainer } from './jobs/outbox';
+import { startMaintenanceJobs } from './jobs/maintenance';
 
 export async function start(): Promise<void> {
   if (env.usingDevJwtSecret) logger.warn('JWT_SECRET is not set — using an insecure development secret');
@@ -23,7 +25,14 @@ export async function start(): Promise<void> {
 
   const httpServer = http.createServer(createApp());
   const io = createSocketServer(httpServer);
-  const stopJobs = env.enableJobs ? startEventReminders() : () => {};
+    // On a long-running host these timers do the work; on serverless the same
+    // functions run from the cron endpoints in modules/jobs.
+    const stopJobs: Array<() => void> = env.enableJobs
+      ? [startEventReminders(), startOutboxDrainer(), startMaintenanceJobs()]
+      : [];
+    const stopAllJobs = () => {
+      for (const stop of stopJobs) stop();
+    };
 
   httpServer.listen(env.port, () => {
     logger.info(`Syncronify API listening on http://localhost:${env.port}`);
@@ -31,7 +40,7 @@ export async function start(): Promise<void> {
 
   const shutdown = (signal: NodeJS.Signals) => {
     logger.info({ signal }, 'Shutting down');
-    stopJobs();
+      stopAllJobs();
     void io.close();
     httpServer.close(async () => {
       await disconnectDatabase();

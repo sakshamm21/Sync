@@ -2,8 +2,9 @@ import { Router } from 'express';
 import { authenticate, currentUser, requireRole } from '../../middleware/auth';
 import validate from '../../middleware/validate';
 import { z, idParams, pagination } from '../../lib/schemas';
-import { ROLES, USER_STATUS, ORGANIZER_APPLICATION_STATUS } from '../../constants';
+import { ROLES, USER_STATUS, ORGANIZER_APPLICATION_STATUS, REPORT_STATUS } from '../../constants';
 import * as service from './admin.service';
+import * as reports from '../reports/reports.service';
 
 const router = Router();
 router.use(authenticate, requireRole(ROLES.ADMIN));
@@ -29,9 +30,25 @@ const applicationsQuery = z.object({
 
 const reviewBody = z.object({ note: z.string().trim().max(500).default('') });
 
+const reportsQuery = z.object({
+  status: z.enum(REPORT_STATUS).optional(),
+  ...pagination,
+});
+
+const resolveBody = z.object({ status: z.enum([REPORT_STATUS.REVIEWED, REPORT_STATUS.DISMISSED]) });
+
 router.get('/stats', async (_req, res) => {
   res.json({ data: await service.stats() });
 });
+
+router.get('/reports', validate({ query: reportsQuery }, async (req, res) => {
+  const { items, meta } = await reports.listReports(req.query);
+  res.json({ data: items, meta });
+}));
+
+router.patch('/reports/:id', validate({ params: idParams, body: resolveBody }, async (req, res) => {
+  res.json({ data: await reports.resolve(currentUser(req), req.params.id, req.body) });
+}));
 
 router.get('/users', validate({ query: usersQuery }, async (req, res) => {
   const { items, meta } = await service.listUsers(req.query);
