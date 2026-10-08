@@ -1,0 +1,101 @@
+name: CI/CD
+
+# Every push and pull request is tested. Vercel's Git integration deploys both
+# projects (web app from client/, API from server/) on every push to master;
+# this workflow then waits for those deployments and smoke-tests the live site.
+on:
+  push:
+    branches: [master]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/master' }}
+
+env:
+  NODE_VERSION: 24
+  WEB_URL: https://sync-campus.vercel.app
+  API_URL: https://sync-campus-api.vercel.app
+
+jobs:
+  server:
+    name: Server (typecheck + tests)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: server
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: server/package-lock.json
+      # The tests run against an in-memory MongoDB; keep its binary between runs.
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/mongodb-binaries
+          key: mongodb-binaries-${{ runner.os }}-${{ hashFiles('server/package-lock.json') }}
+      - run: npm ci
+      - run: npm run typecheck
+      - run: npm test
+
+  client:
+    name: Web app (build)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: client
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: client/package-lock.json
+      - run: npm ci
+      # `next build` also type-checks the app.
+      - run: npm run build
+        env:
+          NEXT_PUBLIC_API_URL: ${{ env.API_URL }}
+          NEXT_PUBLIC_SITE_URL: ${{ env.WEB_URL }}
+
+  verify-deploy:
+    name: Verify production deploy
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      deployments: read
+    steps:
+      - name: Wait for Vercel to deploy this commit
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # Vercel records one GitHub deployment per project (web app and API).
+          for attempt in $(seq 1 60); do
+            states=$(gh api "repos/$GITHUB_REPOSITORY/deployments?sha=$GITHUB_SHA" --jq '.[].id' | while read -r id; do
+              gh api "repos/$GITHUB_REPOSITORY/deployments/$id/statuses" --jq '.[0].state // "pending"'
+            done)
+            echo "attempt $attempt:" $states
+            if echo "$states" | grep -qE '^(failure|error)$'; then
+              echo "::error::A Vercel deployment failed"; exit 1
+            fi
+            if [ "$(echo "$states" | grep -c '^success$')" -ge 2 ]; then exit 0; fi
+            sleep 10
+          done
+          echo "::error::Timed out waiting for Vercel"; exit 1
+
+      - name: Smoke test
+        run: |
+          curl --fail --silent --show-error --retry 5 --retry-delay 5 --retry-all-errors -o /dev/null "$API_URL/api/meta"
+          curl --fail --silent --show-error --retry 5 --retry-delay 5 --retry-all-errors -o /dev/null "$WEB_URL"
+          # The live web app must be allowed to call the live API.
+          curl --fail --silent --show-error -D - -o /dev/null -H "Origin: $WEB_URL" "$API_URL/api/meta" \
+            | grep -qi "^access-control-allow-origin: $WEB_URL"
