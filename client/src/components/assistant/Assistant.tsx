@@ -19,7 +19,7 @@ interface Turn extends AssistantMessage {
 
 /** The server accepts up to 20 messages; older turns are dropped from what is sent. */
 const HISTORY_LIMIT = 20;
-const STORAGE_KEY = 'syncronify.assistant';
+const STORAGE_KEY = 'sync.assistant';
 
 const SUGGESTIONS = [
   { emoji: '🗓️', text: "What's happening this weekend?" },
@@ -260,7 +260,7 @@ function AssistantPanel({ open, onClose }: { open: boolean; onClose: () => void 
                     <span className="font-serif font-normal italic text-primary">what&apos;s the plan?</span>
                   </p>
                   <p className="mt-3 text-sm text-muted">
-                    Ask about events, your schedule, or anything else. I look things up in Syncronify, so answers match what&apos;s really on.
+                    Ask about events, your schedule, or anything else. I look things up in Sync, so answers match what&apos;s really on.
                   </p>
                   <div className="mt-6 grid gap-2">
                     {SUGGESTIONS.map((s) => (

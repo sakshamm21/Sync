@@ -60,7 +60,7 @@ describe('place search', () => {
     ]);
     const outbound = calls.filter((c) => c.url.includes('nominatim'));
     assert.equal(outbound.length, 1);
-    assert.match((outbound[0].options?.headers as Record<string, string>)['User-Agent'], /^Syncronify\//);
+    assert.match((outbound[0].options?.headers as Record<string, string>)['User-Agent'], /^Sync\//);
 
     await api().get('/api/places/search?q=main%20auditorium%20kanpur').set(auth).expect(200);
     assert.equal(calls.filter((c) => c.url.includes('nominatim')).length, 1, 'second lookup is served from cache');

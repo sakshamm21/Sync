@@ -34,7 +34,7 @@ function systemPrompt(user: UserDocument, timeZone: string): string {
     timeStyle: 'short',
   }).format(new Date());
 
-  return `You are Sync, the friendly assistant inside Syncronify, a campus event platform.
+  return `You are the friendly assistant built into Sync, a campus event platform. Users call you Sync too.
 
 Right now it is ${now} in the user's time zone (${timeZone}).
 You are talking to ${user.name} (role: ${user.role}${user.interests.length ? `; interests: ${user.interests.join(', ')}` : ''}).

@@ -11,15 +11,15 @@ const serif = Instrument_Serif({ subsets: ['latin'], weight: '400', style: ['nor
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'),
   title: {
-    default: 'Syncronify: what’s the move?',
-    template: '%s · Syncronify',
+    default: 'Sync: what’s the move?',
+    template: '%s · Sync',
   },
   description: 'Campus plans, minus the chaos. Find what’s on, RSVP in a tap, and never miss the good stuff.',
   icons: { icon: '/icon.svg' },
   openGraph: {
     type: 'website',
-    siteName: 'Syncronify',
-    title: 'Syncronify: what’s the move?',
+    siteName: 'Sync',
+    title: 'Sync: what’s the move?',
     description: 'Campus plans, minus the chaos. Find what’s on, RSVP in a tap, and never miss the good stuff.',
   },
   twitter: { card: 'summary_large_image' },

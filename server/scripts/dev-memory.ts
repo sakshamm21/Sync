@@ -17,7 +17,7 @@ async function main() {
   });
   // Must be set before anything reads the environment, so the app modules
   // below are loaded with dynamic import() only after this line.
-  process.env.DB_URI = mongo.getUri('syncronify');
+  process.env.DB_URI = mongo.getUri('sync');
 
   const { default: mongoose } = await import('mongoose');
   const { connectDatabase, disconnectDatabase } = await import('../src/config/db.js');

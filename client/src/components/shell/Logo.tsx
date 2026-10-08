@@ -14,10 +14,10 @@ export function LogoMark({ className }: { className?: string }) {
 
 export function Logo({ href = '/', className }: { href?: string; className?: string }) {
   return (
-    <Link href={href} className={cn('group inline-flex items-center gap-2', className)} aria-label="Syncronify home">
+    <Link href={href} className={cn('group inline-flex items-center gap-2', className)} aria-label="Sync home">
       <LogoMark />
       <span className="font-display text-xl font-extrabold tracking-tight">
-        syncronify<span className="text-primary">.</span>
+        sync<span className="text-primary">.</span>
       </span>
     </Link>
   );

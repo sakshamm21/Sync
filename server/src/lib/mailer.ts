@@ -16,7 +16,7 @@ function getTransporter(): Transporter {
   return transporter;
 }
 
-/** 'Syncronify <a@b.com>' -> { name, email }; a bare address has no name. */
+/** 'Sync <a@b.com>' -> { name, email }; a bare address has no name. */
 function parseAddress(address: string): { name?: string; email: string } {
   const match = address.match(/^\s*"?([^"<]*?)"?\s*<([^>]+)>\s*$/);
   return match ? { name: match[1] || undefined, email: match[2].trim() } : { email: address.trim() };

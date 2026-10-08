@@ -56,7 +56,7 @@ export async function search(query: string, { limit = 5 }: { limit?: number } = 
   let response: Response;
   try {
     response = await fetch(url, {
-      headers: { 'User-Agent': `Syncronify/2.0 (${env.clientUrl})`, 'Accept-Language': 'en' },
+      headers: { 'User-Agent': `Sync/2.0 (${env.clientUrl})`, 'Accept-Language': 'en' },
       signal: AbortSignal.timeout(6000),
     });
   } catch (err) {

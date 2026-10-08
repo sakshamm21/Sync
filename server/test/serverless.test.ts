@@ -45,9 +45,9 @@ describe('serverless deployment support', () => {
   });
 
   it('allows preview deployment origins that match a wildcard', async () => {
-    const ok = await api().get('/api/meta').set('Origin', 'https://syncronify-git-feature-sak.vercel.app');
-    assert.equal(ok.headers['access-control-allow-origin'], 'https://syncronify-git-feature-sak.vercel.app');
-    const blocked = await api().get('/api/meta').set('Origin', 'https://syncronify-x.evil.app');
+    const ok = await api().get('/api/meta').set('Origin', 'https://sync-git-feature-sak.vercel.app');
+    assert.equal(ok.headers['access-control-allow-origin'], 'https://sync-git-feature-sak.vercel.app');
+    const blocked = await api().get('/api/meta').set('Origin', 'https://sync-x.evil.app');
     assert.equal(blocked.headers['access-control-allow-origin'], undefined);
   });
 

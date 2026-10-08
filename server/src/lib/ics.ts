@@ -34,7 +34,7 @@ export function buildEventCalendar({ uid, title, description, location, url, sta
   const lines = [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
-    'PRODID:-//Syncronify//Events//EN',
+    'PRODID:-//Sync//Events//EN',
     'CALSCALE:GREGORIAN',
     'METHOD:PUBLISH',
     'BEGIN:VEVENT',

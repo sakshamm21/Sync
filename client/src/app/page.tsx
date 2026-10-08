@@ -105,7 +105,7 @@ export default function LandingPage() {
             </p>
             <div className="mt-8 flex flex-wrap items-center gap-3">
               <ButtonLink href={primaryHref} size="xl" className="group">
-                {user ? 'Open Syncronify' : 'Get in, it’s free'}
+                {user ? 'Open Sync' : 'Get in, it’s free'}
                 <ArrowRight className="transition group-hover:translate-x-1" />
               </ButtonLink>
               <ButtonLink href={user ? '/explore' : '/authentication'} size="xl" variant="secondary">
@@ -203,7 +203,7 @@ export default function LandingPage() {
             <span className="font-serif font-normal italic text-primary">out.</span>
           </h2>
           <ButtonLink href={primaryHref} size="xl" className="mt-10">
-            {user ? 'Open Syncronify' : 'Create your account'} <ArrowRight />
+            {user ? 'Open Sync' : 'Create your account'} <ArrowRight />
           </ButtonLink>
         </Reveal>
       </section>
@@ -211,7 +211,7 @@ export default function LandingPage() {
       <footer className="overflow-hidden border-t border-border pt-10">
         <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-3 px-4 font-mono text-[11px] uppercase tracking-[0.14em] text-subtle sm:flex-row sm:px-6 lg:px-8">
           <span className="flex items-center gap-2">
-            <LogoMark className="size-6" /> syncronify
+            <LogoMark className="size-6" /> sync
           </span>
           <span>made for CS253 · IIT Kanpur · {new Date().getFullYear()}</span>
         </div>
@@ -219,7 +219,7 @@ export default function LandingPage() {
           aria-hidden="true"
           className="mt-6 select-none whitespace-nowrap text-center font-display text-[19vw] font-extrabold leading-[0.8] tracking-[-0.06em] text-transparent [-webkit-text-stroke:1px_var(--border-strong)]"
         >
-          syncronify
+          sync
         </p>
       </footer>
     </div>

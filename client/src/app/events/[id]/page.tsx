@@ -56,10 +56,10 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   const event = await fetchPublicEvent(id);
 
   if (!event) {
-      return { title: 'Event not found', description: 'This event is no longer available on Syncronify.' };
+      return { title: 'Event not found', description: 'This event is no longer available on Sync.' };
   }
 
-  const host = event.owner?.organization || event.owner?.name || 'Syncronify';
+  const host = event.owner?.organization || event.owner?.name || 'Sync';
   const when = new Date(event.startsAt).toLocaleString('en-GB', {
     dateStyle: 'full',
     timeStyle: 'short',
@@ -68,19 +68,19 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   const where = event.venue?.name || event.venue?.address;
   const description =
     event.description?.trim() ||
-    `${event.title} on ${when}${where ? ` at ${where}` : ''}. Hosted by ${host} on Syncronify.`;
+    `${event.title} on ${when}${where ? ` at ${where}` : ''}. Hosted by ${host} on Sync.`;
   const url = `${SITE_URL}/events/${event.id}`;
   // A cancelled event should not look like an invitation in a chat preview.
   const suffix = event.status === 'cancelled' ? ' · Cancelled' : '';
 
   return {
-      // The root layout's template already appends " · Syncronify".
+      // The root layout's template already appends " · Sync".
       title: event.title,
       description,
     alternates: { canonical: url },
     openGraph: {
       type: 'website',
-      siteName: 'Syncronify',
+      siteName: 'Sync',
       title: `${event.title}${suffix}`,
       description,
       url,

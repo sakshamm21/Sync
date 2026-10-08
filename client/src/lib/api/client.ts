@@ -5,10 +5,10 @@ export const API_URL = (
   'http://localhost:4000'
 ).replace(/\/$/, '');
 
-const TOKEN_KEY = 'syncronify.token';
+const TOKEN_KEY = 'sync.token';
 
 /** Fired when the server rejects the stored token, so the app can sign out. */
-export const SESSION_EXPIRED_EVENT = 'syncronify:session-expired';
+export const SESSION_EXPIRED_EVENT = 'sync:session-expired';
 
 export const tokenStore = {
   get(): string | null {
@@ -71,7 +71,7 @@ http.interceptors.response.use(
   (error: AxiosError<{ error?: { message: string; code: string; details?: FieldError[] } }>) => {
     if (!error.response) {
       return Promise.reject(
-        new ApiError('Cannot reach the Syncronify server. Check your connection and try again.', 0, 'NETWORK_ERROR')
+        new ApiError('Cannot reach the Sync server. Check your connection and try again.', 0, 'NETWORK_ERROR')
       );
     }
     const { status, data } = error.response;

@@ -1,10 +1,10 @@
 <div align="center">
 
-# Syncronify
+# Sync
 
 **The campus event platform: discover events, RSVP, plan your week, chat with attendees, and ask an AI assistant what's on.**
 
-**[Live app](https://syncronify-self.vercel.app)** · **[Test accounts](TEST_ACCOUNTS.md)**
+**[Live app](https://sync-campus.vercel.app)** · **[Test accounts](TEST_ACCOUNTS.md)**
 
 </div>
 
@@ -12,7 +12,7 @@
 
 ## What it is
 
-Campus events are scattered across WhatsApp groups, posters and emails, so students miss things and clubs can't tell who's coming. Syncronify puts them in one place:
+Campus events are scattered across WhatsApp groups, posters and emails, so students miss things and clubs can't tell who's coming. Sync puts them in one place:
 
 - **Students** find events, RSVP in one tap, keep a personal calendar and chat with other attendees.
 - **Clubs** publish events, manage registrations and waitlists, and check people in at the door.
@@ -47,8 +47,8 @@ Built for CS253 (Software Development and Operations) at IIT Kanpur.
 You need **Node.js 20.19+**. MongoDB is optional: the command below runs a local database for you.
 
 ```bash
-git clone https://github.com/sakshamm21/syncronify.git
-cd syncronify
+git clone https://github.com/sakshamm21/sync.git
+cd sync
 npm run install:all
 cp server/.env.example server/.env
 cp client/.env.example client/.env

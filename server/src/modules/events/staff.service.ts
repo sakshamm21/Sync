@@ -50,7 +50,7 @@ export async function invite(user: UserDocument, eventId: string, { email, role 
   if (!access.canManage) throw forbidden('Only the organiser can add people to the team');
 
   const invitee = await User.findOne({ email });
-  if (!invitee) throw notFound('No Syncronify account uses that email');
+  if (!invitee) throw notFound('No Sync account uses that email');
   if (String(invitee._id) === String(event.owner)) throw badRequest('They already own this event');
 
   const existing = await EventStaff.findOne({ event: event._id, user: invitee._id });

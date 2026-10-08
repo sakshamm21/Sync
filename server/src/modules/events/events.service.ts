@@ -252,7 +252,7 @@ export async function toCalendarFile(viewer: Viewer, id: string) {
   return {
     filename: `${slug}.ics`,
     content: buildEventCalendar({
-      uid: `${event.id}@syncronify`,
+      uid: `${event.id}@sync`,
       title: event.title,
       description: event.description,
       location,

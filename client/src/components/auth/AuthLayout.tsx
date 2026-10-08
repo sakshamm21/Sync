@@ -22,7 +22,7 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
           <ThemeToggle />
         </div>
         <div className="flex flex-1 items-center justify-center py-12">{children}</div>
-        <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-subtle">© {new Date().getFullYear()} syncronify</p>
+        <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-subtle">© {new Date().getFullYear()} sync</p>
       </div>
 
       <div className="relative m-3 hidden overflow-hidden rounded-[40px] bg-[#09090d] text-white lg:block">

@@ -35,7 +35,7 @@ export async function start(): Promise<void> {
     };
 
   httpServer.listen(env.port, () => {
-    logger.info(`Syncronify API listening on http://localhost:${env.port}`);
+    logger.info(`Sync API listening on http://localhost:${env.port}`);
   });
 
   const shutdown = (signal: NodeJS.Signals) => {

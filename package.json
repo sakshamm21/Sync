@@ -1,7 +1,7 @@
 {
-  "name": "syncronify",
+  "name": "sync",
   "version": "1.0.0",
-  "description": "Syncronify — Event Management Software OS",
+  "description": "Sync — Event Management Software OS",
   "private": true,
   "scripts": {
     "install:all": "npm install && npm --prefix server install && npm --prefix client install",

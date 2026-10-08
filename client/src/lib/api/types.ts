@@ -1,4 +1,4 @@
-// Shapes returned by the Syncronify API. Dates arrive as ISO strings.
+// Shapes returned by the Sync API. Dates arrive as ISO strings.
 
 export type Role = 'member' | 'organizer' | 'admin';
 export type UserStatus = 'active' | 'suspended';

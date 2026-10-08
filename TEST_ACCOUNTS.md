@@ -1,11 +1,11 @@
 # Test accounts and demo data
 
-Syncronify normally emails verification codes and password-reset links. This project runs **without an email service**, so it ships with ready-made accounts and realistic demo data that anyone can use straight away.
+Sync normally emails verification codes and password-reset links. This project runs **without an email service**, so it ships with ready-made accounts and realistic demo data that anyone can use straight away.
 
 > **Every account uses the password `syncronify123`.**
 > These are public test credentials. Don't store anything private in them.
 
-- **Live app:** https://syncronify-self.vercel.app → **Sign in**. The sign-in page has one-click buttons for the Member, Organizer and Admin accounts.
+- **Live app:** https://sync-campus.vercel.app → **Sign in**. The sign-in page has one-click buttons for the Member, Organizer and Admin accounts.
 - **On your machine:** `npm run dev:memory` loads this data automatically on first run (see the [README](README.md#getting-started)).
 
 The data itself lives in [`server/scripts/demo-data.ts`](server/scripts/demo-data.ts), as plain, readable data; edit it to add your own accounts or events.
@@ -91,7 +91,7 @@ Plus notes for Kabir and the organizers, and the two organizer applications abov
 
 ## Signing up and resetting passwords
 
-The live app sends real emails (from `Syncronify <sak.projects.auth@gmail.com>` via Brevo), so to create your own account you need a **real inbox**: the verification code and password reset links arrive by email. Check spam if they don't show up within a minute. The test accounts above are already verified and need no email.
+The live app sends real emails (from `Sync <sak.projects.auth@gmail.com>` via Brevo), so to create your own account you need a **real inbox**: the verification code and password reset links arrive by email. Check spam if they don't show up within a minute. The test accounts above are already verified and need no email.
 
 When running locally without `BREVO_API_KEY` or SMTP settings, codes and reset links are **shown on screen** instead, so any made-up address works.
 
