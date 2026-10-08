@@ -7,6 +7,7 @@ import {
   meApi,
   metaApi,
   tokenStore,
+  ApiError,
   SESSION_EXPIRED_EVENT,
   type RegisterResult,
   type ServerMeta,
@@ -83,13 +84,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return;
     }
     setToken(stored);
-    meApi
-      .get()
-      .then((me) => {
-        setUser(me);
+    // Only the server rejecting the token ends the session. A network blip or a
+    // cold API is retried, and never deletes the stored login.
+    const restore = async (attempt = 1): Promise<void> => {
+      try {
+        setUser(await meApi.get());
         setStatus('authenticated');
-      })
-      .catch(logout);
+      } catch (error) {
+        if (error instanceof ApiError && (error.status === 401 || error.status === 403)) return logout();
+        if (attempt < 3) {
+          await new Promise((resolve) => setTimeout(resolve, attempt * 1500));
+          return restore(attempt + 1);
+        }
+        // Still unreachable: show the signed-out view, but keep the token so a reload restores the session.
+        setToken(null);
+        setStatus('anonymous');
+      }
+    };
+    void restore();
   }, [logout]);
 
   useEffect(() => {

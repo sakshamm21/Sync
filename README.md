@@ -31,16 +31,16 @@ Built for CS253 (Software Development and Operations) at IIT Kanpur.
 
 ## Tech stack
 
-| Part | Built with |
-| --- | --- |
-| Web app | Next.js 16, React 19, TypeScript, Tailwind CSS v4 |
-| API | Node.js, Express 5, TypeScript, zod |
-| Database | MongoDB with Mongoose (MongoDB Atlas in production) |
-| Realtime | Socket.io (polling fallback on serverless hosts) |
-| Auth | JWT and bcrypt, with email verification and password reset |
-| Email | Transactional outbox, delivered by cron or an in-process worker |
-| AI | Any OpenAI-compatible API (OpenAI in production) |
-| Hosting | Vercel |
+| Part     | Built with                                                      |
+| -------- | --------------------------------------------------------------- |
+| Web app  | Next.js 16, React 19, TypeScript, Tailwind CSS v4               |
+| API      | Node.js, Express 5, TypeScript, zod                             |
+| Database | MongoDB with Mongoose (MongoDB Atlas in production)             |
+| Realtime | Socket.io (polling fallback on serverless hosts)                |
+| Auth     | JWT and bcrypt, with email verification and password reset      |
+| Email    | Transactional outbox, delivered by cron or an in-process worker |
+| AI       | Any OpenAI-compatible API (OpenAI in production)                |
+| Hosting  | Vercel                                                          |
 
 ## Getting started
 
@@ -65,27 +65,27 @@ To use your own MongoDB instead, set `DB_URI` in `server/.env`, then run `npm --
 
 Settings live in `server/.env` and `client/.env`; the `.env.example` files list them all. The main ones:
 
-| Variable | Purpose |
-| --- | --- |
-| `DB_URI` | MongoDB connection string (required in production) |
-| `JWT_SECRET` | Long random string for signing logins (required in production) |
-| `CLIENT_URL` | Web app address(es) allowed to call the API |
-| `CRON_SECRET` | Bearer token Vercel Cron uses to run the scheduled jobs |
-| `AI_API_KEY`, `AI_BASE_URL`, `AI_MODEL` | Turn on the AI assistant; leave the key empty to turn it off |
-| `BREVO_API_KEY` or `SMTP_*`, plus `MAIL_FROM` | Send real emails (optional) |
-| `NEXT_PUBLIC_API_URL` | Where the web app finds the API |
-| `NEXT_PUBLIC_SITE_URL` | This app's own address, used for shared-link previews |
+| Variable                                            | Purpose                                                        |
+| --------------------------------------------------- | -------------------------------------------------------------- |
+| `DB_URI`                                          | MongoDB connection string (required in production)             |
+| `JWT_SECRET`                                      | Long random string for signing logins (required in production) |
+| `CLIENT_URL`                                      | Web app address(es) allowed to call the API                    |
+| `CRON_SECRET`                                     | Bearer token Vercel Cron uses to run the scheduled jobs        |
+| `AI_API_KEY`, `AI_BASE_URL`, `AI_MODEL`       | Turn on the AI assistant; leave the key empty to turn it off   |
+| `BREVO_API_KEY` or `SMTP_*`, plus `MAIL_FROM` | Send real emails (optional)                                    |
+| `NEXT_PUBLIC_API_URL`                             | Where the web app finds the API                                |
+| `NEXT_PUBLIC_SITE_URL`                            | This app's own address, used for shared-link previews          |
 
 ## Scheduled jobs
 
 On a long-running host these run on in-process timers. On Vercel, `vercel.json`
 schedules them instead, each requiring `Authorization: Bearer $CRON_SECRET`:
 
-| Job | What it does |
-| --- | --- |
-| `/api/jobs/event-reminders` | Emails attendees 24 hours before an event starts. |
-| `/api/jobs/email-outbox` | Delivers queued notification emails. |
-| `/api/jobs/maintenance` | Recomputes `attendeeCount` from the registrations that exist, and prunes old rows. |
+| Job                           | What it does                                                                        |
+| ----------------------------- | ----------------------------------------------------------------------------------- |
+| `/api/jobs/event-reminders` | Emails attendees 24 hours before an event starts.                                   |
+| `/api/jobs/email-outbox`    | Delivers queued notification emails.                                                |
+| `/api/jobs/maintenance`     | Recomputes `attendeeCount` from the registrations that exist, and prunes old rows. |
 
 ## Project structure
 
@@ -94,9 +94,21 @@ client/   Next.js web app: pages in src/app, components in src/components, API c
 server/   Express API: feature modules in src/modules, models in src/models, demo data in scripts/
 ```
 
+## Testing
+
+```bash
+npm test                            # API tests: the real Express app against an in-memory MongoDB
+npm --prefix server run typecheck   # type-check the API and its tests
+npm run build                       # build (and type-check) the web app
+```
+
+The tests never touch a real database and never send email.
+
 ## Deployment
 
-Both apps run on **Vercel** with **MongoDB Atlas**: the web app from `client/`, and the API from `server/` as a serverless function with a daily cron job for reminders. Set the variables above in each Vercel project, then deploy with `vercel deploy --prod`.
+Both apps run on **Vercel** with **MongoDB Atlas**: the web app from `client/`, and the API from `server/` as a serverless function with daily cron jobs. Each is its own Vercel project connected to this repository, with the variables above set in the project.
+
+Every push to `master` deploys both. The GitHub Actions workflow in `.github/workflows/ci.yml` runs the checks above on every push and pull request, and after a push to `master` it waits for Vercel to finish and smoke-tests the live site.
 
 ## License
 
