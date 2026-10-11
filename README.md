@@ -5,8 +5,6 @@
 
 **Live app:** https://sync-campus.vercel.app (press **Sign in**, then a one-click **Member**, **Organizer** or **Admin** button)
 
-Built for CS253 (Software Development and Operations) at IIT Kanpur.
-
 ---
 
 ## Why Sync

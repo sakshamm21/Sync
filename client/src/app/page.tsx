@@ -213,7 +213,7 @@ export default function LandingPage() {
           <span className="flex items-center gap-2">
             <LogoMark className="size-6" /> sync
           </span>
-          <span>made for CS253 · IIT Kanpur · {new Date().getFullYear()}</span>
+          <span>made by Saksham Malhotra · {new Date().getFullYear()}</span>
         </div>
         <p
           aria-hidden="true"
