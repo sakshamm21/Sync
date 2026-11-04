@@ -1,11 +1,79 @@
-# Sync · campus plans, minus the chaos
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/readme/banner-dark.png">
+    <img src="assets/readme/banner-light.png" alt="Sync: campus plans, minus the chaos" width="880">
+  </picture>
+</p>
 
-> **Sync puts every campus event in one place: students find events, RSVP in one tap and plan their week; clubs publish events, manage waitlists and check people in at the door.**
-> *One feed instead of forty WhatsApp groups.*
+<p align="center">
+  <a href="https://github.com/sakshamm21/Sync/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/sakshamm21/Sync/ci.yml?branch=master&style=flat-square&label=build&color=6a3dff" alt="Build status"></a>
+  <img src="https://img.shields.io/badge/tests-123%20passing-0b0b10?style=flat-square" alt="123 API tests">
+  <img src="https://img.shields.io/badge/made%20with-Next.js%20%2B%20Express-0b0b10?style=flat-square" alt="Made with Next.js and Express">
+  <img src="https://img.shields.io/badge/license-ISC-0b0b10?style=flat-square" alt="License: ISC">
+</p>
 
-**Live app:** https://sync-campus.vercel.app (press **Sign in**, then a one-click **Member**, **Organizer** or **Admin** button)
+<p align="center">
+  <b>Every campus event in one place.</b> Students find events, RSVP in one tap and plan their week;<br>
+  clubs publish events, manage waitlists and check people in at the door.<br>
+  <i>One feed instead of forty WhatsApp groups.</i>
+</p>
 
----
+<p align="center">
+  <a href="https://sync-campus.vercel.app"><img src="https://img.shields.io/badge/Open%20the-live%20app-6a3dff?style=for-the-badge" alt="Open the live app"></a>
+  &nbsp;
+  <a href="TEST_ACCOUNTS.md"><img src="https://img.shields.io/badge/Sign%20in%20with-a%20demo%20account-0b0b10?style=for-the-badge" alt="Demo accounts"></a>
+</p>
+
+<p align="center">
+  <img src="assets/readme/hero.png" alt="Sync's home and explore screens in dark and light" width="820">
+</p>
+
+## See it in action
+
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="assets/readme/demo-dark.gif">
+    <img src="assets/readme/demo-light.gif" alt="Tapping I'm in on an event in Explore, with confetti and a confirmation" width="720">
+  </picture>
+  <br>
+  <sub>Tap <b>I'm in</b> on any event. The seat is yours, it lands on your schedule, and you get a reminder the day before.</sub>
+</p>
+
+## Features
+
+- **One feed for the whole campus.** Search and filter every public event by category and date,
+  sorted by soonest or most popular.
+- **RSVP in one tap.** A full event puts you on the waitlist instead of turning you away, and a
+  clash with something you already hold gets a warning.
+- **Your week, planned.** A calendar of everything you're going to, waitlisted for, organising or
+  planned privately, with your QR entry code for the next one.
+- **A chat per event.** Talk to the organizer and everyone going; announcements notify them all.
+- **Waitlists that run themselves.** When a seat frees up, the next person is moved up and told.
+- **Check-in at the door.** Door staff scan QR tickets; organizers export the attendee list.
+- **Ask Sync.** An AI assistant that answers from live event data and your own calendar, and can
+  only read.
+- **Mobile-first.** A bottom dock, dark by default, and a warm light theme.
+
+<p align="center">
+  <img src="assets/readme/phones.png" alt="Home, Explore and an event page on a phone" width="620">
+  <br>
+  <sub>On a phone: Home, Explore and an event page.</sub>
+</p>
+
+## Contents
+
+1. [Why Sync](#why-sync)
+2. [Try it in a minute](#try-it-in-a-minute)
+3. [Screens](#screens)
+4. [How it works](#how-it-works)
+5. [Tech stack](#tech-stack)
+6. [Project structure](#project-structure)
+7. [Design](#design)
+8. [Test accounts](#test-accounts)
+9. [Run it locally](#run-it-locally)
+10. [Testing](#testing)
+11. [Deploy your own](#deploy-your-own)
+12. [License](#license)
 
 ## Why Sync
 
@@ -27,7 +95,26 @@ Sync is the single list. Students get a feed, a calendar and a ticket. Clubs get
 
 Every account, and a script of things to try with each, is in [TEST_ACCOUNTS.md](TEST_ACCOUNTS.md).
 
-## Features
+## Screens
+
+<table>
+  <tr>
+    <td width="50%"><img src="assets/readme/dashboard-light.jpg" alt="Home in the light theme"></td>
+    <td width="50%"><img src="assets/readme/schedule-dark.jpg" alt="Schedule calendar in the dark theme"></td>
+  </tr>
+  <tr>
+    <td align="center"><sub><b>Home</b>: your tickets, picks for you and what's popular</sub></td>
+    <td align="center"><sub><b>Schedule</b>: everything you're going to, as a calendar</sub></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="assets/readme/event-dark.jpg" alt="An event page in the dark theme"></td>
+    <td width="50%"><img src="assets/readme/organizer-light.jpg" alt="Organizer console in the light theme"></td>
+  </tr>
+  <tr>
+    <td align="center"><sub><b>Event page</b>: details, map, seats left and one-tap RSVP</sub></td>
+    <td align="center"><sub><b>Organizer console</b>: stats, attendees, waitlists and check-in</sub></td>
+  </tr>
+</table>
 
 | Screen | What it does |
 |---|---|
@@ -57,6 +144,8 @@ flowchart LR
   J --> M[Brevo / SMTP]
   A --> AI[Ask Sync: model with<br/>4 read-only tools]
   AI --> A
+  classDef accent fill:#6a3dff,stroke:#6a3dff,color:#fff
+  class A,DB accent
 ```
 
 - **The last seat goes to one person.** Taking a seat is a single conditional update: "add one to the count if it is still below capacity". There is no gap between checking and taking, so two people tapping at the same instant cannot both get in. A unique index on (event, user) stops a double tap from creating two registrations.
