@@ -35,7 +35,7 @@ export interface IUser {
   organization: string;
   interests: Category[];
   /** `mutedEmailTypes`: notification types that stay in the app and are never emailed. */
-  preferences: { emailNotifications: boolean; mutedEmailTypes: NotificationType[] };
+  preferences: { emailNotifications: boolean; mutedEmailTypes: NotificationType[]; autoAcceptWaitlist: boolean };
   lastLoginAt?: Date;
   createdAt: Date;
   updatedAt: Date;
@@ -89,6 +89,8 @@ const userSchema = new Schema<IUser, UserModel, UserMethods>(
     preferences: {
       emailNotifications: { type: Boolean, default: true },
       mutedEmailTypes: { type: [{ type: String, enum: Object.values(NOTIFICATION_TYPES) }], default: [] },
+      // "Take any seat automatically": skip the claim step on events that use one.
+      autoAcceptWaitlist: { type: Boolean, default: false },
     },
     lastLoginAt: Date,
   },

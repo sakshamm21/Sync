@@ -6,6 +6,7 @@ import { sendDueReminders } from '../../jobs/eventReminders';
 import { drainOutbox } from '../../jobs/outbox';
 import { recountAttendees, pruneOldData } from '../../jobs/maintenance';
 import { resetDemoData } from '../../demo/seed';
+import { expireOffers } from '../events/waitlist.service';
 import logger from '../../lib/logger';
 
 const router = Router();
@@ -22,8 +23,10 @@ const requireCronSecret: RequestHandler = (req, _res, next) => {
 /** Emails due 24 hours before an event starts. */
 router.get('/event-reminders', requireCronSecret, async (_req, res) => {
   const sent = await sendDueReminders();
-  logger.info({ job: 'event-reminders', sent }, 'Job finished');
-  res.json({ data: { sent } });
+  // Hourly is often enough for claim windows measured in hours.
+  const expiredOffers = await expireOffers();
+  logger.info({ job: 'event-reminders', sent, expiredOffers }, 'Job finished');
+  res.json({ data: { sent, expiredOffers } });
 });
 
 /** Delivers anything queued by the email outbox. */

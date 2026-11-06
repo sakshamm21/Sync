@@ -22,7 +22,7 @@ export interface User {
   organization: string;
   interests: CategoryValue[];
   /** `mutedEmailTypes`: kinds of notification kept in the app and never emailed. */
-  preferences: { emailNotifications: boolean; mutedEmailTypes?: NotificationType[] };
+  preferences: { emailNotifications: boolean; mutedEmailTypes?: NotificationType[]; autoAcceptWaitlist?: boolean };
   lastLoginAt?: string;
   /** On the team of an event someone else owns (only on the signed-in user). */
   isEventStaff?: boolean;
@@ -43,7 +43,8 @@ export interface Session {
   user: User;
 }
 
-export type RegistrationStatus = 'going' | 'waitlisted';
+/** `offered`: a freed seat is being held for you to claim before `viewer.offerExpiresAt`. */
+export type RegistrationStatus = 'going' | 'waitlisted' | 'offered';
 export type EventVisibility = 'public' | 'private';
 export type EventStatus = 'draft' | 'published' | 'cancelled';
 /** What a person is allowed to do with an event. */
@@ -88,6 +89,8 @@ export interface EventViewer {
   waitlistPosition?: number;
   /** Bookmarked as "Interested". */
   interested?: boolean;
+  /** For a held seat: claim it before this. */
+  offerExpiresAt?: string | null;
 }
 
 export interface SyncEvent {
@@ -109,6 +112,8 @@ export interface SyncEvent {
   /** Optional sign-up window. */
   registrationOpensAt?: string | null;
   registrationClosesAt?: string | null;
+  /** Hours a freed seat is held for the next person; null = automatic. */
+  waitlistClaimHours?: number | null;
   /** People who bookmarked it as "Interested". */
   interestedCount?: number;
   spotsLeft: number | null;
@@ -145,6 +150,8 @@ export interface EventInput {
   capacity?: number | null;
   registrationOpensAt?: string | null;
   registrationClosesAt?: string | null;
+  /** Hours a freed seat is held for the next person; null = automatic. */
+  waitlistClaimHours?: number | null;
 }
 
 export interface Attendee {
@@ -157,7 +164,7 @@ export interface Attendee {
 
 export interface AttendeeList {
   items: Attendee[];
-  counts: { going: number; waitlisted: number; checkedIn: number };
+  counts: { going: number; waitlisted: number; offered?: number; checkedIn: number };
 }
 
 /** Door staff's view of who is coming: names and check-ins, no email addresses. */
@@ -197,7 +204,8 @@ export type NotificationType =
   | 'organizer_approved'
   | 'organizer_rejected'
   | 'staff_invited'
-  | 'club_new_event';
+  | 'club_new_event'
+  | 'waitlist_offer';
 
 export interface AppNotification {
   id: string;

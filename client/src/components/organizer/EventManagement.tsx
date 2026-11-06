@@ -232,6 +232,10 @@ export default function EventManagement({ eventId }: { eventId: string }) {
                     <Badge tone="warning">
                       <Hourglass /> Waitlisted
                     </Badge>
+                  ) : a.status === 'offered' ? (
+                    <Badge tone="warning">
+                      <Hourglass /> Offered a spot
+                    </Badge>
                   ) : (
                     <button
                       onClick={() => toggleCheckIn(a)}

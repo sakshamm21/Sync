@@ -25,6 +25,7 @@ const fields = {
   // Optional sign-up window; null means "from publishing" / "until the start".
   registrationOpensAt: z.coerce.date().nullable(),
   registrationClosesAt: z.coerce.date().nullable(),
+  waitlistClaimHours: z.number().int().min(1).max(72).nullable(),
 };
 
 const windowInOrder = (e: { registrationOpensAt?: Date | null; registrationClosesAt?: Date | null }) =>
@@ -50,6 +51,7 @@ export const create = z
     capacity: fields.capacity.optional(),
     registrationOpensAt: fields.registrationOpensAt.optional(),
     registrationClosesAt: fields.registrationClosesAt.optional(),
+    waitlistClaimHours: fields.waitlistClaimHours.optional(),
   })
   .refine(endsAfterStart, endsAfterStartMessage)
   .refine(windowInOrder, windowMessage);

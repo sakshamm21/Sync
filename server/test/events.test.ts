@@ -320,7 +320,7 @@ describe('managing events', () => {
     await api().get(`/api/events/${event.id}/attendees`).set(a.auth).expect(403);
 
     const list = await api().get(`/api/events/${event.id}/attendees`).set(organizer.auth).expect(200);
-    assert.deepEqual(list.body.data.counts, { going: 1, waitlisted: 1, checkedIn: 0 });
+    assert.deepEqual(list.body.data.counts, { going: 1, waitlisted: 1, offered: 0, checkedIn: 0 });
     assert.equal(list.body.data.items[0].user.name, 'Ada');
     assert.ok(list.body.data.items[0].user.email);
 

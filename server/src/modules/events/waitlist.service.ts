@@ -5,7 +5,7 @@
  * it moves; see `jobs/outbox.ts` for how those emails are decoupled.
  */
 import type { Types } from 'mongoose';
-import { Event, Registration, type EventDocument, type UserDocument } from '../../models';
+import { Event, Registration, User, type EventDocument, type UserDocument } from '../../models';
 import * as notifications from '../notifications/notifications.service';
 import { EVENT_STATUS, REGISTRATION_STATUS, NOTIFICATION_TYPES, type RegistrationStatus } from '../../constants';
 import { claimSeat, releaseSeat } from './seats';
@@ -47,28 +47,63 @@ export async function clashesWith(user: UserDocument, event: EventDocument): Pro
   }));
 }
 
-/** Moves the longest-waiting person to `going`, or returns null if nobody is waiting. */
-async function promoteNext(event: EventDocument): Promise<Types.ObjectId | null> {
-  const next = await Registration.findOneAndUpdate(
-    { event: event._id, status: REGISTRATION_STATUS.WAITLISTED },
-    { $set: { status: REGISTRATION_STATUS.GOING } },
-    { sort: { createdAt: 1, _id: 1 }, new: true }
-  );
-  return next ? next.user : null;
+type Promotion = { user: Types.ObjectId; offered: boolean };
+
+/**
+ * Gives the seat to the longest-waiting person: straight in, or as an offer
+ * to claim within the event's claim window (unless they chose "take any seat
+ * automatically"). The seat counts as taken either way. Null if nobody waits.
+ */
+async function promoteNext(event: EventDocument): Promise<Promotion | null> {
+  for (;;) {
+    const next = await Registration.findOne({ event: event._id, status: REGISTRATION_STATUS.WAITLISTED }).sort({
+      createdAt: 1,
+      _id: 1,
+    });
+    if (!next) return null;
+    const user = event.waitlistClaimHours ? await User.findById(next.user).select('preferences') : null;
+    const offer = Boolean(event.waitlistClaimHours && !user?.preferences?.autoAcceptWaitlist);
+    // Conditional on still being waitlisted, so two promotions never take the same person.
+    const updated = await Registration.findOneAndUpdate(
+      { _id: next._id, status: REGISTRATION_STATUS.WAITLISTED },
+      {
+        $set: offer
+          ? { status: REGISTRATION_STATUS.OFFERED, offerExpiresAt: new Date(Date.now() + event.waitlistClaimHours! * 3600_000) }
+          : { status: REGISTRATION_STATUS.GOING, offerExpiresAt: null },
+      },
+      { new: true }
+    );
+    if (updated) return { user: updated.user, offered: offer };
+  }
 }
 
-async function tellPromoted(event: EventDocument, promoted: Types.ObjectId[]) {
-  if (!promoted.length) return;
-  await notifications.notify(
-    promoted,
-    {
-      type: NOTIFICATION_TYPES.WAITLIST_PROMOTED,
-      title: `You're in: ${event.title}`,
-      body: 'A spot opened up and you have been moved off the waitlist.',
-      eventId: event._id,
-    },
-    { email: true }
-  );
+async function tellPromoted(event: EventDocument, promoted: Promotion[]) {
+  const movedIn = promoted.filter((p) => !p.offered).map((p) => p.user);
+  const offered = promoted.filter((p) => p.offered).map((p) => p.user);
+  if (movedIn.length) {
+    await notifications.notify(
+      movedIn,
+      {
+        type: NOTIFICATION_TYPES.WAITLIST_PROMOTED,
+        title: `You're in: ${event.title}`,
+        body: 'A spot opened up and you have been moved off the waitlist.',
+        eventId: event._id,
+      },
+      { email: true }
+    );
+  }
+  if (offered.length) {
+    await notifications.notify(
+      offered,
+      {
+        type: NOTIFICATION_TYPES.WAITLIST_OFFER,
+        title: `Spot open: ${event.title}`,
+        body: `A spot is being held for you. Claim it within ${event.waitlistClaimHours} hour${event.waitlistClaimHours === 1 ? '' : 's'} or it goes to the next person.`,
+        eventId: event._id,
+      },
+      { email: true }
+    );
+  }
 }
 
 /**
@@ -86,7 +121,7 @@ export async function handOverSeat(event: EventDocument): Promise<Types.ObjectId
     return null;
   }
   await tellPromoted(event, [promoted]);
-  return promoted;
+  return promoted.user;
 }
 
 /**
@@ -96,7 +131,7 @@ export async function handOverSeat(event: EventDocument): Promise<Types.ObjectId
  */
 export async function fillFromWaitlist(event: EventDocument): Promise<Types.ObjectId[]> {
   if (!event.isOpenForRegistration()) return [];
-  const promoted: Types.ObjectId[] = [];
+  const promoted: Promotion[] = [];
 
   while (await Registration.exists({ event: event._id, status: REGISTRATION_STATUS.WAITLISTED })) {
     if (!(await claimSeat(event._id))) break;
@@ -109,7 +144,38 @@ export async function fillFromWaitlist(event: EventDocument): Promise<Types.Obje
   }
 
   await tellPromoted(event, promoted);
-  return promoted;
+  return promoted.map((p) => p.user);
+}
+
+/**
+ * Offers nobody claimed in time: the person drops off the list (they're told)
+ * and the seat passes to the next in line. Run by the scheduled jobs.
+ */
+export async function expireOffers(now = new Date()): Promise<number> {
+  let expired = 0;
+  for (;;) {
+    const lapsed = await Registration.findOneAndDelete({ status: REGISTRATION_STATUS.OFFERED, offerExpiresAt: { $lte: now } });
+    if (!lapsed) return expired;
+    expired += 1;
+    const event = await Event.findById(lapsed.event);
+    await notifications.notify([lapsed.user], {
+      type: NOTIFICATION_TYPES.WAITLIST_OFFER,
+      title: `Offer expired: ${event?.title ?? 'an event'}`,
+      body: 'The spot was held for you but not claimed in time, so it went to the next person.',
+      eventId: event?._id ?? null,
+    });
+    if (event) await handOverSeat(event);
+  }
+}
+
+/** The person accepts a held seat. */
+export async function claimOffer(userId: Types.ObjectId | string, eventId: Types.ObjectId): Promise<boolean> {
+  const claimed = await Registration.findOneAndUpdate(
+    { event: eventId, user: userId, status: REGISTRATION_STATUS.OFFERED, offerExpiresAt: { $gt: new Date() } },
+    { $set: { status: REGISTRATION_STATUS.GOING, offerExpiresAt: null } },
+    { new: true }
+  );
+  return Boolean(claimed);
 }
 
 /** True while anyone is waiting, in which case a new RSVP must join the queue too. */

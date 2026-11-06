@@ -224,3 +224,26 @@ test('organisers can preview their event as an attendee sees it', async ({ page 
   await expect(page.getByRole('link', { name: 'Manage' })).toHaveCount(0);
   await expect(page.getByRole('button', { name: /I'm in|Join waitlist/ }).first()).toBeVisible();
 });
+
+test('a held waitlist spot can be claimed from the event page', async ({ page }) => {
+  const organizer = await tokenFor('organizer@syncronify.dev');
+  const first = await tokenFor('tester1@syncronify.dev');
+  const second = await tokenFor('tester2@syncronify.dev');
+  const as = (t: string) => ({ Authorization: `Bearer ${t}` });
+  const start = new Date(Date.now() + 6 * 864e5).toISOString();
+  const end = new Date(Date.now() + 6 * 864e5 + 2 * 36e5).toISOString();
+  const created = await page.request.post(`${API}/api/events`, {
+    headers: as(organizer),
+    data: { title: 'Claim Test', category: 'tech', startsAt: start, endsAt: end, capacity: 1, waitlistClaimHours: 12 },
+  });
+  const { id } = (await created.json()).data;
+  expect((await page.request.post(`${API}/api/events/${id}/registration`, { headers: as(first) })).ok()).toBe(true);
+  expect((await page.request.post(`${API}/api/events/${id}/registration`, { headers: as(second) })).ok()).toBe(true);
+  expect((await page.request.delete(`${API}/api/events/${id}/registration`, { headers: as(first) })).ok()).toBe(true);
+
+  await signInAs(page, 'tester2@syncronify.dev');
+  await page.goto(`/events/${id}`);
+  await expect(page.getByText(/Held for you until/)).toBeVisible();
+  await page.getByRole('button', { name: 'Claim your spot' }).click();
+  await expect(page.getByRole('button', { name: "You're in" }).first()).toBeVisible();
+});

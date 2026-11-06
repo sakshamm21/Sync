@@ -25,6 +25,7 @@ const LABELS: Record<NotificationType, string> = {
   announcement: 'Announcements',
   staff_invited: 'Team invites',
   club_new_event: 'Clubs you follow',
+  waitlist_offer: 'Spots held for you',
   organizer_approved: 'Organizer approved',
   organizer_rejected: 'Organizer not approved',
 };
@@ -68,6 +69,7 @@ function EmailSettings() {
           </>
         )}
       </p>
+      <AutoAcceptSwitch />
       <ul className="space-y-1">
         {TYPES.map((type) => {
           const on = emailOn && !muted.has(type);
@@ -98,6 +100,47 @@ function EmailSettings() {
         })}
       </ul>
     </Card>
+  );
+}
+
+/** "Take any seat automatically": skip the claim step when an event holds freed spots. */
+function AutoAcceptSwitch() {
+  const { user, setUser } = useAuth();
+  const [saving, setSaving] = useState(false);
+  if (!user) return null;
+  const on = Boolean(user.preferences.autoAcceptWaitlist);
+  return (
+    <div className="mb-4 flex items-center justify-between gap-3 rounded-xl border border-border p-3">
+      <span className="text-sm">
+        <span className="block font-medium">Take any waitlist spot automatically</span>
+        <span className="block text-muted">Skip the &ldquo;claim your spot&rdquo; step on events that hold spots.</span>
+      </span>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={on}
+        aria-label="Take any waitlist spot automatically"
+        disabled={saving}
+        onClick={async () => {
+          setSaving(true);
+          try {
+            setUser(await meApi.update({ preferences: { autoAcceptWaitlist: !on } }));
+          } catch (err) {
+            toast.error(errorMessage(err));
+          } finally {
+            setSaving(false);
+          }
+        }}
+        className={cn(
+          'relative h-6 w-11 shrink-0 rounded-full transition disabled:opacity-50',
+          on ? 'bg-primary' : 'bg-border-strong'
+        )}
+      >
+        <span
+          className={cn('absolute top-0.5 size-5 rounded-full bg-white shadow transition-all', on ? 'left-[22px]' : 'left-0.5')}
+        />
+      </button>
+    </div>
   );
 }
 

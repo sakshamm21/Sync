@@ -40,7 +40,13 @@ export async function recountAttendees(now = new Date()): Promise<number> {
     lastId = events[events.length - 1]._id;
 
     const counts = await Registration.aggregate<{ _id: unknown; count: number }>([
-      { $match: { event: { $in: events.map((e) => e._id) }, status: REGISTRATION_STATUS.GOING } },
+      // A held offer occupies a seat just like a confirmed place.
+      {
+        $match: {
+          event: { $in: events.map((e) => e._id) },
+          status: { $in: [REGISTRATION_STATUS.GOING, REGISTRATION_STATUS.OFFERED] },
+        },
+      },
       { $group: { _id: '$event', count: { $sum: 1 } } },
     ]);
     const byEvent = new Map(counts.map((c) => [String(c._id), c.count]));

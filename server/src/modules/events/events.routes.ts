@@ -49,6 +49,15 @@ router.get(
   })
 );
 
+/** Accept a spot held for you off the waitlist. */
+router.post(
+  '/:id/registration/claim',
+  authenticate,
+  validate({ params: idParams }, async (req, res) => {
+    res.json({ data: await registrations.claim(currentUser(req), req.params.id) });
+  })
+);
+
 /** Bookmark ("Interested") or un-bookmark an event. */
 router.put(
   '/:id/interest',

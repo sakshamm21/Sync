@@ -126,6 +126,8 @@ export type PresentedEvent = Omit<IEvent, 'owner' | 'organizers'> & {
     waitlistPosition?: number;
     /** Bookmarked as "Interested". */
     interested: boolean;
+    /** For a held seat: claim it before this. */
+    offerExpiresAt?: Date | null;
   };
 };
 

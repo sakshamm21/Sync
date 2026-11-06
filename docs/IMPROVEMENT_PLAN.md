@@ -55,10 +55,11 @@ Severity labels:
 | #17 | Now #2: Has spots / Online / Free food filters, club search |
 | #18 | Now #5, #7: club pages and Follow, onboarding |
 | #19 | Now #10, #11: sign-up windows, targeted announcements, preview as attendee, offline door scans |
+| #20 | Now #6: waitlist claim window, "take any seat automatically" |
 
 **Still open, and why:**
 
-- **Needs a decision:** Now #6, a claim window for waitlist offers (how long, and what happens to "take any seat automatically").
+- Now #6 claim window: done in #20 (per-event, off by default; the 12-hour default the roadmap suggests is one of the choices).
 - **Needs a service set up on the account:**
   - Now #10 cover photo upload (Vercel Blob or Cloudinary);
   - E4 Sentry (a DSN);
