@@ -122,6 +122,9 @@ export default function SignInForm({ onSwitchToRegister, onForgotPassword, onNee
               </Button>
             ))}
           </div>
+          <p className="mt-3 text-xs text-subtle">
+            These accounts are shared with everyone trying Sync, and the demo data resets every night.
+          </p>
         </div>
       )}
     </AuthCard>

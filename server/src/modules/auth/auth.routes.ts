@@ -3,6 +3,7 @@ import validate from '../../middleware/validate';
 import { authLimiter } from '../../middleware/rateLimit';
 import * as schemas from './auth.schemas';
 import * as service from './auth.service';
+import { assertNotDemoAccount } from '../../demo/accounts';
 
 const router = Router();
 router.use(authLimiter);
@@ -24,6 +25,7 @@ router.post('/login', validate({ body: schemas.login }, async (req, res) => {
 }));
 
 router.post('/forgot-password', validate({ body: schemas.emailOnly }, async (req, res) => {
+  assertNotDemoAccount(req.body.email);
   res.json({ data: await service.forgotPassword(req.body) });
 }));
 

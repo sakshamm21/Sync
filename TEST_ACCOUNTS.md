@@ -8,7 +8,7 @@ Sync normally emails verification codes and password-reset links. This project r
 - **Live app:** https://sync-campus.vercel.app → **Sign in**. The sign-in page has one-click buttons for the Member, Organizer and Admin accounts.
 - **On your machine:** `npm run dev:memory` loads this data automatically on first run (see the [README](README.md#getting-started)).
 
-The data itself lives in [`server/scripts/demo-data.ts`](server/scripts/demo-data.ts), as plain, readable data; edit it to add your own accounts or events.
+The data itself lives in [`server/src/demo/data.ts`](server/src/demo/data.ts), as plain, readable data; edit it to add your own accounts or events.
 
 ---
 
@@ -32,7 +32,7 @@ The data itself lives in [`server/scripts/demo-data.ts`](server/scripts/demo-dat
 
 ## What's in the data
 
-Dates are relative to the day the data was loaded, so there are always upcoming events.
+Dates are relative to the day the data was loaded, on the campus clock (`CAMPUS_TIMEZONE`, India by default). The live app reloads the data every night, so there are always upcoming events.
 
 | Event | Organizer | When | What it demonstrates |
 | --- | --- | --- | --- |
@@ -99,7 +99,12 @@ When running locally without `BREVO_API_KEY` or SMTP settings, codes and reset l
 
 ## Resetting the data
 
-People will change the shared accounts (RSVPs, notes, approvals). To start fresh:
+People will change the shared accounts (RSVPs, notes, approvals). The live app runs with `DEMO_MODE=true`, which:
+
+- wipes everything and reloads fresh demo data every night (`/api/jobs/demo-reset`, scheduled in `server/vercel.json`), including accounts and events visitors created;
+- stops anyone changing or resetting a demo account's password, and stops the demo admin suspending or re-roling demo accounts, so the next visitor can always sign in.
+
+To start fresh yourself:
 
 ```bash
 # Local, with npm run dev:memory: stop the app, then
@@ -109,4 +114,4 @@ rm -rf server/.data          # next `npm run dev:memory` reloads the demo data
 npm --prefix server run seed -- --reset   # wipes everything, then loads fresh data with new dates
 ```
 
-The seed script refuses to run with `NODE_ENV=production`, so it can't wipe a production database by accident.
+The seed script refuses to run with `NODE_ENV=production` unless `DEMO_MODE=true`, so it can't wipe a real production database by accident.

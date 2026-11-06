@@ -4,6 +4,7 @@ import validate from '../../middleware/validate';
 import { z, password, optionalUrl, queryBoolean } from '../../lib/schemas';
 import { CATEGORY_VALUES } from '../../constants';
 import * as service from './me.service';
+import { assertNotDemoAccount } from '../../demo/accounts';
 import * as events from '../events/events.service';
 import * as registrations from '../events/registrations.service';
 import * as eventSchemas from '../events/events.schemas';
@@ -36,6 +37,7 @@ router.patch('/', validate({ body: profileBody }, async (req, res) => {
 }));
 
 router.post('/password', validate({ body: passwordBody }, async (req, res) => {
+  assertNotDemoAccount(currentUser(req).email);
   res.json({ data: await service.changePassword(currentUser(req), req.body) });
 }));
 

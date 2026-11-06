@@ -15,7 +15,7 @@ beforeEach(resetDatabase);
 describe('serverless deployment support', () => {
   it('tells the client to poll', async () => {
     const res = await api().get('/api/meta').expect(200);
-    assert.deepEqual(res.body.data, { realtime: 'polling', emailDelivery: false, assistant: false });
+    assert.deepEqual(res.body.data, { realtime: 'polling', emailDelivery: false, assistant: false, demo: false });
   });
 
   it('runs reminders only for callers with the cron secret', async () => {
@@ -29,6 +29,11 @@ describe('serverless deployment support', () => {
     const res = await api().get('/api/jobs/event-reminders').set('Authorization', 'Bearer test-cron-secret').expect(200);
     assert.equal(res.body.data.sent, 1);
     assert.equal((await Notification.findOne({ user: member.user._id }))!.type, 'event_reminder');
+  });
+
+  it('refuses the demo reset unless DEMO_MODE is on', async () => {
+    const res = await api().get('/api/jobs/demo-reset').set('Authorization', 'Bearer test-cron-secret').expect(404);
+    assert.equal(res.body.error.code, 'DEMO_MODE_OFF');
   });
 
   it('returns only newer chat messages when polling with `after`', async () => {

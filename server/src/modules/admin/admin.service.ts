@@ -3,6 +3,7 @@ import { User, Event, Registration, OrganizerApplication, Report, type IOrganize
 import { badRequest, notFound, conflict } from '../../lib/errors';
 import { escapeRegex, paginationMeta, type Page } from '../../lib/schemas';
 import * as notifications from '../notifications/notifications.service';
+import { assertNotDemoAccount } from '../../demo/accounts';
 import {
   ROLES,
   USER_STATUS,
@@ -62,6 +63,7 @@ export async function updateUser(admin: UserDocument, userId: string, { role, st
 
   const user = await User.findById(userId);
   if (!user) throw notFound('User not found');
+  assertNotDemoAccount(user.email);
   if (role) user.role = role;
   if (status) user.status = status;
   await user.save();
