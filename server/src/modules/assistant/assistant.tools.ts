@@ -117,6 +117,8 @@ const handlers: { [Name in ToolName]: (args: z.output<(typeof schemas)[Name]>, c
       to: parseDate(to),
       sort: sort ?? 'soonest',
       includePast: false,
+      hasSpots: false,
+      online: false,
       page: 1,
       limit: limit ?? 6,
     });

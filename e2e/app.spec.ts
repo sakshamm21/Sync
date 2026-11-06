@@ -165,3 +165,13 @@ test('Sync is installable and offers notifications on this device', async ({ pag
   const registered = await page.evaluate(async () => Boolean(await navigator.serviceWorker.getRegistration()));
   expect(registered).toBe(true);
 });
+
+test('Explore toggles narrow the list and stay in the URL', async ({ page }) => {
+  await signInAs(page, 'member@syncronify.dev');
+  await page.goto('/explore');
+  const request = page.waitForRequest((r) => r.url().startsWith(`${API}/api/events?`) && r.url().includes('tag=free-food'));
+  await page.getByRole('button', { name: /Free food/ }).click();
+  await request;
+  await expect(page).toHaveURL(/tag=free-food/);
+  await expect(page.getByRole('link', { name: '24h Design & Build Hackathon' }).first()).toBeVisible();
+});

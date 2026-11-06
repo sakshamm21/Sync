@@ -49,18 +49,35 @@ async function notifyAttendees(
 
 export async function listPublic(
   viewer: Viewer,
-  { q, category, organizer, from, to, sort, includePast, page, limit }: ListEventsQuery
+  { q, category, organizer, from, to, sort, includePast, hasSpots, online, tag, page, limit }: ListEventsQuery
 ) {
   const filter = publicListing();
+  const and: FilterQuery<IEvent>[] = [];
   if (!includePast) filter.endsAt = { $gte: new Date() };
   if (category) filter.category = category;
   // Co-organisers count: an event someone helps run is one of theirs too.
-  if (organizer) filter.$and = [{ $or: [{ organizers: organizer }, { owner: organizer }] }];
+  if (organizer) and.push({ $or: [{ organizers: organizer }, { owner: organizer }] });
   if (from || to) filter.startsAt = { ...(from && { $gte: from }), ...(to && { $lte: to }) };
+  if (hasSpots) and.push({ $or: [{ capacity: null }, { $expr: { $lt: ['$attendeeCount', '$capacity'] } }] });
+  if (online) filter.onlineUrl = { $nin: [null, ''] };
+  if (tag) filter.tags = tag;
   if (q) {
     const pattern = new RegExp(escapeRegex(q), 'i');
-    filter.$or = [{ title: pattern }, { description: pattern }, { 'venue.name': pattern }, { tags: pattern }];
+    // Searching a club's name finds its events too.
+    const clubs = await User.find({ $or: [{ organization: pattern }, { name: pattern }], role: { $in: ['organizer', 'admin'] } })
+      .select('_id')
+      .limit(50);
+    and.push({
+      $or: [
+        { title: pattern },
+        { description: pattern },
+        { 'venue.name': pattern },
+        { tags: pattern },
+        ...(clubs.length ? [{ owner: { $in: clubs.map((c) => c._id) } }] : []),
+      ],
+    });
   }
+  if (and.length) filter.$and = and;
 
   const orders: Record<ListEventsQuery['sort'], Record<string, SortOrder>> = {
     soonest: { startsAt: 1 },
