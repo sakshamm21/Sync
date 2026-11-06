@@ -50,6 +50,8 @@ export interface ServerMeta {
   emailDelivery: boolean;
   /** Whether the AI assistant is set up (the server has an AI_API_KEY). */
   assistant: boolean;
+  /** A public demo with shared accounts that resets nightly (DEMO_MODE). */
+  demo?: boolean;
 }
 
 export const metaApi = {

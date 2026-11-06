@@ -5,6 +5,7 @@ import { forbidden, notFound } from '../../lib/errors';
 import { sendDueReminders } from '../../jobs/eventReminders';
 import { drainOutbox } from '../../jobs/outbox';
 import { recountAttendees, pruneOldData } from '../../jobs/maintenance';
+import { resetDemoData } from '../../demo/seed';
 
 const router = Router();
 
@@ -32,6 +33,17 @@ router.get('/maintenance', requireCronSecret, async (_req, res) => {
   const corrected = await recountAttendees();
   const pruned = await pruneOldData();
   res.json({ data: { corrected, ...pruned } });
+});
+
+/**
+ * Public demo only (DEMO_MODE): replaces all data with fresh demo data dated
+ * from today, so the shared demo always has upcoming events and any vandalism
+ * lasts a day at most.
+ */
+router.get('/demo-reset', requireCronSecret, async (_req, res) => {
+  if (!env.demoMode) throw notFound('Demo mode is not enabled', 'DEMO_MODE_OFF');
+  const { users, eventIds } = await resetDemoData();
+  res.json({ data: { users: users.size, events: eventIds.size } });
 });
 
 export default router;

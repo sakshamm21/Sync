@@ -99,3 +99,13 @@ jobs:
           # The live web app must be allowed to call the live API.
           curl --fail --silent --show-error -D - -o /dev/null -H "Origin: $WEB_URL" "$API_URL/api/meta" \
             | grep -qi "^access-control-allow-origin: $WEB_URL"
+
+      - name: Demo has upcoming events
+        run: |
+          # The README sends people to the live demo; an empty one is a broken first impression.
+          # DEMO_MODE's nightly /api/jobs/demo-reset keeps it stocked.
+          total=$(curl --fail --silent --show-error --retry 3 "$API_URL/api/events?limit=1" | jq '.meta.total')
+          echo "Upcoming public events: $total"
+          if [ "$total" -lt 1 ]; then
+            echo "::error::The live demo has no upcoming events. Is DEMO_MODE set on the API, and has /api/jobs/demo-reset run?"; exit 1
+          fi

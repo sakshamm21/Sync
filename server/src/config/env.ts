@@ -35,6 +35,21 @@ const schema = z
     // Always on outside production; in production only for demos without email.
     EXPOSE_VERIFICATION_CODES: booleanFlag('false'),
     ENABLE_JOBS: booleanFlag('true'),
+    // A public demo with shared accounts: reset the demo data nightly and stop
+    // visitors from changing the shared accounts' passwords or roles.
+    DEMO_MODE: booleanFlag('false'),
+    // IANA time zone of the campus; used for demo dates and server-side formatting.
+    CAMPUS_TIMEZONE: z
+      .string()
+      .default('Asia/Kolkata')
+      .refine((tz) => {
+        try {
+          new Intl.DateTimeFormat('en', { timeZone: tz });
+          return true;
+        } catch {
+          return false;
+        }
+      }, 'CAMPUS_TIMEZONE must be an IANA time zone, e.g. Asia/Kolkata'),
 
     // Brevo's HTTP API (preferred on serverless). If set, it's used instead of SMTP.
     BREVO_API_KEY: z.string().optional(),
@@ -103,6 +118,8 @@ const env = Object.freeze({
   enableJobs: raw.ENABLE_JOBS && raw.NODE_ENV !== 'test',
   realtime: raw.REALTIME,
   cronSecret: raw.CRON_SECRET,
+  demoMode: raw.DEMO_MODE,
+  campusTimeZone: raw.CAMPUS_TIMEZONE,
   exposeVerificationCodes: raw.NODE_ENV !== 'production' || raw.EXPOSE_VERIFICATION_CODES,
   mail: {
     brevoApiKey: raw.BREVO_API_KEY,

@@ -228,8 +228,8 @@ The sign-in page has one-click buttons for the first three. All accounts use the
 | `tester1@syncronify.dev` … `tester5@syncronify.dev` | Clean accounts, for walking through as a new user |
 
 Things to know:
-- The data is 19 events with dates relative to the day it was loaded, so there is always something upcoming.
-- The accounts are public and shared. Don't store anything private in them.
+- The data is 19 events with dates relative to the day it was loaded. The live app reloads it every night, so there is always something upcoming.
+- The accounts are public and shared, and everything in them resets nightly. Their passwords can't be changed. Don't store anything private in them.
 - To make your own account on the live app you need a real inbox: the verification code arrives by email.
 
 The full list, the demo events and how to reset the data are in [TEST_ACCOUNTS.md](TEST_ACCOUNTS.md).
@@ -271,7 +271,7 @@ Every variable is documented in `server/.env.example` and `client/.env.example`.
 | `npm test` | API tests (123 tests) |
 | `npm --prefix server run typecheck` | Type-check the API and its tests |
 | `npm run build` | Build, and type-check, the web app |
-| `npm --prefix server run seed` | Load the demo data; add `-- --reset` to wipe everything first (refuses to run in production) |
+| `npm --prefix server run seed` | Load the demo data; add `-- --reset` to wipe everything first (refuses to run in production unless `DEMO_MODE=true`) |
 | `npm --prefix server run create-admin -- --email you@example.com` | Create the first admin, or promote an existing account |
 
 ## Testing
@@ -297,13 +297,16 @@ There are no automated tests for the web app yet; it is covered by the type-chec
 4. On the web project set `NEXT_PUBLIC_API_URL` (the API's address) and `NEXT_PUBLIC_SITE_URL` (its own).
 5. Deploy, then, with `DB_URI` in `server/.env` pointing at your database, run `npm --prefix server run create-admin -- --email you@example.com` for the first admin.
 
-`server/vercel.json` schedules the three jobs once a day, each called with `Authorization: Bearer $CRON_SECRET`:
+`server/vercel.json` schedules these jobs once a day, each called with `Authorization: Bearer $CRON_SECRET`:
 
 | Job | What it does |
 |---|---|
 | `/api/jobs/event-reminders` | Emails attendees 24 hours before an event starts |
 | `/api/jobs/email-outbox` | Delivers queued emails |
 | `/api/jobs/maintenance` | Recounts attendees from the registrations that exist, and prunes old rows |
+| `/api/jobs/demo-reset` | Public demos only (`DEMO_MODE=true`): wipes the database and reloads fresh demo data |
+
+For a public demo with shared accounts, like the live app, set `DEMO_MODE=true` on the API project. **It deletes everything in the database every night**, so never set it on a real deployment.
 
 Every push to `master` deploys both projects. The workflow in `.github/workflows/ci.yml` tests every push and pull request, and after a push to `master` it waits for Vercel to finish and smoke-tests the live site.
 
