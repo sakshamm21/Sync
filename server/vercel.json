@@ -5,10 +5,29 @@
   "buildCommand": "",
   "rewrites": [{ "source": "/(.*)", "destination": "/api" }],
   "functions": { "api/index.ts": { "maxDuration": 60 } },
-  "crons": [
-    { "path": "/api/jobs/event-reminders", "schedule": "0 7 * * *" },
-    { "path": "/api/jobs/email-outbox", "schedule": "30 7 * * *" },
-    { "path": "/api/jobs/maintenance", "schedule": "30 3 * * *" },
-    { "path": "/api/jobs/demo-reset", "schedule": "30 20 * * *" }
-  ]
+  "regions": ["bom1"],
+  "schedules": {
+    "email-outbox": {
+      "schedule": "*/15 * * * *",
+      "path": "/api/jobs/email-outbox",
+      "requestMethod": "GET"
+    },
+    "event-reminders": {
+      "schedule": "0 * * * *",
+      "path": "/api/jobs/event-reminders",
+      "requestMethod": "GET"
+    },
+    "maintenance": {
+      "schedule": "0 9 * * *",
+      "timezone": "Asia/Kolkata",
+      "path": "/api/jobs/maintenance",
+      "requestMethod": "GET"
+    },
+    "demo-reset": {
+      "schedule": "0 2 * * *",
+      "timezone": "Asia/Kolkata",
+      "path": "/api/jobs/demo-reset",
+      "requestMethod": "GET"
+    }
+  }
 }

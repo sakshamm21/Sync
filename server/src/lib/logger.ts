@@ -14,7 +14,19 @@ function prettyTransport(): TransportSingleOptions | undefined {
 const logger = pino({
   level: env.logLevel,
   transport: prettyTransport(),
-  redact: ['req.headers.authorization', '*.password', '*.otp', '*.token'],
+  // Request logs include headers. Hosts add their own credentials there (Vercel
+  // sends a protection cookie, an OIDC token and proxy signatures), so those
+  // never reach the logs either.
+  redact: [
+    'req.headers.authorization',
+    'req.headers.cookie',
+    'req.headers["x-vercel-oidc-token"]',
+    'req.headers["x-vercel-proxy-signature"]',
+    'req.headers.forwarded',
+    '*.password',
+    '*.otp',
+    '*.token',
+  ],
 });
 
 export default logger;
