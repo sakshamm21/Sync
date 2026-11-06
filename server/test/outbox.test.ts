@@ -117,7 +117,13 @@ describe('B7: emails leave soon after they are queued', () => {
     });
     const owner = await createUser({ role: 'organizer' });
     const [a, b] = [await createUser(), await createUser()];
-    const event = (await api().post('/api/events').set(owner.auth).send(eventInput({ capacity: 1 })).expect(201)).body.data;
+    const event = (
+      await api()
+        .post('/api/events')
+        .set(owner.auth)
+        .send(eventInput({ capacity: 1 }))
+        .expect(201)
+    ).body.data;
     await api().post(`/api/events/${event.id}/registration`).set(a.auth).expect(200);
     await api().post(`/api/events/${event.id}/registration`).set(b.auth).expect(200);
     await api().delete(`/api/events/${event.id}/registration`).set(a.auth).expect(200);
@@ -145,7 +151,11 @@ describe('B12: moving an event re-arms its reminders', () => {
     const owner = await createUser({ role: 'organizer' });
     const member = await createUser();
     const event = (
-      await api().post('/api/events').set(owner.auth).send(eventInput({ startsAt: hoursFromNow(10), endsAt: hoursFromNow(12) })).expect(201)
+      await api()
+        .post('/api/events')
+        .set(owner.auth)
+        .send(eventInput({ startsAt: hoursFromNow(10), endsAt: hoursFromNow(12) }))
+        .expect(201)
     ).body.data;
     await api().post(`/api/events/${event.id}/registration`).set(member.auth).expect(200);
 

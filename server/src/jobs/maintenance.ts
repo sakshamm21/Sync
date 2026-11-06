@@ -81,13 +81,13 @@ export async function pruneOldData(now = new Date()): Promise<{ emails: number; 
   const [emails, notifications] = await Promise.all([
     OutboxEmail.deleteMany({ $or: [{ sentAt: { $lt: thirtyDaysAgo } }, { failedAt: { $lt: thirtyDaysAgo } }] }),
     // Unread notifications are kept; only ones already read are dropped.
-      // `$exists: true` rather than `$ne: null`, because an unread notification
-      // stores `readAt` as absent or null depending on how it was written.
-      Notification.deleteMany({
-        readAt: { $exists: true, $ne: null },
-        createdAt: { $lt: ninetyDaysAgo },
-      }),
-    ]);
+    // `$exists: true` rather than `$ne: null`, because an unread notification
+    // stores `readAt` as absent or null depending on how it was written.
+    Notification.deleteMany({
+      readAt: { $exists: true, $ne: null },
+      createdAt: { $lt: ninetyDaysAgo },
+    }),
+  ]);
 
   return { emails: emails.deletedCount ?? 0, notifications: notifications.deletedCount ?? 0 };
 }

@@ -27,7 +27,11 @@ const schema = z
     CLIENT_URL: z.string().default('http://localhost:3000'),
     // Vercel puts exactly one proxy in front of the function, so trust it there;
     // otherwise every visitor would share the proxy's IP (and its rate limits).
-    TRUST_PROXY: z.coerce.number().int().min(0).default(process.env.VERCEL ? 1 : 0),
+    TRUST_PROXY: z.coerce
+      .number()
+      .int()
+      .min(0)
+      .default(process.env.VERCEL ? 1 : 0),
     LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).optional(),
     // 'socket' for long-running hosts; 'polling' for serverless (Vercel), which can't hold WebSockets.
     REALTIME: z.enum(['socket', 'polling']).default(process.env.VERCEL ? 'polling' : 'socket'),
@@ -114,7 +118,10 @@ const env = Object.freeze({
   // Allowed CORS origins: exact strings, or RegExps for entries containing '*'.
   // Outside production any localhost port is allowed, since Next.js picks another port when 3000 is busy.
   clientOrigins: [
-    ...raw.CLIENT_URL.split(',').map((o) => o.trim()).filter(Boolean).map(toOriginMatcher),
+    ...raw.CLIENT_URL.split(',')
+      .map((o) => o.trim())
+      .filter(Boolean)
+      .map(toOriginMatcher),
     ...(raw.NODE_ENV === 'production' ? [] : [/^http:\/\/localhost:\d+$/]),
   ],
   // First origin is used to build links in emails.

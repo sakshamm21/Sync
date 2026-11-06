@@ -26,10 +26,7 @@ async function syncTotals(eventId: string) {
     { $match: { event: new Types.ObjectId(eventId) } },
     { $group: { _id: '$event', sum: { $sum: '$rating' }, count: { $sum: 1 } } },
   ]);
-  await Event.updateOne(
-    { _id: eventId },
-    { $set: { ratingSum: stats?.sum ?? 0, ratingCount: stats?.count ?? 0 } }
-  );
+  await Event.updateOne({ _id: eventId }, { $set: { ratingSum: stats?.sum ?? 0, ratingCount: stats?.count ?? 0 } });
 }
 
 /** The average, the total, the viewer's own score and the star breakdown. */
@@ -77,11 +74,7 @@ export async function rate(user: UserDocument, eventId: string, value: number) {
   // A score is feedback on something that happened, so the event must be over.
   if (!event.isPast) throw badRequest('You can rate this once it has finished');
 
-  await Rating.findOneAndUpdate(
-    { event: event._id, user: user.id },
-    { $set: { rating: value } },
-    { upsert: true, new: true }
-  );
+  await Rating.findOneAndUpdate({ event: event._id, user: user.id }, { $set: { rating: value } }, { upsert: true, new: true });
   await syncTotals(String(event._id));
 
   return summaryFor(user, eventId);

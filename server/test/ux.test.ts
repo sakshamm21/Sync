@@ -18,19 +18,37 @@ describe('B27: chat paging never skips messages', () => {
     );
 
     // Polling after the first message returns the other three, even with equal timestamps.
-    const newer = await api().get(`/api/events/${event.id}/messages`).query({ after: String(docs[0]._id) }).set(owner.auth).expect(200);
-    assert.deepEqual(newer.body.data.map((m: { text: string }) => m.text), ['two', 'three', 'four']);
+    const newer = await api()
+      .get(`/api/events/${event.id}/messages`)
+      .query({ after: String(docs[0]._id) })
+      .set(owner.auth)
+      .expect(200);
+    assert.deepEqual(
+      newer.body.data.map((m: { text: string }) => m.text),
+      ['two', 'three', 'four']
+    );
 
     // Scrolling back from the last message, two at a time.
-    const older = await api().get(`/api/events/${event.id}/messages`).query({ before: String(docs[3]._id), limit: 2 }).set(owner.auth).expect(200);
-    assert.deepEqual(older.body.data.map((m: { text: string }) => m.text), ['two', 'three']);
+    const older = await api()
+      .get(`/api/events/${event.id}/messages`)
+      .query({ before: String(docs[3]._id), limit: 2 })
+      .set(owner.auth)
+      .expect(200);
+    assert.deepEqual(
+      older.body.data.map((m: { text: string }) => m.text),
+      ['two', 'three']
+    );
     assert.equal(older.body.meta.hasMore, true);
   });
 
   it('still accepts a timestamp cursor from older clients', async () => {
     const owner = await createUser({ role: 'organizer' });
     const event = (await api().post('/api/events').set(owner.auth).send(eventInput()).expect(201)).body.data;
-    await api().get(`/api/events/${event.id}/messages`).query({ after: new Date(0).toISOString() }).set(owner.auth).expect(200);
+    await api()
+      .get(`/api/events/${event.id}/messages`)
+      .query({ after: new Date(0).toISOString() })
+      .set(owner.auth)
+      .expect(200);
   });
 });
 
@@ -40,7 +58,11 @@ describe('B40: the console is offered to people who run events', () => {
     const helper = await createUser();
     const bystander = await createUser();
     const event = (await api().post('/api/events').set(owner.auth).send(eventInput()).expect(201)).body.data;
-    await api().post(`/api/event-staff/${event.id}/staff`).set(owner.auth).send({ email: helper.user.email, role: 'checkin' }).expect(201);
+    await api()
+      .post(`/api/event-staff/${event.id}/staff`)
+      .set(owner.auth)
+      .send({ email: helper.user.email, role: 'checkin' })
+      .expect(201);
 
     assert.equal((await api().get('/api/me').set(helper.auth).expect(200)).body.data.isEventStaff, true);
     assert.equal((await api().get('/api/me').set(bystander.auth).expect(200)).body.data.isEventStaff, false);

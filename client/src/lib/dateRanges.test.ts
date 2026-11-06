@@ -14,7 +14,10 @@ test('today and tomorrow are campus days', () => {
 test('this weekend is Saturday and Sunday', () => {
   assert.deepEqual(rangeFor('weekend', now), { from: '2026-11-06T18:30:00.000Z', to: '2026-11-08T18:30:00.000Z' });
   // On a Sunday it is just today.
-  assert.deepEqual(rangeFor('weekend', new Date('2026-11-08T06:00:00Z')), { from: '2026-11-07T18:30:00.000Z', to: '2026-11-08T18:30:00.000Z' });
+  assert.deepEqual(rangeFor('weekend', new Date('2026-11-08T06:00:00Z')), {
+    from: '2026-11-07T18:30:00.000Z',
+    to: '2026-11-08T18:30:00.000Z',
+  });
 });
 
 test('a picked day and the next 7 days', () => {

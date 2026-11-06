@@ -31,7 +31,10 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
         <div className="absolute bottom-0 left-1/4 size-[24rem] rounded-full bg-[#3df5ff]/20 blur-[110px]" />
 
         <svg viewBox="0 0 24 24" className="absolute right-12 top-10 size-16 animate-spin-slow text-[#d4ff3a]" aria-hidden="true">
-          <path fill="currentColor" d="M12 1.5c.6 4.9 3.6 9.9 10.5 10.5-6.9.6-9.9 5.6-10.5 10.5C11.4 17.6 8.4 12.6 1.5 12 8.4 11.4 11.4 6.4 12 1.5Z" />
+          <path
+            fill="currentColor"
+            d="M12 1.5c.6 4.9 3.6 9.9 10.5 10.5-6.9.6-9.9 5.6-10.5 10.5C11.4 17.6 8.4 12.6 1.5 12 8.4 11.4 11.4 6.4 12 1.5Z"
+          />
         </svg>
 
         {STICKERS.map((s, i) => (
@@ -58,7 +61,9 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
             <br />
             <span className="font-serif font-normal italic text-[#d4ff3a]">fomo.</span>
           </p>
-          <p className="mt-5 max-w-sm text-white/60">Everything happening on campus, one tap away. Your plans, reminders and group chats in one place.</p>
+          <p className="mt-5 max-w-sm text-white/60">
+            Everything happening on campus, one tap away. Your plans, reminders and group chats in one place.
+          </p>
         </div>
       </div>
     </div>

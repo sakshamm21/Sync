@@ -33,9 +33,7 @@ export async function notify(
   const recipients = [...new Set(userIds.map(String))];
   if (!recipients.length) return;
 
-  const docs = await Notification.insertMany(
-    recipients.map((user) => ({ user, type, title, body, event: eventId }))
-  );
+  const docs = await Notification.insertMany(recipients.map((user) => ({ user, type, title, body, event: eventId })));
   for (const doc of docs) emitToUser(doc.user, 'notification:new', doc.toJSON());
 
   if (!email) return;
@@ -52,7 +50,10 @@ export async function notify(
 export async function list(user: UserDocument, { unreadOnly, page, limit }: Page & { unreadOnly: boolean }) {
   const filter = { user: user.id, ...(unreadOnly ? { readAt: null } : {}) };
   const [items, total, unread] = await Promise.all([
-    Notification.find(filter).sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit),
+    Notification.find(filter)
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit),
     Notification.countDocuments(filter),
     Notification.countDocuments({ user: user.id, readAt: null }),
   ]);

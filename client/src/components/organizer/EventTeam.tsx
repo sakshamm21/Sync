@@ -131,9 +131,7 @@ export default function EventTeam({ eventId }: { eventId: string }) {
               )}
             </li>
           ))}
-          {team.length === 0 && (
-            <li className="py-6 text-center text-sm text-muted">Just you so far.</li>
-          )}
+          {team.length === 0 && <li className="py-6 text-center text-sm text-muted">Just you so far.</li>}
         </ul>
       )}
 

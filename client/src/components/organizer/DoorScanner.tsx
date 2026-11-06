@@ -39,7 +39,8 @@ async function makeDetector(): Promise<Detect> {
 /** A short beep: high for "in", low for "no". */
 function beep(ok: boolean) {
   try {
-    const AudioContextClass = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    const AudioContextClass =
+      window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
     if (!AudioContextClass) return;
     const audio = new AudioContextClass();
     const osc = audio.createOscillator();

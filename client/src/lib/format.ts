@@ -71,7 +71,12 @@ export const NOTE_TAG_EMOJI: Record<NoteTag, string> = {
 export const CAMPUS_TIME_ZONE = process.env.NEXT_PUBLIC_CAMPUS_TIMEZONE || 'Asia/Kolkata';
 const LOCALE = 'en-IN';
 
-const dayFormat = new Intl.DateTimeFormat(LOCALE, { weekday: 'short', day: 'numeric', month: 'short', timeZone: CAMPUS_TIME_ZONE });
+const dayFormat = new Intl.DateTimeFormat(LOCALE, {
+  weekday: 'short',
+  day: 'numeric',
+  month: 'short',
+  timeZone: CAMPUS_TIME_ZONE,
+});
 const timeFormat = new Intl.DateTimeFormat(LOCALE, { hour: 'numeric', minute: '2-digit', timeZone: CAMPUS_TIME_ZONE });
 const fullFormat = new Intl.DateTimeFormat(LOCALE, { dateStyle: 'medium', timeStyle: 'short', timeZone: CAMPUS_TIME_ZONE });
 const longFormat = new Intl.DateTimeFormat(LOCALE, {
@@ -83,14 +88,24 @@ const longFormat = new Intl.DateTimeFormat(LOCALE, {
   timeZone: CAMPUS_TIME_ZONE,
   timeZoneName: 'short',
 });
-const dateKeyFormat = new Intl.DateTimeFormat('en-CA', { year: 'numeric', month: '2-digit', day: '2-digit', timeZone: CAMPUS_TIME_ZONE });
+const dateKeyFormat = new Intl.DateTimeFormat('en-CA', {
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+  timeZone: CAMPUS_TIME_ZONE,
+});
 
 export const formatDay = (iso: string) => dayFormat.format(new Date(iso));
 export const formatTime = (iso: string) => timeFormat.format(new Date(iso));
 export const formatDateTime = (iso: string) => fullFormat.format(new Date(iso));
 /** "Sunday, 8 November at 10:00 am IST", for link previews and anywhere the zone must be explicit. */
 export const formatCampusDateTime = (iso: string) => longFormat.format(new Date(iso));
-const stampFormat = new Intl.DateTimeFormat(LOCALE, { weekday: 'short', day: 'numeric', month: 'short', timeZone: CAMPUS_TIME_ZONE });
+const stampFormat = new Intl.DateTimeFormat(LOCALE, {
+  weekday: 'short',
+  day: 'numeric',
+  month: 'short',
+  timeZone: CAMPUS_TIME_ZONE,
+});
 /** { weekday: 'Sun', day: '8', month: 'Nov' } in the campus zone, for date stamps. */
 export function campusDateParts(iso: string) {
   const parts = Object.fromEntries(stampFormat.formatToParts(new Date(iso)).map((p) => [p.type, p.value]));

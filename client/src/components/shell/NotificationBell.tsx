@@ -4,7 +4,18 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import { AnimatePresence, motion } from 'motion/react';
-import { Bell, CalendarClock, CalendarX2, CheckCheck, Megaphone, PartyPopper, ShieldCheck, ShieldX, RefreshCw, Users } from 'lucide-react';
+import {
+  Bell,
+  CalendarClock,
+  CalendarX2,
+  CheckCheck,
+  Megaphone,
+  PartyPopper,
+  ShieldCheck,
+  ShieldX,
+  RefreshCw,
+  Users,
+} from 'lucide-react';
 import { useAuth, usePolling, useSocketEvent } from '@/context/AuthContext';
 import { notificationsApi, type AppNotification, type NotificationType } from '@/lib/api';
 import { formatRelative } from '@/lib/format';
@@ -83,7 +94,13 @@ export default function NotificationBell() {
     <Popover
       className="w-[22rem] max-w-[calc(100vw-1.5rem)]"
       trigger={({ toggle }) => (
-        <Button variant="ghost" size="icon" onClick={toggle} aria-label={`Notifications${unread ? `, ${unread} unread` : ''}`} className="relative">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={toggle}
+          aria-label={`Notifications${unread ? `, ${unread} unread` : ''}`}
+          className="relative"
+        >
           <Bell />
           <AnimatePresence>
             {unread > 0 && (
@@ -105,7 +122,10 @@ export default function NotificationBell() {
           <div className="flex items-center justify-between border-b border-border px-4 py-3">
             <p className="font-display text-lg font-extrabold">Notifications</p>
             {unread > 0 && (
-              <button onClick={markAllRead} className="flex items-center gap-1 text-xs font-medium text-primary hover:text-primary-hover">
+              <button
+                onClick={markAllRead}
+                className="flex items-center gap-1 text-xs font-medium text-primary hover:text-primary-hover"
+              >
                 <CheckCheck className="size-3.5" /> Mark all read
               </button>
             )}
@@ -121,7 +141,12 @@ export default function NotificationBell() {
               const Icon = ICONS[n.type] ?? Bell;
               const content = (
                 <div className="flex gap-3">
-                  <span className={cn('mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-full', n.readAt ? 'bg-surface-muted text-muted' : 'bg-primary-soft text-primary-soft-foreground')}>
+                  <span
+                    className={cn(
+                      'mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-full',
+                      n.readAt ? 'bg-surface-muted text-muted' : 'bg-primary-soft text-primary-soft-foreground'
+                    )}
+                  >
                     <Icon className="size-4" />
                   </span>
                   <div className="min-w-0 flex-1">
@@ -136,7 +161,14 @@ export default function NotificationBell() {
               return (
                 <li key={n.id}>
                   {n.event ? (
-                    <Link href={`/events/${n.event}`} onClick={() => { markRead(n); close(); }} className={className}>
+                    <Link
+                      href={`/events/${n.event}`}
+                      onClick={() => {
+                        markRead(n);
+                        close();
+                      }}
+                      className={className}
+                    >
                       {content}
                     </Link>
                   ) : (

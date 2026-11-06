@@ -20,13 +20,19 @@ function Ticker({ events }: { events: SyncEvent[] }) {
     <div className="-mx-4 rotate-[-1.5deg] bg-primary py-3 text-primary-foreground sm:mx-0 sm:rounded-full">
       <Marquee duration={40}>
         {events.map((e) => (
-          <Link key={e.id} href={`/events/${e.id}`} className="mx-6 flex items-center gap-3 whitespace-nowrap font-display text-lg font-extrabold uppercase tracking-tight hover:underline">
+          <Link
+            key={e.id}
+            href={`/events/${e.id}`}
+            className="mx-6 flex items-center gap-3 whitespace-nowrap font-display text-lg font-extrabold uppercase tracking-tight hover:underline"
+          >
             <span aria-hidden="true">{CATEGORY_EMOJI[e.category]}</span>
             {e.title}
             <span className="font-mono text-xs font-medium normal-case opacity-70">
               {formatDay(e.startsAt)} · {formatTime(e.startsAt)}
             </span>
-            <span aria-hidden="true" className="ml-3">✦</span>
+            <span aria-hidden="true" className="ml-3">
+              ✦
+            </span>
           </Link>
         ))}
       </Marquee>
@@ -40,8 +46,16 @@ function RoleShortcuts() {
   const [platform, setPlatform] = useState<PlatformStats | null>(null);
 
   useEffect(() => {
-    if (user?.role === 'organizer' || user?.role === 'admin') organizerApi.overview().then((o) => setOrganizer(o.stats)).catch(() => {});
-    if (user?.role === 'admin') adminApi.stats().then(setPlatform).catch(() => {});
+    if (user?.role === 'organizer' || user?.role === 'admin')
+      organizerApi
+        .overview()
+        .then((o) => setOrganizer(o.stats))
+        .catch(() => {});
+    if (user?.role === 'admin')
+      adminApi
+        .stats()
+        .then(setPlatform)
+        .catch(() => {});
   }, [user?.role]);
 
   if (!organizer && !platform) return null;
@@ -70,7 +84,10 @@ function RoleShortcuts() {
           key={c.href}
           href={c.href}
           style={{ rotate: `${i % 2 ? 0.8 : -0.8}deg` }}
-          className={cn('group flex items-center gap-4 rounded-[28px] p-5 transition hover:rotate-0 hover:scale-[1.01]', c.className)}
+          className={cn(
+            'group flex items-center gap-4 rounded-[28px] p-5 transition hover:rotate-0 hover:scale-[1.01]',
+            c.className
+          )}
         >
           <span className="flex size-12 items-center justify-center rounded-full bg-black/10 [&_svg]:size-5">{c.icon}</span>
           <div className="flex-1">
@@ -96,7 +113,10 @@ export default function HomePage() {
       .registrations(true)
       .then((items) => setUpNext(items.filter((e) => e.status !== 'cancelled')))
       .catch(() => setUpNext([]));
-    eventsApi.recommended().then(setPicked).catch(() => setPicked([]));
+    eventsApi
+      .recommended()
+      .then(setPicked)
+      .catch(() => setPicked([]));
     eventsApi
       .list({ sort: 'soonest', limit: 10 })
       .then(({ items }) => setTicker(items))
@@ -135,11 +155,23 @@ export default function HomePage() {
       <section>
         <SectionTitle
           emoji="🎟️"
-          title={<>Your <em>tickets</em></>}
-          action={<Link href="/schedule" className="font-mono text-xs uppercase tracking-wider text-muted hover:text-foreground">See all →</Link>}
+          title={
+            <>
+              Your <em>tickets</em>
+            </>
+          }
+          action={
+            <Link href="/schedule" className="font-mono text-xs uppercase tracking-wider text-muted hover:text-foreground">
+              See all →
+            </Link>
+          }
         />
         {upNext === null ? (
-          <div className="flex gap-4 overflow-hidden">{[0, 1, 2].map((i) => <div key={i} className="h-32 w-[22rem] shrink-0 animate-pulse rounded-[24px] bg-surface-muted" />)}</div>
+          <div className="flex gap-4 overflow-hidden">
+            {[0, 1, 2].map((i) => (
+              <div key={i} className="h-32 w-[22rem] shrink-0 animate-pulse rounded-[24px] bg-surface-muted" />
+            ))}
+          </div>
         ) : upNext.length ? (
           <div className="no-scrollbar -mx-4 flex snap-x gap-4 overflow-x-auto px-4 pb-2 sm:mx-0 sm:px-0">
             {upNext.map((event) => (
@@ -151,15 +183,35 @@ export default function HomePage() {
             emoji="🎫"
             title="No plans yet. Fixable."
             description="RSVP to something and your ticket lands here, with a reminder before it starts."
-            action={<ButtonLink href="/explore" variant="secondary">Browse what&apos;s on</ButtonLink>}
+            action={
+              <ButtonLink href="/explore" variant="secondary">
+                Browse what&apos;s on
+              </ButtonLink>
+            }
           />
         )}
       </section>
 
       <section>
-        <SectionTitle emoji="✨" title={<>Picked for <em>you</em></>} action={<Link href="/explore" className="font-mono text-xs uppercase tracking-wider text-muted hover:text-foreground">Explore →</Link>} />
+        <SectionTitle
+          emoji="✨"
+          title={
+            <>
+              Picked for <em>you</em>
+            </>
+          }
+          action={
+            <Link href="/explore" className="font-mono text-xs uppercase tracking-wider text-muted hover:text-foreground">
+              Explore →
+            </Link>
+          }
+        />
         {picked === null ? (
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">{[0, 1, 2].map((i) => <EventCardSkeleton key={i} />)}</div>
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {[0, 1, 2].map((i) => (
+              <EventCardSkeleton key={i} />
+            ))}
+          </div>
         ) : picked.length ? (
           <Stagger className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {picked.map((event) => (

@@ -35,14 +35,17 @@ function CodeInput({ value, onChange, disabled }: { value: string; onChange: (v:
   };
 
   return (
-    <div className="flex justify-between gap-2" onPaste={(e) => {
-      const pasted = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, LENGTH);
-      if (pasted) {
-        e.preventDefault();
-        onChange(pasted);
-        refs.current[Math.min(pasted.length, LENGTH - 1)]?.focus();
-      }
-    }}>
+    <div
+      className="flex justify-between gap-2"
+      onPaste={(e) => {
+        const pasted = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, LENGTH);
+        if (pasted) {
+          e.preventDefault();
+          onChange(pasted);
+          refs.current[Math.min(pasted.length, LENGTH - 1)]?.focus();
+        }
+      }}
+    >
       {digits.map((digit, i) => (
         <input
           key={i}
@@ -134,7 +137,11 @@ export default function VerifyEmail({ email, devCode: initialDevCode, sendOnMoun
 
   return (
     <AuthCard
-      title={<>check your <em>inbox</em>.</>}
+      title={
+        <>
+          check your <em>inbox</em>.
+        </>
+      }
       subtitle={
         <>
           Enter the 6-digit code we sent to <span className="font-medium text-foreground">{email}</span>.
@@ -165,7 +172,11 @@ export default function VerifyEmail({ email, devCode: initialDevCode, sendOnMoun
             <Info className="mt-0.5 size-4 shrink-0" />
             <div>
               Email delivery isn&apos;t set up yet, so here&apos;s your code:{' '}
-              <button type="button" onClick={() => updateCode(devCode)} className="font-mono font-semibold tracking-widest underline underline-offset-4">
+              <button
+                type="button"
+                onClick={() => updateCode(devCode)}
+                className="font-mono font-semibold tracking-widest underline underline-offset-4"
+              >
                 {devCode}
               </button>
             </div>

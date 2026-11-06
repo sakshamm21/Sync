@@ -129,11 +129,7 @@ eventSchema.method('isCoOrganizer', function isCoOrganizer(userId: unknown) {
 });
 
 eventSchema.method('isOpenForRegistration', function isOpenForRegistration() {
-  return (
-    this.visibility === EVENT_VISIBILITY.PUBLIC &&
-    this.status === EVENT_STATUS.PUBLISHED &&
-    this.endsAt > new Date()
-  );
+  return this.visibility === EVENT_VISIBILITY.PUBLIC && this.status === EVENT_STATUS.PUBLISHED && this.endsAt > new Date();
 });
 
 export const Event = model<IEvent, EventModel>('Event', eventSchema);

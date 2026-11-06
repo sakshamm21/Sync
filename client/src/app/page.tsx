@@ -25,9 +25,27 @@ const STICKERS = [
 
 const MARQUEE_WORDS = ['Discover', 'RSVP', 'Get reminded', 'Group chats', 'Waitlists', 'Check-in', 'Your calendar'];
 
-function Bento({ className, title, body, children, tone }: { className?: string; title: React.ReactNode; body: string; children: React.ReactNode; tone?: string }) {
+function Bento({
+  className,
+  title,
+  body,
+  children,
+  tone,
+}: {
+  className?: string;
+  title: React.ReactNode;
+  body: string;
+  children: React.ReactNode;
+  tone?: string;
+}) {
   return (
-    <Reveal className={cn('group relative flex flex-col overflow-hidden rounded-[32px] border border-border bg-surface p-7', tone, className)}>
+    <Reveal
+      className={cn(
+        'group relative flex flex-col overflow-hidden rounded-[32px] border border-border bg-surface p-7',
+        tone,
+        className
+      )}
+    >
       <div className="flex flex-1 items-center justify-center py-8">{children}</div>
       <h3 className="text-2xl font-extrabold leading-tight [&_em]:font-serif [&_em]:font-normal [&_em]:italic">{title}</h3>
       <p className="mt-2 text-sm leading-relaxed opacity-70">{body}</p>
@@ -55,12 +73,18 @@ export default function LandingPage() {
 
       {/* Hero */}
       <section className="mx-auto max-w-7xl px-4 pb-20 pt-10 sm:px-6 lg:px-8 lg:pt-16">
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="inline-flex items-center gap-2 rounded-full border border-border bg-surface/70 px-3.5 py-1.5 backdrop-blur">
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="inline-flex items-center gap-2 rounded-full border border-border bg-surface/70 px-3.5 py-1.5 backdrop-blur"
+        >
           <span className="relative flex size-2">
             <span className="absolute inline-flex size-full animate-ping rounded-full bg-primary opacity-70" />
             <span className="relative inline-flex size-2 rounded-full bg-primary" />
           </span>
-          <Kicker className="text-foreground">{liveCount === null ? 'live on campus' : `${liveCount} events live on campus`}</Kicker>
+          <Kicker className="text-foreground">
+            {liveCount === null ? 'live on campus' : `${liveCount} events live on campus`}
+          </Kicker>
         </motion.div>
 
         <div ref={heroRef} className="relative mt-8">
@@ -98,10 +122,14 @@ export default function LandingPage() {
         </div>
 
         <div className="mt-12 grid items-center gap-12 lg:grid-cols-[1fr_1.1fr]">
-          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3, duration: 0.7, ease: motionEase }}>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3, duration: 0.7, ease: motionEase }}
+          >
             <p className="max-w-md text-lg leading-relaxed text-muted">
-              Every event on campus in one place. Tap <span className="font-semibold text-foreground">I&apos;m in</span>, get reminded, chat with everyone going.
-              Running something? Waitlists and check-in handle themselves.
+              Every event on campus in one place. Tap <span className="font-semibold text-foreground">I&apos;m in</span>, get
+              reminded, chat with everyone going. Running something? Waitlists and check-in handle themselves.
             </p>
             <div className="mt-8 flex flex-wrap items-center gap-3">
               <ButtonLink href={primaryHref} size="xl" className="group">
@@ -125,7 +153,10 @@ export default function LandingPage() {
         <div className="-mx-4 rotate-[-2.5deg] bg-primary py-4 text-primary-foreground">
           <Marquee duration={28}>
             {MARQUEE_WORDS.map((w) => (
-              <span key={w} className="mx-6 flex items-center gap-6 whitespace-nowrap font-display text-4xl font-extrabold uppercase tracking-tight sm:text-5xl">
+              <span
+                key={w}
+                className="mx-6 flex items-center gap-6 whitespace-nowrap font-display text-4xl font-extrabold uppercase tracking-tight sm:text-5xl"
+              >
                 {w} <span className="text-3xl">✦</span>
               </span>
             ))}
@@ -152,16 +183,46 @@ export default function LandingPage() {
         </Reveal>
 
         <div className="mt-14 grid gap-5 md:grid-cols-3">
-          <Bento className="md:col-span-2" title={<>RSVP in <em>one</em> tap.</>} body="It lands on your schedule, you get a reminder the day before, and you’re in the group chat. Try it ↑">
+          <Bento
+            className="md:col-span-2"
+            title={
+              <>
+                RSVP in <em>one</em> tap.
+              </>
+            }
+            body="It lands on your schedule, you get a reminder the day before, and you’re in the group chat. Try it ↑"
+          >
             <RsvpDemo />
           </Bento>
-          <Bento title={<>Waitlists that <em>run</em> themselves.</>} body="Full? Join the line. When a spot opens, you’re moved in and pinged instantly.">
+          <Bento
+            title={
+              <>
+                Waitlists that <em>run</em> themselves.
+              </>
+            }
+            body="Full? Join the line. When a spot opens, you’re moved in and pinged instantly."
+          >
             <WaitlistDemo />
           </Bento>
-          <Bento title={<>Never miss <em>a</em> change.</>} body="Time moved? Venue swapped? Cancelled? You’ll know before the group chat does.">
+          <Bento
+            title={
+              <>
+                Never miss <em>a</em> change.
+              </>
+            }
+            body="Time moved? Venue swapped? Cancelled? You’ll know before the group chat does."
+          >
             <NotifyDemo />
           </Bento>
-          <Bento className="md:col-span-2" title={<>A group chat for <em>every</em> event.</>} body="Ask the organizer, find your people, get announcements. It disappears into history when the event’s done.">
+          <Bento
+            className="md:col-span-2"
+            title={
+              <>
+                A group chat for <em>every</em> event.
+              </>
+            }
+            body="Ask the organizer, find your people, get announcements. It disappears into history when the event’s done."
+          >
             <ChatDemo />
           </Bento>
         </div>
@@ -176,7 +237,9 @@ export default function LandingPage() {
               <h2 className="mt-3 text-5xl font-extrabold leading-[0.95] sm:text-6xl">
                 run the <em className="font-serif font-normal italic">show</em>, not the spreadsheet.
               </h2>
-              <p className="mt-4 max-w-md text-black/70">Publish in a minute, cap capacity, check people in at the door, export attendees, and see who actually showed up.</p>
+              <p className="mt-4 max-w-md text-black/70">
+                Publish in a minute, cap capacity, check people in at the door, export attendees, and see who actually showed up.
+              </p>
             </div>
             <div className="grid grid-cols-3 gap-4">
               {[
@@ -185,7 +248,11 @@ export default function LandingPage() {
                 { to: 100, label: 'less chaos', suffix: '%' },
               ].map((s) => (
                 <div key={s.label} className="rounded-3xl bg-black/10 p-4">
-                  <CountUp to={s.to} suffix={s.suffix} className="block font-display text-4xl font-extrabold tabular-nums sm:text-5xl" />
+                  <CountUp
+                    to={s.to}
+                    suffix={s.suffix}
+                    className="block font-display text-4xl font-extrabold tabular-nums sm:text-5xl"
+                  />
                   <p className="mt-1 font-mono text-[10px] uppercase tracking-[0.14em] text-black/60">{s.label}</p>
                 </div>
               ))}

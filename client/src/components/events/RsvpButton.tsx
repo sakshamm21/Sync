@@ -29,7 +29,19 @@ function celebrate(from: HTMLElement | null) {
     ? { x: (rect.left + rect.width / 2) / window.innerWidth, y: (rect.top + rect.height / 2) / window.innerHeight }
     : { x: 0.5, y: 0.6 };
   confetti({ particleCount: 90, spread: 75, startVelocity: 38, origin, colors: BRAND_CONFETTI, scalar: 0.9, zIndex: 80 });
-  setTimeout(() => confetti({ particleCount: 40, spread: 110, startVelocity: 25, origin, colors: BRAND_CONFETTI, shapes: ['star'], zIndex: 80 }), 180);
+  setTimeout(
+    () =>
+      confetti({
+        particleCount: 40,
+        spread: 110,
+        startVelocity: 25,
+        origin,
+        colors: BRAND_CONFETTI,
+        shapes: ['star'],
+        zIndex: 80,
+      }),
+    180
+  );
 }
 
 /** One button for every registration state: RSVP, join waitlist, going, waitlisted, manage. */
@@ -183,7 +195,13 @@ export default function RsvpButton({ event, onChange, size = 'sm', className }: 
 
   return (
     <div ref={buttonRef} className={className}>
-      <Button variant={event.spotsLeft === 0 ? 'secondary' : 'primary'} size={size} loading={pending} onClick={register} className="w-full">
+      <Button
+        variant={event.spotsLeft === 0 ? 'secondary' : 'primary'}
+        size={size}
+        loading={pending}
+        onClick={register}
+        className="w-full"
+      >
         {!pending && <Plus />}
         {event.spotsLeft === 0 ? 'Join waitlist' : "I'm in"}
       </Button>

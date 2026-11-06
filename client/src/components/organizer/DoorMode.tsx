@@ -36,7 +36,9 @@ export default function DoorMode({ event, version }: { event: SyncEvent; version
     setList(
       (prev) =>
         prev && {
-          items: prev.items.map((i) => (i.id === item.id ? { ...i, checkedInAt: checkedIn ? new Date().toISOString() : null } : i)),
+          items: prev.items.map((i) =>
+            i.id === item.id ? { ...i, checkedInAt: checkedIn ? new Date().toISOString() : null } : i
+          ),
           counts: { ...prev.counts, checkedIn: prev.counts.checkedIn + (checkedIn ? 1 : -1) },
         }
     );
@@ -55,7 +57,8 @@ export default function DoorMode({ event, version }: { event: SyncEvent; version
           <h2 className="font-semibold">Door check-in</h2>
           {list && (
             <p className="text-sm tabular-nums text-muted" aria-live="polite">
-              <span className="text-2xl font-semibold text-foreground">{list.counts.checkedIn}</span> / {list.counts.going} checked in
+              <span className="text-2xl font-semibold text-foreground">{list.counts.checkedIn}</span> / {list.counts.going}{' '}
+              checked in
             </p>
           )}
         </div>
@@ -81,7 +84,9 @@ export default function DoorMode({ event, version }: { event: SyncEvent; version
         {!list ? (
           <div className="m-4 h-40 animate-pulse rounded-2xl bg-surface-muted" />
         ) : visible.length === 0 ? (
-          <p className="px-4 py-12 text-center text-sm text-muted">{list.items.length ? 'No one matches.' : 'Nobody is going yet.'}</p>
+          <p className="px-4 py-12 text-center text-sm text-muted">
+            {list.items.length ? 'No one matches.' : 'Nobody is going yet.'}
+          </p>
         ) : (
           <ul className="max-h-[32rem] divide-y divide-border overflow-y-auto">
             {visible.map((item) => (
@@ -92,7 +97,9 @@ export default function DoorMode({ event, version }: { event: SyncEvent; version
                   onClick={() => toggle(item)}
                   className={cn(
                     'inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition',
-                    item.checkedInAt ? 'border-transparent bg-success-soft text-success' : 'border-border text-muted hover:border-border-strong hover:text-foreground'
+                    item.checkedInAt
+                      ? 'border-transparent bg-success-soft text-success'
+                      : 'border-border text-muted hover:border-border-strong hover:text-foreground'
                   )}
                 >
                   {item.checkedInAt ? <CheckCircle2 className="size-4" /> : <Circle className="size-4" />}

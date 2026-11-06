@@ -141,6 +141,8 @@ export async function listForUser(user: UserDocument, { upcomingOnly }: { upcomi
   if (upcomingOnly) filter.endsAt = { $gte: new Date() };
   filter.status = { $ne: EVENT_STATUS.DRAFT };
 
-  const events = await Event.find(filter).sort({ startsAt: upcomingOnly ? 1 : -1 }).populate('owner', OWNER_FIELDS);
+  const events = await Event.find(filter)
+    .sort({ startsAt: upcomingOnly ? 1 : -1 })
+    .populate('owner', OWNER_FIELDS);
   return withViewerContext(events, user);
 }

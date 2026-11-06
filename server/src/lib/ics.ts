@@ -1,6 +1,10 @@
 /** Minimal RFC 5545 (iCalendar) writer for "Add to calendar" downloads. */
 
-const formatDate = (date: Date) => date.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+const formatDate = (date: Date) =>
+  date
+    .toISOString()
+    .replace(/[-:]/g, '')
+    .replace(/\.\d{3}/, '');
 
 const escapeText = (value = '') =>
   String(value).replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\r?\n/g, '\\n');
@@ -30,7 +34,16 @@ export interface CalendarEntry {
   cancelled?: boolean;
 }
 
-export function buildEventCalendar({ uid, title, description, location, url, startsAt, endsAt, cancelled }: CalendarEntry): string {
+export function buildEventCalendar({
+  uid,
+  title,
+  description,
+  location,
+  url,
+  startsAt,
+  endsAt,
+  cancelled,
+}: CalendarEntry): string {
   const lines = [
     'BEGIN:VCALENDAR',
     'VERSION:2.0',
@@ -50,5 +63,8 @@ export function buildEventCalendar({ uid, title, description, location, url, sta
     'END:VEVENT',
     'END:VCALENDAR',
   ];
-  return `${lines.filter((line): line is string => Boolean(line)).map(fold).join('\r\n')}\r\n`;
+  return `${lines
+    .filter((line): line is string => Boolean(line))
+    .map(fold)
+    .join('\r\n')}\r\n`;
 }

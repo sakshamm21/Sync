@@ -26,7 +26,11 @@ function AuthenticationFlow() {
   const [step, setStep] = useState<Step>(params.get('mode') === 'register' ? { name: 'register' } : { name: 'login' });
 
   // Only same-site paths are followed, to avoid open redirects.
-  const destination = safeNextPath(params.get('next'), typeof window === 'undefined' ? 'http://localhost' : window.location.origin, APP_HOME);
+  const destination = safeNextPath(
+    params.get('next'),
+    typeof window === 'undefined' ? 'http://localhost' : window.location.origin,
+    APP_HOME
+  );
 
   useEffect(() => {
     if (status === 'authenticated' && user && step.name !== 'verify') router.replace(destination);

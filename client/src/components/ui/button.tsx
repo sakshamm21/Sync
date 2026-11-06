@@ -25,7 +25,11 @@ const sizes: Record<Size, string> = {
   'icon-sm': 'size-8',
 };
 
-function buttonClasses({ variant = 'primary', size = 'md', className }: { variant?: Variant; size?: Size; className?: string } = {}) {
+function buttonClasses({
+  variant = 'primary',
+  size = 'md',
+  className,
+}: { variant?: Variant; size?: Size; className?: string } = {}) {
   return cn(
     'inline-flex items-center justify-center rounded-full font-medium whitespace-nowrap select-none',
     'transition-[background-color,border-color,color,box-shadow,transform,filter,opacity] duration-200',

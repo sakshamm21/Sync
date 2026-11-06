@@ -44,7 +44,9 @@ export function createApp(): Express {
 
   // Lets the web app adapt to the host: live sockets or polling, and whether the assistant is on.
   app.get('/api/meta', (_req, res) => {
-    res.json({ data: { realtime: env.realtime, emailDelivery: env.mail.enabled, assistant: env.ai.enabled, demo: env.demoMode } });
+    res.json({
+      data: { realtime: env.realtime, emailDelivery: env.mail.enabled, assistant: env.ai.enabled, demo: env.demoMode },
+    });
   });
 
   app.use('/api/jobs', jobsRoutes);

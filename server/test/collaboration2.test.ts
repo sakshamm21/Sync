@@ -30,21 +30,18 @@ describe('shared event ownership', () => {
       .send({ email: helper.user.email, role: 'manager' })
       .expect(201);
 
-      // The team is the creator plus the invitee.
-      assert.equal(invited.body.data.length, 2);
-      assert.deepEqual(
-        invited.body.data.map((m: { role: string }) => m.role).sort(),
-        ['manager', 'owner']
-      );
+    // The team is the creator plus the invitee.
+    assert.equal(invited.body.data.length, 2);
+    assert.deepEqual(invited.body.data.map((m: { role: string }) => m.role).sort(), ['manager', 'owner']);
 
-      // They can now change it, and the owner is unaffected.
-      const edited = await api()
-        .patch(`/api/events/${event.id}`)
-        .set(helper.auth)
-        .send({ title: 'Robotics Workshop (rescheduled)' })
-        .expect(200);
-      assert.equal(edited.body.data.title, 'Robotics Workshop (rescheduled)');
-    });
+    // They can now change it, and the owner is unaffected.
+    const edited = await api()
+      .patch(`/api/events/${event.id}`)
+      .set(helper.auth)
+      .send({ title: 'Robotics Workshop (rescheduled)' })
+      .expect(200);
+    assert.equal(edited.body.data.title, 'Robotics Workshop (rescheduled)');
+  });
 
   it('gives check-in staff the door but not edit rights', async () => {
     const owner = await createUser({ role: 'organizer' });
@@ -98,16 +95,24 @@ describe('shared event ownership', () => {
     const helper = await createUser({ role: 'organizer' });
     const event = await publishEvent(owner);
 
-      // The same person cannot be added twice.
-      await api().post(`/api/event-staff/${event.id}/staff`).set(owner.auth).send({ email: helper.user.email, role: 'manager' }).expect(201);
-      await api().post(`/api/event-staff/${event.id}/staff`).set(owner.auth).send({ email: helper.user.email, role: 'checkin' }).expect(400);
+    // The same person cannot be added twice.
+    await api()
+      .post(`/api/event-staff/${event.id}/staff`)
+      .set(owner.auth)
+      .send({ email: helper.user.email, role: 'manager' })
+      .expect(201);
+    await api()
+      .post(`/api/event-staff/${event.id}/staff`)
+      .set(owner.auth)
+      .send({ email: helper.user.email, role: 'checkin' })
+      .expect(400);
 
-      // The owner's own row cannot be removed either.
-      const team = await api().get(`/api/event-staff/${event.id}/staff`).set(owner.auth).expect(200);
-      const ownerRow = team.body.data.find((m: { role: string }) => m.role === 'owner');
-      assert.ok(ownerRow, 'the owner is on the team');
-      await api().delete(`/api/event-staff/${event.id}/staff/${ownerRow.id}`).set(owner.auth).expect(400);
-    });
+    // The owner's own row cannot be removed either.
+    const team = await api().get(`/api/event-staff/${event.id}/staff`).set(owner.auth).expect(200);
+    const ownerRow = team.body.data.find((m: { role: string }) => m.role === 'owner');
+    assert.ok(ownerRow, 'the owner is on the team');
+    await api().delete(`/api/event-staff/${event.id}/staff/${ownerRow.id}`).set(owner.auth).expect(400);
+  });
 
   it('shows co-owned events in the organiser console', async () => {
     const owner = await createUser({ role: 'organizer' });
@@ -120,32 +125,39 @@ describe('shared event ownership', () => {
     assert.equal(overview.body.data.events[0].id, event.id);
   });
 
-    it('lets a plain member help run one event without becoming an organiser', async () => {
-      const owner = await createUser({ role: 'organizer' });
-      // Members are the common case on a campus: someone lends a hand on one
-      // event but has no reason to be able to publish their own.
-      const helper = await createUser();
-      const event = await publishEvent(owner);
-      await api().post(`/api/event-staff/${event.id}/staff`).set(owner.auth).send({ email: helper.user.email, role: 'manager' }).expect(201);
+  it('lets a plain member help run one event without becoming an organiser', async () => {
+    const owner = await createUser({ role: 'organizer' });
+    // Members are the common case on a campus: someone lends a hand on one
+    // event but has no reason to be able to publish their own.
+    const helper = await createUser();
+    const event = await publishEvent(owner);
+    await api()
+      .post(`/api/event-staff/${event.id}/staff`)
+      .set(owner.auth)
+      .send({ email: helper.user.email, role: 'manager' })
+      .expect(201);
 
-      const overview = await api().get('/api/organizer/overview').set(helper.auth).expect(200);
-      assert.equal(overview.body.data.events.length, 1);
-      assert.equal(overview.body.data.events[0].viewer.canManage, true);
+    const overview = await api().get('/api/organizer/overview').set(helper.auth).expect(200);
+    assert.equal(overview.body.data.events.length, 1);
+    assert.equal(overview.body.data.events[0].viewer.canManage, true);
 
-      // They cannot publish events of their own, and cannot create one.
-      const own = await api().post('/api/events').set(helper.auth).send(eventInput({ visibility: 'public' }));
-      assert.equal(own.status, 403);
-      // Nor can they apply to be an organiser while they already run an event.
-      assert.equal(helper.user.role, 'member');
-    });
-
-    it('shows an empty console to a member with nothing to run', async () => {
-      const member = await createUser();
-      const overview = await api().get('/api/organizer/overview').set(member.auth).expect(200);
-      assert.deepEqual(overview.body.data.events, []);
-      assert.equal(overview.body.data.stats.totalEvents, 0);
-    });
+    // They cannot publish events of their own, and cannot create one.
+    const own = await api()
+      .post('/api/events')
+      .set(helper.auth)
+      .send(eventInput({ visibility: 'public' }));
+    assert.equal(own.status, 403);
+    // Nor can they apply to be an organiser while they already run an event.
+    assert.equal(helper.user.role, 'member');
   });
+
+  it('shows an empty console to a member with nothing to run', async () => {
+    const member = await createUser();
+    const overview = await api().get('/api/organizer/overview').set(member.auth).expect(200);
+    assert.deepEqual(overview.body.data.events, []);
+    assert.equal(overview.body.data.stats.totalEvents, 0);
+  });
+});
 
 describe('scheduling clashes', () => {
   it('reports confirmed events that overlap a new RSVP', async () => {
@@ -153,7 +165,11 @@ describe('scheduling clashes', () => {
     const member = await createUser();
 
     const first = await publishEvent(organizer, { title: 'Lecture', startsAt: hoursFromNow(48), endsAt: hoursFromNow(50) });
-    const second = await publishEvent(organizer, { title: 'Overlapping Talk', startsAt: hoursFromNow(49), endsAt: hoursFromNow(51) });
+    const second = await publishEvent(organizer, {
+      title: 'Overlapping Talk',
+      startsAt: hoursFromNow(49),
+      endsAt: hoursFromNow(51),
+    });
 
     await api().post(`/api/events/${first.id}/registration`).set(member.auth).expect(200);
     const res = await api().post(`/api/events/${second.id}/registration`).set(member.auth).expect(200);
@@ -197,7 +213,11 @@ describe('door check-in by QR', () => {
     assert.equal(scan.body.data.attendee.name, member.user.name);
 
     // Scanning the same ticket again is harmless.
-    const again = await api().post(`/api/events/${event.id}/scan`).set(owner.auth).send({ token: ticket.body.data.token }).expect(200);
+    const again = await api()
+      .post(`/api/events/${event.id}/scan`)
+      .set(owner.auth)
+      .send({ token: ticket.body.data.token })
+      .expect(200);
     assert.equal(again.body.data.alreadyCheckedIn, true);
   });
 
@@ -265,7 +285,11 @@ describe('event reports', () => {
     const admin = await createUser({ role: 'admin' });
     const event = await publishEvent(owner);
 
-    await api().post(`/api/reports/${event.id}/report`).set(member.auth).send({ reason: 'misleading', details: 'Wrong date' }).expect(201);
+    await api()
+      .post(`/api/reports/${event.id}/report`)
+      .set(member.auth)
+      .send({ reason: 'misleading', details: 'Wrong date' })
+      .expect(201);
 
     const queue = await api().get('/api/admin/reports?status=open').set(admin.auth).expect(200);
     assert.equal(queue.body.data.length, 1);
@@ -327,28 +351,28 @@ describe('self-healing maintenance', () => {
     const user = await createUser();
 
     await OutboxEmail.create({ to: 'a@b.com', subject: 'old', html: '<p>x</p>', sentAt: old });
-        await OutboxEmail.create({ to: 'c@d.com', subject: 'new', html: '<p>x</p>', sentAt: new Date() });
+    await OutboxEmail.create({ to: 'c@d.com', subject: 'new', html: '<p>x</p>', sentAt: new Date() });
 
-        // `createdAt` is a Mongoose timestamp, so it is written directly rather
-        // than through the model, which would overwrite it with "now".
-        await Notification.collection.insertOne({
-          user: user.user.id,
-          type: 'event_reminder',
-          title: 'read',
-          body: '',
-          event: null,
-          readAt: old,
-          createdAt: old,
-          updatedAt: old,
-        });
-        await Notification.create({ user: user.user.id, type: 'event_reminder', title: 'unread', readAt: null });
-
-        const pruned = await pruneOldData();
-        assert.equal(pruned.emails, 1);
-        assert.equal(pruned.notifications, 1);
-        assert.equal(await OutboxEmail.countDocuments(), 1);
-        assert.equal(await Notification.countDocuments(), 1);
+    // `createdAt` is a Mongoose timestamp, so it is written directly rather
+    // than through the model, which would overwrite it with "now".
+    await Notification.collection.insertOne({
+      user: user.user.id,
+      type: 'event_reminder',
+      title: 'read',
+      body: '',
+      event: null,
+      readAt: old,
+      createdAt: old,
+      updatedAt: old,
     });
+    await Notification.create({ user: user.user.id, type: 'event_reminder', title: 'unread', readAt: null });
+
+    const pruned = await pruneOldData();
+    assert.equal(pruned.emails, 1);
+    assert.equal(pruned.notifications, 1);
+    assert.equal(await OutboxEmail.countDocuments(), 1);
+    assert.equal(await Notification.countDocuments(), 1);
+  });
 });
 
 describe('events created before shared ownership', () => {
@@ -384,7 +408,11 @@ describe('events created before shared ownership', () => {
     const list = await api().get('/api/organizer/overview').set(owner.auth).expect(200);
     const id = list.body.data.events[0].id;
 
-    await api().post(`/api/event-staff/${id}/staff`).set(owner.auth).send({ email: helper.user.email, role: 'manager' }).expect(201);
+    await api()
+      .post(`/api/event-staff/${id}/staff`)
+      .set(owner.auth)
+      .send({ email: helper.user.email, role: 'manager' })
+      .expect(201);
 
     const event = await Event.findById(id);
     const organizers = (event!.organizers ?? []).map(String);
@@ -395,28 +423,28 @@ describe('events created before shared ownership', () => {
     await api().patch(`/api/events/${id}`).set(owner.auth).send({ title: 'Still mine' }).expect(200);
   });
 
-    it('lists the creator on the team of a legacy event', async () => {
-      const owner = await legacyEvent();
-      const list = await api().get('/api/organizer/overview').set(owner.auth).expect(200);
-      const id = list.body.data.events[0].id;
+  it('lists the creator on the team of a legacy event', async () => {
+    const owner = await legacyEvent();
+    const list = await api().get('/api/organizer/overview').set(owner.auth).expect(200);
+    const id = list.body.data.events[0].id;
 
-      // No EventStaff row exists yet, but the organiser must still see themselves.
-      const team = await api().get(`/api/event-staff/${id}/staff`).set(owner.auth).expect(200);
-      assert.equal(team.body.data.length, 1);
-      assert.equal(team.body.data[0].role, 'owner');
-      assert.equal(team.body.data[0].user.name, owner.user.name);
+    // No EventStaff row exists yet, but the organiser must still see themselves.
+    const team = await api().get(`/api/event-staff/${id}/staff`).set(owner.auth).expect(200);
+    assert.equal(team.body.data.length, 1);
+    assert.equal(team.body.data[0].role, 'owner');
+    assert.equal(team.body.data[0].user.name, owner.user.name);
 
-      // Adding someone keeps the creator on the list.
-      const helper = await createUser({ role: 'organizer' });
-      const after = await api()
-        .post(`/api/event-staff/${id}/staff`)
-        .set(owner.auth)
-        .send({ email: helper.user.email, role: 'checkin' })
-        .expect(201);
-      assert.equal(after.body.data.length, 2);
-      assert.ok(after.body.data.some((m: { role: string }) => m.role === 'owner'));
-    });
+    // Adding someone keeps the creator on the list.
+    const helper = await createUser({ role: 'organizer' });
+    const after = await api()
+      .post(`/api/event-staff/${id}/staff`)
+      .set(owner.auth)
+      .send({ email: helper.user.email, role: 'checkin' })
+      .expect(201);
+    assert.equal(after.body.data.length, 2);
+    assert.ok(after.body.data.some((m: { role: string }) => m.role === 'owner'));
   });
+});
 
 describe('email outbox', () => {
   it('queues instead of sending, and never blocks the caller', async () => {

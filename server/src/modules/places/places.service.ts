@@ -59,11 +59,13 @@ async function waitForTurn(): Promise<void> {
   let slot: number;
   const db = mongoose.connection.db;
   if (db && mongoose.connection.readyState === 1) {
-    const row = await db.collection<{ _id: string; next: Date }>('job_locks').findOneAndUpdate(
-      { _id: 'nominatim' },
-      [{ $set: { next: { $add: [{ $max: [{ $ifNull: ['$next', new Date(now)] }, new Date(now)] }, MIN_GAP_MS] } } }],
-      { upsert: true, returnDocument: 'after' }
-    );
+    const row = await db
+      .collection<{ _id: string; next: Date }>('job_locks')
+      .findOneAndUpdate(
+        { _id: 'nominatim' },
+        [{ $set: { next: { $add: [{ $max: [{ $ifNull: ['$next', new Date(now)] }, new Date(now)] }, MIN_GAP_MS] } } }],
+        { upsert: true, returnDocument: 'after' }
+      );
     slot = (row?.next?.getTime() ?? now + MIN_GAP_MS) - MIN_GAP_MS;
   } else {
     slot = Math.max(localNext, now);

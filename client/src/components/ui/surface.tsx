@@ -24,7 +24,11 @@ const badgeTones: Record<BadgeTone, string> = {
 export function Badge({ tone = 'neutral', className, ...props }: React.HTMLAttributes<HTMLSpanElement> & { tone?: BadgeTone }) {
   return (
     <span
-      className={cn('inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-semibold [&_svg]:size-3', badgeTones[tone], className)}
+      className={cn(
+        'inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-semibold [&_svg]:size-3',
+        badgeTones[tone],
+        className
+      )}
       {...props}
     />
   );
@@ -64,15 +68,39 @@ export function Avatar({ name, src, size = 36, className }: { name: string; src?
   return src ? (
     <img src={src} alt="" style={style} className={cn('rounded-full object-cover ring-2 ring-background', className)} />
   ) : (
-    <span style={style} className={cn('inline-flex items-center justify-center rounded-full bg-gradient-to-br font-display font-bold text-black ring-2 ring-background', gradient, className)}>
+    <span
+      style={style}
+      className={cn(
+        'inline-flex items-center justify-center rounded-full bg-gradient-to-br font-display font-bold text-black ring-2 ring-background',
+        gradient,
+        className
+      )}
+    >
       {initials || '?'}
     </span>
   );
 }
 
-export function EmptyState({ emoji = '🫥', title, description, action, className }: { emoji?: string; title: string; description?: React.ReactNode; action?: React.ReactNode; className?: string }) {
+export function EmptyState({
+  emoji = '🫥',
+  title,
+  description,
+  action,
+  className,
+}: {
+  emoji?: string;
+  title: string;
+  description?: React.ReactNode;
+  action?: React.ReactNode;
+  className?: string;
+}) {
   return (
-    <div className={cn('flex flex-col items-center justify-center rounded-[28px] border border-dashed border-border-strong px-6 py-16 text-center', className)}>
+    <div
+      className={cn(
+        'flex flex-col items-center justify-center rounded-[28px] border border-dashed border-border-strong px-6 py-16 text-center',
+        className
+      )}
+    >
       <span className="mb-4 text-5xl" style={{ rotate: '-8deg' }} aria-hidden="true">
         {emoji}
       </span>
@@ -84,12 +112,24 @@ export function EmptyState({ emoji = '🫥', title, description, action, classNa
 }
 
 /** Big display title with a mono kicker; wrap a word in <em> for the serif accent. */
-export function PageHeader({ kicker, title, description, actions }: { kicker?: string; title: React.ReactNode; description?: React.ReactNode; actions?: React.ReactNode }) {
+export function PageHeader({
+  kicker,
+  title,
+  description,
+  actions,
+}: {
+  kicker?: string;
+  title: React.ReactNode;
+  description?: React.ReactNode;
+  actions?: React.ReactNode;
+}) {
   return (
     <div className="mb-10 flex flex-col gap-5 sm:flex-row sm:items-end sm:justify-between">
       <div>
         {kicker && <Kicker className="mb-3">{kicker}</Kicker>}
-        <h1 className="text-5xl font-extrabold leading-[0.95] sm:text-6xl [&_em]:font-serif [&_em]:font-normal [&_em]:italic [&_em]:text-primary">{title}</h1>
+        <h1 className="text-5xl font-extrabold leading-[0.95] sm:text-6xl [&_em]:font-serif [&_em]:font-normal [&_em]:italic [&_em]:text-primary">
+          {title}
+        </h1>
         {description && <p className="mt-3 max-w-xl text-muted">{description}</p>}
       </div>
       {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
@@ -98,9 +138,23 @@ export function PageHeader({ kicker, title, description, actions }: { kicker?: s
 }
 
 /** Scoreboard number: huge display figure with a label. */
-export function StatCard({ label, value, icon, hint, accent }: { label: string; value: React.ReactNode; icon?: React.ReactNode; hint?: string; accent?: boolean }) {
+export function StatCard({
+  label,
+  value,
+  icon,
+  hint,
+  accent,
+}: {
+  label: string;
+  value: React.ReactNode;
+  icon?: React.ReactNode;
+  hint?: string;
+  accent?: boolean;
+}) {
   return (
-    <Card className={cn('relative h-full overflow-hidden p-5', accent && 'border-transparent bg-primary text-primary-foreground')}>
+    <Card
+      className={cn('relative h-full overflow-hidden p-5', accent && 'border-transparent bg-primary text-primary-foreground')}
+    >
       <div className="flex items-center justify-between">
         <Kicker className={cn(accent && 'text-primary-foreground/70')}>{label}</Kicker>
         {icon && <span className={cn('[&_svg]:size-4', accent ? 'text-primary-foreground/70' : 'text-subtle')}>{icon}</span>}

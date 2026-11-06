@@ -17,7 +17,14 @@ type FieldName = 'name' | 'email' | 'password';
 const FIELDS: { key: FieldName; label: string; type: string; placeholder: string; autoComplete: string; hint?: string }[] = [
   { key: 'name', label: 'Full name', type: 'text', placeholder: 'Asha Rao', autoComplete: 'name' },
   { key: 'email', label: 'Email', type: 'email', placeholder: 'you@college.edu', autoComplete: 'email' },
-  { key: 'password', label: 'Password', type: 'password', placeholder: 'At least 8 characters', autoComplete: 'new-password', hint: 'Use 8 or more characters.' },
+  {
+    key: 'password',
+    label: 'Password',
+    type: 'password',
+    placeholder: 'At least 8 characters',
+    autoComplete: 'new-password',
+    hint: 'Use 8 or more characters.',
+  },
 ];
 
 export default function RegisterForm({ onSwitchToLogin, onRegistered }: RegisterFormProps) {
@@ -35,7 +42,11 @@ export default function RegisterForm({ onSwitchToLogin, onRegistered }: Register
       onRegistered(await register(form));
     } catch (err) {
       if (err instanceof ApiError && err.code === 'VALIDATION_ERROR') {
-        setFieldErrors({ name: err.fieldMessage('name'), email: err.fieldMessage('email'), password: err.fieldMessage('password') });
+        setFieldErrors({
+          name: err.fieldMessage('name'),
+          email: err.fieldMessage('email'),
+          password: err.fieldMessage('password'),
+        });
       } else {
         setError(errorMessage(err));
       }
@@ -46,7 +57,11 @@ export default function RegisterForm({ onSwitchToLogin, onRegistered }: Register
 
   return (
     <AuthCard
-      title={<>get <em>in</em>.</>}
+      title={
+        <>
+          get <em>in</em>.
+        </>
+      }
       subtitle="Takes a minute. We’ll send a 6-digit code to check it’s really you."
       footer={
         <>
@@ -79,7 +94,9 @@ export default function RegisterForm({ onSwitchToLogin, onRegistered }: Register
         <Button type="submit" size="lg" loading={loading} className="w-full">
           Create my account
         </Button>
-        <p className="text-center text-xs text-muted">Want to host events? Apply to become an organizer from Settings once you're in.</p>
+        <p className="text-center text-xs text-muted">
+          Want to host events? Apply to become an organizer from Settings once you're in.
+        </p>
       </form>
     </AuthCard>
   );

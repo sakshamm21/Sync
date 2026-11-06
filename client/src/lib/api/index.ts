@@ -40,8 +40,7 @@ type Data<T> = { data: T };
 type Listed<T> = { data: T[]; meta: PageMeta };
 
 const data = <T>(p: Promise<{ data: Data<T> }>) => p.then((r) => r.data.data);
-const page = <T>(p: Promise<{ data: Listed<T> }>): Promise<Page<T>> =>
-  p.then((r) => ({ items: r.data.data, meta: r.data.meta }));
+const page = <T>(p: Promise<{ data: Listed<T> }>): Promise<Page<T>> => p.then((r) => ({ items: r.data.data, meta: r.data.meta }));
 
 // --- Server capabilities ------------------------------------------------------
 
@@ -69,8 +68,7 @@ export interface RegisterResult {
 }
 
 export const authApi = {
-  register: (body: { name: string; email: string; password: string }) =>
-    data<RegisterResult>(http.post('/auth/register', body)),
+  register: (body: { name: string; email: string; password: string }) => data<RegisterResult>(http.post('/auth/register', body)),
   verifyEmail: (body: { email: string; code: string }) => data<Session>(http.post('/auth/verify-email', body)),
   resendVerification: (email: string) => data<RegisterResult>(http.post('/auth/resend-verification', { email })),
   login: (body: { email: string; password: string }) => data<Session>(http.post('/auth/login', body)),
@@ -91,8 +89,7 @@ export interface ProfileUpdate {
 export const meApi = {
   get: () => data<User>(http.get('/me')),
   update: (body: ProfileUpdate) => data<User>(http.patch('/me', body)),
-  changePassword: (body: { currentPassword: string; newPassword: string }) =>
-    data<Session>(http.post('/me/password', body)),
+  changePassword: (body: { currentPassword: string; newPassword: string }) => data<Session>(http.post('/me/password', body)),
   /** Ends every session for this account, this device included. */
   signOutEverywhere: () => data<{ ok: true }>(http.post('/me/sign-out-everywhere')),
   calendar: (range: { from: string; to: string }) => data<SyncEvent[]>(http.get('/me/calendar', { params: range })),
@@ -130,14 +127,14 @@ export const eventsApi = {
   doorList: (id: string) => data<DoorList>(http.get(`/events/${id}/door-list`)),
   setCheckIn: (id: string, userId: string, checkedIn: boolean) =>
     data<{ checkedInAt: string | null }>(http.put(`/events/${id}/attendees/${userId}/check-in`, { checkedIn })),
-    /** The signed code this user shows at the door. Null when not attending. */
-    ticket: (id: string) => data<EventTicket | null>(http.get(`/events/${id}/ticket`)),
-    /** Checks a scanned ticket in. Throws with a friendly message if it is not valid. */
-    scan: (id: string, token: string) => data<ScanResult>(http.post(`/events/${id}/scan`, { token })),
-    ratings: (id: string) => data<EventRating>(http.get(`/events/${id}/ratings`)),
-    rate: (id: string, rating: number) => data<EventRating>(http.put(`/events/${id}/ratings`, { rating })),
-    report: (id: string, body: { reason: ReportReason; details?: string }) =>
-      data<{ id: string; status: ReportStatus }>(http.post(`/reports/${id}/report`, body)),
+  /** The signed code this user shows at the door. Null when not attending. */
+  ticket: (id: string) => data<EventTicket | null>(http.get(`/events/${id}/ticket`)),
+  /** Checks a scanned ticket in. Throws with a friendly message if it is not valid. */
+  scan: (id: string, token: string) => data<ScanResult>(http.post(`/events/${id}/scan`, { token })),
+  ratings: (id: string) => data<EventRating>(http.get(`/events/${id}/ratings`)),
+  rate: (id: string, rating: number) => data<EventRating>(http.put(`/events/${id}/ratings`, { rating })),
+  report: (id: string, body: { reason: ReportReason; details?: string }) =>
+    data<{ id: string; status: ReportStatus }>(http.post(`/reports/${id}/report`, body)),
   messages: (id: string, params: { before?: string; after?: string; limit?: number } = {}) =>
     http
       .get<{ data: ChatMessage[]; meta: { hasMore: boolean } }>(`/events/${id}/messages`, { params })
@@ -204,8 +201,7 @@ export const staffApi = {
     data<StaffMember[]>(http.post(`/event-staff/${eventId}/staff`, body)),
   setRole: (eventId: string, staffId: string, role: StaffRole) =>
     data<StaffMember[]>(http.patch(`/event-staff/${eventId}/staff/${staffId}`, { role })),
-  remove: (eventId: string, staffId: string) =>
-    data<StaffMember[]>(http.delete(`/event-staff/${eventId}/staff/${staffId}`)),
+  remove: (eventId: string, staffId: string) => data<StaffMember[]>(http.delete(`/event-staff/${eventId}/staff/${staffId}`)),
 };
 
 // --- Platform admin -------------------------------------------------------------
@@ -221,12 +217,12 @@ export const adminApi = {
     data<OrganizerApplication>(http.post(`/admin/organizer-applications/${id}/approve`, { note })),
   reject: (id: string, note = '') =>
     data<OrganizerApplication>(http.post(`/admin/organizer-applications/${id}/reject`, { note })),
-    reports: (query: { status?: ReportStatus; page?: number; limit?: number } = {}) =>
-      page<EventReport>(http.get('/admin/reports', { params: query })),
-    /** Marking a report `reviewed` also cancels the event it was about; `reason` goes to attendees and the organiser. */
-    resolveReport: (id: string, status: Exclude<ReportStatus, 'open'>, reason = '') =>
-      data<EventReport>(http.patch(`/admin/reports/${id}`, { status, reason })),
-  };
+  reports: (query: { status?: ReportStatus; page?: number; limit?: number } = {}) =>
+    page<EventReport>(http.get('/admin/reports', { params: query })),
+  /** Marking a report `reviewed` also cancels the event it was about; `reason` goes to attendees and the organiser. */
+  resolveReport: (id: string, status: Exclude<ReportStatus, 'open'>, reason = '') =>
+    data<EventReport>(http.patch(`/admin/reports/${id}`, { status, reason })),
+};
 
 // --- AI assistant -----------------------------------------------------------------
 

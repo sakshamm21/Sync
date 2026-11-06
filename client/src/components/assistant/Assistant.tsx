@@ -99,29 +99,55 @@ export function AssistantButton() {
 
 function EventChip({ event, onNavigate }: { event: SyncEvent; onNavigate: () => void }) {
   const status =
-    event.viewer.registration === 'going' ? "You're in" : event.viewer.registration === 'waitlisted' ? 'Waitlisted' : event.viewer.isOwner ? 'Yours' : null;
+    event.viewer.registration === 'going'
+      ? "You're in"
+      : event.viewer.registration === 'waitlisted'
+        ? 'Waitlisted'
+        : event.viewer.isOwner
+          ? 'Yours'
+          : null;
   return (
     <Link
       href={`/events/${event.id}`}
       onClick={onNavigate}
       className="group flex items-center gap-3 rounded-2xl border border-border bg-surface p-2.5 pr-3.5 transition hover:border-primary/60 hover:bg-surface-raised"
     >
-      <span className={cn('relative flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br text-2xl', CATEGORY_GRADIENTS[event.category])}>
-        {event.coverImageUrl ? <img src={event.coverImageUrl} alt="" className="size-full object-cover" /> : <span aria-hidden="true">{CATEGORY_EMOJI[event.category]}</span>}
+      <span
+        className={cn(
+          'relative flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br text-2xl',
+          CATEGORY_GRADIENTS[event.category]
+        )}
+      >
+        {event.coverImageUrl ? (
+          <img src={event.coverImageUrl} alt="" className="size-full object-cover" />
+        ) : (
+          <span aria-hidden="true">{CATEGORY_EMOJI[event.category]}</span>
+        )}
       </span>
       <span className="min-w-0 flex-1">
-        <span className="line-clamp-1 font-display text-sm font-bold leading-tight transition-colors group-hover:text-primary">{event.title}</span>
-        <span className="mt-0.5 block truncate font-mono text-[10px] uppercase tracking-wider text-muted">{formatEventWhen(event)}</span>
+        <span className="line-clamp-1 font-display text-sm font-bold leading-tight transition-colors group-hover:text-primary">
+          {event.title}
+        </span>
+        <span className="mt-0.5 block truncate font-mono text-[10px] uppercase tracking-wider text-muted">
+          {formatEventWhen(event)}
+        </span>
         <span className="block truncate text-xs text-subtle">{formatVenue(event)}</span>
       </span>
-      {status && <span className="shrink-0 rounded-full bg-primary-soft px-2 py-0.5 text-[11px] font-semibold text-primary-soft-foreground">{status}</span>}
+      {status && (
+        <span className="shrink-0 rounded-full bg-primary-soft px-2 py-0.5 text-[11px] font-semibold text-primary-soft-foreground">
+          {status}
+        </span>
+      )}
     </Link>
   );
 }
 
 function TypingDots() {
   return (
-    <div className="flex w-fit items-center gap-1.5 rounded-3xl rounded-bl-lg bg-surface-muted px-4 py-3.5" aria-label="Sync is thinking">
+    <div
+      className="flex w-fit items-center gap-1.5 rounded-3xl rounded-bl-lg bg-surface-muted px-4 py-3.5"
+      aria-label="Sync is thinking"
+    >
       {[0, 1, 2].map((i) => (
         <motion.span
           key={i}
@@ -180,7 +206,9 @@ function AssistantPanel({ open, onClose }: { open: boolean; onClose: () => void 
     setDraft('');
     setBusy(true);
     try {
-      const { reply, events } = await assistantApi.chat(history.slice(-HISTORY_LIMIT).map(({ role, content }) => ({ role, content })));
+      const { reply, events } = await assistantApi.chat(
+        history.slice(-HISTORY_LIMIT).map(({ role, content }) => ({ role, content }))
+      );
       setTurns((current) => [...current, { role: 'assistant', content: reply, events }]);
     } catch (err) {
       setTurns((current) => [...current, { role: 'assistant', content: errorMessage(err), failed: true }]);
@@ -260,7 +288,8 @@ function AssistantPanel({ open, onClose }: { open: boolean; onClose: () => void 
                     <span className="font-serif font-normal italic text-primary">what&apos;s the plan?</span>
                   </p>
                   <p className="mt-3 text-sm text-muted">
-                    Ask about events, your schedule, or anything else. I look things up in Sync, so answers match what&apos;s really on.
+                    Ask about events, your schedule, or anything else. I look things up in Sync, so answers match what&apos;s
+                    really on.
                   </p>
                   <div className="mt-6 grid gap-2">
                     {SUGGESTIONS.map((s) => (
@@ -279,7 +308,10 @@ function AssistantPanel({ open, onClose }: { open: boolean; onClose: () => void 
 
               {turns.map((turn, i) =>
                 turn.role === 'user' ? (
-                  <div key={i} className="ml-auto w-fit max-w-[85%] whitespace-pre-wrap rounded-3xl rounded-br-lg bg-primary px-4 py-2.5 text-[15px] text-primary-foreground">
+                  <div
+                    key={i}
+                    className="ml-auto w-fit max-w-[85%] whitespace-pre-wrap rounded-3xl rounded-br-lg bg-primary px-4 py-2.5 text-[15px] text-primary-foreground"
+                  >
                     {turn.content}
                   </div>
                 ) : (
@@ -297,7 +329,9 @@ function AssistantPanel({ open, onClose }: { open: boolean; onClose: () => void 
                         </button>
                       )}
                     </div>
-                    {turn.events?.map((event) => <EventChip key={event.id} event={event} onNavigate={closeOnSmallScreens} />)}
+                    {turn.events?.map((event) => (
+                      <EventChip key={event.id} event={event} onNavigate={closeOnSmallScreens} />
+                    ))}
                   </div>
                 )
               )}
@@ -338,7 +372,9 @@ function AssistantPanel({ open, onClose }: { open: boolean; onClose: () => void 
                   <ArrowUp className="size-5" strokeWidth={2.5} />
                 </button>
               </div>
-              <p className="mt-2 text-center text-[11px] text-subtle">Sync can make mistakes. Check the event page before you go.</p>
+              <p className="mt-2 text-center text-[11px] text-subtle">
+                Sync can make mistakes. Check the event page before you go.
+              </p>
             </form>
           </motion.aside>
         </div>

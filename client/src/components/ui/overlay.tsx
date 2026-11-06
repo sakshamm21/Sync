@@ -28,7 +28,8 @@ const widths = { sm: 'max-w-md', md: 'max-w-xl', lg: 'max-w-2xl', xl: 'max-w-5xl
  */
 const dialogStack: string[] = [];
 
-const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+const FOCUSABLE =
+  'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
 /**
  * Bottom sheet on phones, centred card on larger screens. Escape closes the
@@ -122,8 +123,19 @@ export function Dialog({ open, onClose, title, description, children, footer, si
             {(title || description) && (
               <div className="flex items-start justify-between gap-4 px-6 pb-4 pt-6 sm:px-8">
                 <div>
-                  {title && <h2 id={`${id}-title`} className="text-2xl font-extrabold [&_em]:font-serif [&_em]:font-normal [&_em]:italic [&_em]:text-primary">{title}</h2>}
-                  {description && <p id={`${id}-desc`} className="mt-1 text-sm text-muted">{description}</p>}
+                  {title && (
+                    <h2
+                      id={`${id}-title`}
+                      className="text-2xl font-extrabold [&_em]:font-serif [&_em]:font-normal [&_em]:italic [&_em]:text-primary"
+                    >
+                      {title}
+                    </h2>
+                  )}
+                  {description && (
+                    <p id={`${id}-desc`} className="mt-1 text-sm text-muted">
+                      {description}
+                    </p>
+                  )}
                 </div>
                 <button
                   onClick={onClose}
@@ -135,7 +147,11 @@ export function Dialog({ open, onClose, title, description, children, footer, si
               </div>
             )}
             <div className="flex-1 overflow-y-auto">{children}</div>
-            {footer && <div className="flex flex-wrap items-center justify-end gap-2 border-t border-border px-6 py-4 sm:px-8">{footer}</div>}
+            {footer && (
+              <div className="flex flex-wrap items-center justify-end gap-2 border-t border-border px-6 py-4 sm:px-8">
+                {footer}
+              </div>
+            )}
           </motion.div>
         </div>
       )}
@@ -194,11 +210,19 @@ export function Popover({ trigger, children, align = 'right', side = 'bottom', c
   );
 }
 
-export function MenuItem({ icon, children, className, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement> & { icon?: React.ReactNode }) {
+export function MenuItem({
+  icon,
+  children,
+  className,
+  ...props
+}: React.ButtonHTMLAttributes<HTMLButtonElement> & { icon?: React.ReactNode }) {
   return (
     <button
       type="button"
-      className={cn('flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left text-sm font-medium transition hover:bg-surface-muted [&_svg]:size-4 [&_svg]:text-muted', className)}
+      className={cn(
+        'flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left text-sm font-medium transition hover:bg-surface-muted [&_svg]:size-4 [&_svg]:text-muted',
+        className
+      )}
       {...props}
     >
       {icon}
@@ -220,7 +244,16 @@ interface ConfirmDialogProps {
 }
 
 /** Replaces window.confirm with an on-brand, accessible dialog. */
-export function ConfirmDialog({ open, onClose, onConfirm, title, description, confirmLabel, tone = 'danger', children }: ConfirmDialogProps) {
+export function ConfirmDialog({
+  open,
+  onClose,
+  onConfirm,
+  title,
+  description,
+  confirmLabel,
+  tone = 'danger',
+  children,
+}: ConfirmDialogProps) {
   const [busy, setBusy] = useState(false);
   const confirm = async () => {
     setBusy(true);

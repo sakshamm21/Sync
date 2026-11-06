@@ -15,7 +15,16 @@ export const USER_STATUS = Object.freeze({
 export type UserStatus = ValueOf<typeof USER_STATUS>;
 
 // Display labels live in the web app (client/src/lib/format.ts).
-export const CATEGORY_VALUES = Object.freeze(['tech', 'workshop', 'cultural', 'sports', 'meetup', 'conference', 'social', 'other'] as const);
+export const CATEGORY_VALUES = Object.freeze([
+  'tech',
+  'workshop',
+  'cultural',
+  'sports',
+  'meetup',
+  'conference',
+  'social',
+  'other',
+] as const);
 export type Category = (typeof CATEGORY_VALUES)[number];
 
 export const EVENT_VISIBILITY = Object.freeze({

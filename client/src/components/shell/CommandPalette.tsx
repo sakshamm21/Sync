@@ -93,7 +93,11 @@ function Palette({ open, onClose }: { open: boolean; onClose: () => void }) {
 
   const commands: Command[] = useMemo(() => {
     const q = query.trim().toLowerCase();
-    const pages = [...PRIMARY_NAV, ...visibleFor(SECONDARY_NAV, user), { href: '/settings', label: 'Settings', icon: Settings }].map<Command>((item) => ({
+    const pages = [
+      ...PRIMARY_NAV,
+      ...visibleFor(SECONDARY_NAV, user),
+      { href: '/settings', label: 'Settings', icon: Settings },
+    ].map<Command>((item) => ({
       id: item.href,
       group: 'Go to',
       label: item.label,
@@ -101,15 +105,37 @@ function Palette({ open, onClose }: { open: boolean; onClose: () => void }) {
       run: go(item.href),
     }));
     const actions: Command[] = [
-      { id: 'new', group: 'Actions', label: 'Create an event', icon: <Plus />, run: () => { onClose(); openCreateEvent(); } },
+      {
+        id: 'new',
+        group: 'Actions',
+        label: 'Create an event',
+        icon: <Plus />,
+        run: () => {
+          onClose();
+          openCreateEvent();
+        },
+      },
       {
         id: 'theme',
         group: 'Actions',
         label: resolvedTheme === 'dark' ? 'Switch to day mode' : 'Switch to after-dark mode',
         icon: resolvedTheme === 'dark' ? <Sun /> : <Moon />,
-        run: () => { setTheme(resolvedTheme === 'dark' ? 'light' : 'dark'); onClose(); },
+        run: () => {
+          setTheme(resolvedTheme === 'dark' ? 'light' : 'dark');
+          onClose();
+        },
       },
-      { id: 'logout', group: 'Actions', label: 'Sign out', icon: <LogOut />, run: () => { onClose(); logout(); router.push('/authentication'); } },
+      {
+        id: 'logout',
+        group: 'Actions',
+        label: 'Sign out',
+        icon: <LogOut />,
+        run: () => {
+          onClose();
+          logout();
+          router.push('/authentication');
+        },
+      },
     ];
     const eventCommands = events.map<Command>((e) => ({
       id: e.id,
@@ -145,13 +171,21 @@ function Palette({ open, onClose }: { open: boolean; onClose: () => void }) {
   }
 
   if (!mounted) return null;
-  const groups = (['Events', 'Go to', 'Actions'] as const).map((g) => ({ g, items: commands.filter((c) => c.group === g) })).filter((x) => x.items.length);
+  const groups = (['Events', 'Go to', 'Actions'] as const)
+    .map((g) => ({ g, items: commands.filter((c) => c.group === g) }))
+    .filter((x) => x.items.length);
 
   return createPortal(
     <AnimatePresence>
       {open && (
         <div className="fixed inset-0 z-[70] flex items-start justify-center p-4 pt-[12vh]">
-          <motion.div className="absolute inset-0 bg-black/60 backdrop-blur-md" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose} />
+          <motion.div
+            className="absolute inset-0 bg-black/60 backdrop-blur-md"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={onClose}
+          />
           <motion.div
             role="dialog"
             aria-modal="true"
@@ -176,7 +210,9 @@ function Palette({ open, onClose }: { open: boolean; onClose: () => void }) {
               <kbd className="rounded-lg border border-border px-2 py-0.5 font-mono text-[11px] text-subtle">esc</kbd>
             </div>
             <div ref={listRef} className="max-h-[50vh] overflow-y-auto p-2">
-              {commands.length === 0 && <p className="px-4 py-10 text-center text-sm text-muted">Nothing matches. Try another word 👀</p>}
+              {commands.length === 0 && (
+                <p className="px-4 py-10 text-center text-sm text-muted">Nothing matches. Try another word 👀</p>
+              )}
               {groups.map(({ g, items }) => (
                 <div key={g} className="mb-1">
                   <p className="px-3 pb-1 pt-2 font-mono text-[10px] uppercase tracking-[0.16em] text-subtle">{g}</p>
@@ -189,11 +225,25 @@ function Palette({ open, onClose }: { open: boolean; onClose: () => void }) {
                         data-index={index}
                         onMouseMove={() => setActive(index)}
                         onClick={c.run}
-                        className={cn('flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left text-sm transition-colors [&_svg]:size-4', isActive ? 'bg-primary text-primary-foreground' : 'text-foreground')}
+                        className={cn(
+                          'flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left text-sm transition-colors [&_svg]:size-4',
+                          isActive ? 'bg-primary text-primary-foreground' : 'text-foreground'
+                        )}
                       >
-                        <span className={cn('flex size-8 items-center justify-center rounded-xl', isActive ? 'bg-black/10' : 'bg-surface-muted text-muted')}>{c.icon}</span>
+                        <span
+                          className={cn(
+                            'flex size-8 items-center justify-center rounded-xl',
+                            isActive ? 'bg-black/10' : 'bg-surface-muted text-muted'
+                          )}
+                        >
+                          {c.icon}
+                        </span>
                         <span className="flex-1 truncate font-semibold">{c.label}</span>
-                        {c.hint && <span className={cn('font-mono text-[11px]', isActive ? 'text-primary-foreground/70' : 'text-subtle')}>{c.hint}</span>}
+                        {c.hint && (
+                          <span className={cn('font-mono text-[11px]', isActive ? 'text-primary-foreground/70' : 'text-subtle')}>
+                            {c.hint}
+                          </span>
+                        )}
                         {isActive && (c.group === 'Actions' ? <CornerDownLeft /> : <ArrowRight />)}
                       </button>
                     );

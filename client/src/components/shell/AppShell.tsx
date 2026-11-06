@@ -41,7 +41,11 @@ function SearchTrigger() {
 function MobileSearchButton() {
   const { openPalette } = usePalette();
   return (
-    <button onClick={openPalette} aria-label="Search" className="flex size-10 items-center justify-center rounded-full text-muted hover:bg-surface-muted hover:text-foreground sm:hidden">
+    <button
+      onClick={openPalette}
+      aria-label="Search"
+      className="flex size-10 items-center justify-center rounded-full text-muted hover:bg-surface-muted hover:text-foreground sm:hidden"
+    >
       <Search className="size-5" />
     </button>
   );
@@ -72,7 +76,12 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
         </header>
 
         <main className="mx-auto max-w-7xl px-4 pb-40 pt-6 sm:px-6 lg:px-8">
-          <motion.div key={pathname} initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45, ease: motionEase }}>
+          <motion.div
+            key={pathname}
+            initial={{ opacity: 0, y: 18 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.45, ease: motionEase }}
+          >
             {children}
           </motion.div>
         </main>

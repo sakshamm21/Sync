@@ -127,7 +127,15 @@ function Explore() {
 
   return (
     <>
-      <PageHeader kicker="Everything coming up on campus" title={<>Explore the <em>good stuff</em></>} description="Search it, filter it, tap I’m in. That’s it." />
+      <PageHeader
+        kicker="Everything coming up on campus"
+        title={
+          <>
+            Explore the <em>good stuff</em>
+          </>
+        }
+        description="Search it, filter it, tap I’m in. That’s it."
+      />
 
       <div className="mb-6 space-y-4">
         <div className="flex flex-col gap-3 md:flex-row md:items-center">

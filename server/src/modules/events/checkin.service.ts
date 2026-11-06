@@ -23,7 +23,11 @@ const TICKET_VERSION = 't1';
 const ticketKey = () => crypto.createHmac('sha256', env.jwtSecret).update('sync:ticket-key').digest();
 
 const signature = (registrationId: string, eventId: string) =>
-  crypto.createHmac('sha256', ticketKey()).update(`${TICKET_VERSION}:${registrationId}:${eventId}`).digest('base64url').slice(0, 22);
+  crypto
+    .createHmac('sha256', ticketKey())
+    .update(`${TICKET_VERSION}:${registrationId}:${eventId}`)
+    .digest('base64url')
+    .slice(0, 22);
 
 /** `t1.<registration id as base64url>.<signature>` */
 export function makeTicket(registrationId: string, eventId: string): string {
@@ -64,8 +68,10 @@ export async function checkInByTicket(organiser: UserDocument, eventId: string, 
     throw badRequest("That code isn't a ticket for this event. Ask them to open it from the event page.", 'BAD_TICKET');
   }
 
-  const registration = await Registration.findById(registrationId)
-    .populate<{ user: { name: string; avatarUrl: string } | null }>('user', 'name avatarUrl');
+  const registration = await Registration.findById(registrationId).populate<{ user: { name: string; avatarUrl: string } | null }>(
+    'user',
+    'name avatarUrl'
+  );
 
   if (!registration || String(registration.event) !== String(event._id)) {
     throw badRequest('This ticket is no longer valid', 'UNKNOWN_TICKET');

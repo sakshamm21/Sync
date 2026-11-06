@@ -4,7 +4,20 @@ import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
-import { CalendarDays, Check, Flag, Inbox, Megaphone, Search, ShieldCheck, Ticket, UserCheck, UserX, Users, X } from 'lucide-react';
+import {
+  CalendarDays,
+  Check,
+  Flag,
+  Inbox,
+  Megaphone,
+  Search,
+  ShieldCheck,
+  Ticket,
+  UserCheck,
+  UserX,
+  Users,
+  X,
+} from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import {
   adminApi,
@@ -38,10 +51,20 @@ const REPORT_LABELS: Record<EventReport['reason'], string> = {
 function Overview({ onOpen }: { onOpen: (tab: Tab) => void }) {
   const [stats, setStats] = useState<PlatformStats | null>(null);
   useEffect(() => {
-    adminApi.stats().then(setStats).catch((err) => toast.error(errorMessage(err)));
+    adminApi
+      .stats()
+      .then(setStats)
+      .catch((err) => toast.error(errorMessage(err)));
   }, []);
 
-  if (!stats) return <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">{Array.from({ length: 8 }, (_, i) => <div key={i} className="h-28 animate-pulse rounded-2xl bg-surface-muted" />)}</div>;
+  if (!stats)
+    return (
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        {Array.from({ length: 8 }, (_, i) => (
+          <div key={i} className="h-28 animate-pulse rounded-2xl bg-surface-muted" />
+        ))}
+      </div>
+    );
 
   const cards = [
     { label: 'Members', value: stats.users.byRole.member, icon: <Users /> },
@@ -52,13 +75,16 @@ function Overview({ onOpen }: { onOpen: (tab: Tab) => void }) {
     { label: 'Public events', value: stats.events.total, icon: <CalendarDays />, hint: 'All time' },
     { label: 'Registrations', value: stats.registrations, icon: <Ticket /> },
     { label: 'Pending requests', value: stats.pendingApplications, icon: <Inbox /> },
-        { label: 'Open reports', value: stats.openReports, icon: <Flag /> },
-      ];
+    { label: 'Open reports', value: stats.openReports, icon: <Flag /> },
+  ];
 
   return (
     <div className="space-y-6">
       {stats.pendingApplications > 0 && (
-        <button onClick={() => onOpen('applications')} className="flex w-full items-center justify-between gap-4 rounded-2xl border border-warning/30 bg-warning-soft p-4 text-left transition hover:brightness-[0.98]">
+        <button
+          onClick={() => onOpen('applications')}
+          className="flex w-full items-center justify-between gap-4 rounded-2xl border border-warning/30 bg-warning-soft p-4 text-left transition hover:brightness-[0.98]"
+        >
           <span className="flex items-center gap-3 text-sm font-medium">
             <Inbox className="size-5 text-warning" />
             {stats.pendingApplications} organizer request{stats.pendingApplications === 1 ? '' : 's'} waiting for review
@@ -104,7 +130,13 @@ function People() {
     try {
       const updated = await adminApi.updateUser(target.id, change);
       setUsers((prev) => prev?.map((u) => (u.id === updated.id ? updated : u)) ?? prev);
-      toast.success(change.status === 'suspended' ? `${target.name} suspended` : change.status === 'active' ? `${target.name} reinstated` : `${target.name} is now ${ROLE_LABELS[updated.role]}`);
+      toast.success(
+        change.status === 'suspended'
+          ? `${target.name} suspended`
+          : change.status === 'active'
+            ? `${target.name} reinstated`
+            : `${target.name} is now ${ROLE_LABELS[updated.role]}`
+      );
     } catch (err) {
       toast.error(errorMessage(err));
     }
@@ -119,16 +151,39 @@ function People() {
             type="search"
             placeholder="Search name, email or organization"
             value={query}
-            onChange={(e) => { setQuery(e.target.value); setPage(1); }}
+            onChange={(e) => {
+              setQuery(e.target.value);
+              setPage(1);
+            }}
             aria-label="Search people"
             className="h-11 w-full rounded-xl border border-border bg-surface-muted pl-9 pr-3 text-sm outline-none transition focus:border-primary focus:bg-surface focus:ring-4 focus:ring-ring/20"
           />
         </div>
-        <Select value={role} onChange={(e) => { setRole(e.target.value as Role | ''); setPage(1); }} aria-label="Filter by role" className="md:w-40">
+        <Select
+          value={role}
+          onChange={(e) => {
+            setRole(e.target.value as Role | '');
+            setPage(1);
+          }}
+          aria-label="Filter by role"
+          className="md:w-40"
+        >
           <option value="">All roles</option>
-          {(Object.keys(ROLE_LABELS) as Role[]).map((r) => <option key={r} value={r}>{ROLE_LABELS[r]}</option>)}
+          {(Object.keys(ROLE_LABELS) as Role[]).map((r) => (
+            <option key={r} value={r}>
+              {ROLE_LABELS[r]}
+            </option>
+          ))}
         </Select>
-        <Select value={status} onChange={(e) => { setStatus(e.target.value as UserStatus | ''); setPage(1); }} aria-label="Filter by status" className="md:w-40">
+        <Select
+          value={status}
+          onChange={(e) => {
+            setStatus(e.target.value as UserStatus | '');
+            setPage(1);
+          }}
+          aria-label="Filter by status"
+          className="md:w-40"
+        >
           <option value="">Any status</option>
           <option value="active">Active</option>
           <option value="suspended">Suspended</option>
@@ -136,7 +191,11 @@ function People() {
       </div>
 
       {users === null ? (
-        <div className="space-y-px">{Array.from({ length: 5 }, (_, i) => <div key={i} className="h-16 animate-pulse bg-surface-muted/60" />)}</div>
+        <div className="space-y-px">
+          {Array.from({ length: 5 }, (_, i) => (
+            <div key={i} className="h-16 animate-pulse bg-surface-muted/60" />
+          ))}
+        </div>
       ) : users.length === 0 ? (
         <p className="p-12 text-center text-sm text-muted">No one matches.</p>
       ) : (
@@ -167,7 +226,11 @@ function People() {
                     aria-label={`Role for ${u.name}`}
                     className="h-9 w-36 text-xs"
                   >
-                    {(Object.keys(ROLE_LABELS) as Role[]).map((r) => <option key={r} value={r}>{ROLE_LABELS[r]}</option>)}
+                    {(Object.keys(ROLE_LABELS) as Role[]).map((r) => (
+                      <option key={r} value={r}>
+                        {ROLE_LABELS[r]}
+                      </option>
+                    ))}
                   </Select>
                   {!isMe &&
                     (u.status === 'active' ? (
@@ -188,10 +251,16 @@ function People() {
 
       {meta && meta.totalPages > 1 && (
         <div className="flex items-center justify-between border-t border-border px-4 py-3 text-sm text-muted">
-          <span>Page {meta.page} of {meta.totalPages}</span>
+          <span>
+            Page {meta.page} of {meta.totalPages}
+          </span>
           <div className="flex gap-2">
-            <Button variant="secondary" size="sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>Previous</Button>
-            <Button variant="secondary" size="sm" disabled={page >= meta.totalPages} onClick={() => setPage((p) => p + 1)}>Next</Button>
+            <Button variant="secondary" size="sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
+              Previous
+            </Button>
+            <Button variant="secondary" size="sm" disabled={page >= meta.totalPages} onClick={() => setPage((p) => p + 1)}>
+              Next
+            </Button>
           </div>
         </div>
       )}
@@ -228,7 +297,9 @@ function Applications() {
   async function review(application: OrganizerApplication, approve: boolean, reviewNote = '') {
     try {
       await (approve ? adminApi.approve(application.id) : adminApi.reject(application.id, reviewNote));
-      toast.success(approve ? 'Approved' : 'Request declined', { description: approve ? 'They can publish events now.' : undefined });
+      toast.success(approve ? 'Approved' : 'Request declined', {
+        description: approve ? 'They can publish events now.' : undefined,
+      });
       setItems((prev) => prev?.filter((a) => a.id !== application.id) ?? null);
     } catch (err) {
       toast.error(errorMessage(err));
@@ -247,9 +318,17 @@ function Applications() {
         ]}
       />
       {!items ? (
-        <div className="grid gap-4 md:grid-cols-2">{[0, 1].map((i) => <div key={i} className="h-44 animate-pulse rounded-2xl bg-surface-muted" />)}</div>
+        <div className="grid gap-4 md:grid-cols-2">
+          {[0, 1].map((i) => (
+            <div key={i} className="h-44 animate-pulse rounded-2xl bg-surface-muted" />
+          ))}
+        </div>
       ) : items.length === 0 ? (
-        <EmptyState emoji={filter === 'pending' ? '📭' : '🗂️'} title={filter === 'pending' ? 'Inbox zero' : `No ${filter === 'rejected' ? 'declined' : filter} requests`} description={filter === 'pending' ? 'No organizer requests are waiting.' : undefined} />
+        <EmptyState
+          emoji={filter === 'pending' ? '📭' : '🗂️'}
+          title={filter === 'pending' ? 'Inbox zero' : `No ${filter === 'rejected' ? 'declined' : filter} requests`}
+          description={filter === 'pending' ? 'No organizer requests are waiting.' : undefined}
+        />
       ) : (
         <Stagger key={filter} className="grid gap-4 md:grid-cols-2">
           {items.map((a) => {
@@ -271,8 +350,19 @@ function Applications() {
                   <div className="mt-auto pt-4">
                     {a.status === 'pending' ? (
                       <div className="flex gap-2">
-                        <Button size="sm" onClick={() => review(a, true)}><Check /> Approve</Button>
-                        <Button size="sm" variant="ghost" onClick={() => { setNote(''); setRejecting(a); }}><X /> Decline</Button>
+                        <Button size="sm" onClick={() => review(a, true)}>
+                          <Check /> Approve
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => {
+                            setNote('');
+                            setRejecting(a);
+                          }}
+                        >
+                          <X /> Decline
+                        </Button>
                       </div>
                     ) : (
                       <p className="text-xs text-muted">
@@ -299,8 +389,16 @@ function Applications() {
         description="They'll be notified and can apply again."
         confirmLabel="Decline request"
       >
-        <label htmlFor="decline-note" className="mb-1.5 block text-sm font-medium">Note to the applicant (optional)</label>
-        <Textarea id="decline-note" rows={3} value={note} onChange={(e) => setNote(e.target.value)} placeholder="e.g. Please apply with your club email address." />
+        <label htmlFor="decline-note" className="mb-1.5 block text-sm font-medium">
+          Note to the applicant (optional)
+        </label>
+        <Textarea
+          id="decline-note"
+          rows={3}
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          placeholder="e.g. Please apply with your club email address."
+        />
       </ConfirmDialog>
     </div>
   );
@@ -340,9 +438,7 @@ function Reports() {
       <div className="flex flex-col gap-3 border-b border-border p-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h2 className="font-semibold">Reported events</h2>
-          <p className="mt-0.5 text-xs text-muted">
-            Marking a report reviewed cancels the event and notifies its attendees.
-          </p>
+          <p className="mt-0.5 text-xs text-muted">Marking a report reviewed cancels the event and notifies its attendees.</p>
         </div>
         <Segmented<EventReport['status']>
           size="sm"
@@ -393,7 +489,14 @@ function Reports() {
                     <Button size="sm" variant="ghost" onClick={() => resolve(report.id, 'dismissed')}>
                       <X /> Dismiss
                     </Button>
-                    <Button size="sm" variant="secondary" onClick={() => { setReason(''); setCancelling(report); }}>
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      onClick={() => {
+                        setReason('');
+                        setCancelling(report);
+                      }}
+                    >
                       <Check /> Cancel event
                     </Button>
                   </div>
@@ -414,8 +517,16 @@ function Reports() {
         description="Everyone registered and the organiser are notified in the app and by email. This can't be undone."
         confirmLabel="Cancel event"
       >
-        <label htmlFor="report-reason" className="mb-1.5 block text-sm font-medium">Reason, sent to attendees and the organiser (optional)</label>
-        <Textarea id="report-reason" rows={3} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="e.g. This event breaks the campus events policy." />
+        <label htmlFor="report-reason" className="mb-1.5 block text-sm font-medium">
+          Reason, sent to attendees and the organiser (optional)
+        </label>
+        <Textarea
+          id="report-reason"
+          rows={3}
+          value={reason}
+          onChange={(e) => setReason(e.target.value)}
+          placeholder="e.g. This event breaks the campus events policy."
+        />
       </ConfirmDialog>
     </Card>
   );
@@ -425,12 +536,20 @@ export default function AdminConsole() {
   const router = useRouter();
   const params = useSearchParams();
   const requested = params.get('tab') as Tab | null;
-    const tab: Tab = requested === 'users' || requested === 'applications' || requested === 'reports' ? requested : 'overview';
+  const tab: Tab = requested === 'users' || requested === 'applications' || requested === 'reports' ? requested : 'overview';
   const setTab = (next: Tab) => router.replace(next === 'overview' ? '/admin' : `/admin?tab=${next}`, { scroll: false });
 
   return (
     <>
-      <PageHeader kicker="Platform admin" title={<>Admin <em>HQ</em></>} description="People, organizer approvals and what’s happening across the platform." />
+      <PageHeader
+        kicker="Platform admin"
+        title={
+          <>
+            Admin <em>HQ</em>
+          </>
+        }
+        description="People, organizer approvals and what’s happening across the platform."
+      />
       <Segmented<Tab>
         value={tab}
         onChange={setTab}
@@ -439,13 +558,13 @@ export default function AdminConsole() {
           { value: 'overview', label: 'Overview' },
           { value: 'users', label: 'People' },
           { value: 'applications', label: 'Organizer requests' },
-                  { value: 'reports', label: 'Reports' },
-                ]}
+          { value: 'reports', label: 'Reports' },
+        ]}
       />
       {tab === 'overview' && <Overview onOpen={setTab} />}
       {tab === 'users' && <People />}
       {tab === 'applications' && <Applications />}
-              {tab === 'reports' && <Reports />}
-            </>
-          );
-        }
+      {tab === 'reports' && <Reports />}
+    </>
+  );
+}

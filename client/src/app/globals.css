@@ -118,12 +118,21 @@
   --animate-spin-slow: spin 14s linear infinite;
 
   @keyframes marquee {
-    from { transform: translateX(0); }
-    to { transform: translateX(-50%); }
+    from {
+      transform: translateX(0);
+    }
+    to {
+      transform: translateX(-50%);
+    }
   }
   @keyframes float {
-    0%, 100% { transform: translateY(0) rotate(var(--r, 0deg)); }
-    50% { transform: translateY(-10px) rotate(var(--r, 0deg)); }
+    0%,
+    100% {
+      transform: translateY(0) rotate(var(--r, 0deg));
+    }
+    50% {
+      transform: translateY(-10px) rotate(var(--r, 0deg));
+    }
   }
 }
 
@@ -138,7 +147,9 @@
     @apply bg-background text-foreground font-sans antialiased;
     font-feature-settings: 'ss01', 'cv11';
   }
-  h1, h2, h3 {
+  h1,
+  h2,
+  h3 {
     @apply font-display tracking-tight;
     font-variation-settings: 'opsz' 96;
   }
@@ -177,16 +188,22 @@ body::after {
 
 /* Squashed / stretched display type via Bricolage's width axis. */
 @utility font-condensed {
-  font-variation-settings: 'wdth' 75, 'opsz' 96;
+  font-variation-settings:
+    'wdth' 75,
+    'opsz' 96;
 }
 
 /* Ticket stubs: half-circle bites where the cover meets the stub. */
 @utility ticket-top {
-  mask-image: radial-gradient(circle at 0 100%, transparent 11px, #000 11.5px), radial-gradient(circle at 100% 100%, transparent 11px, #000 11.5px);
+  mask-image:
+    radial-gradient(circle at 0 100%, transparent 11px, #000 11.5px),
+    radial-gradient(circle at 100% 100%, transparent 11px, #000 11.5px);
   mask-composite: intersect;
 }
 @utility ticket-bottom {
-  mask-image: radial-gradient(circle at 0 0, transparent 11px, #000 11.5px), radial-gradient(circle at 100% 0, transparent 11px, #000 11.5px);
+  mask-image:
+    radial-gradient(circle at 0 0, transparent 11px, #000 11.5px),
+    radial-gradient(circle at 100% 0, transparent 11px, #000 11.5px);
   mask-composite: intersect;
 }
 

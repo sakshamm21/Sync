@@ -15,10 +15,14 @@ const router = Router();
 
 // --- Discovery -------------------------------------------------------------
 
-router.get('/', optionalAuth, validate({ query: schemas.list }, async (req, res) => {
-  const { items, meta } = await events.listPublic(req.user, req.query);
-  res.json({ data: items, meta });
-}));
+router.get(
+  '/',
+  optionalAuth,
+  validate({ query: schemas.list }, async (req, res) => {
+    const { items, meta } = await events.listPublic(req.user, req.query);
+    res.json({ data: items, meta });
+  })
+);
 
 router.get('/venues', async (_req, res) => {
   res.json({ data: await events.venueDirectory() });
@@ -28,43 +32,75 @@ router.get('/recommended', authenticate, async (req, res) => {
   res.json({ data: await events.recommendedFor(currentUser(req)) });
 });
 
-router.get('/:id', optionalAuth, validate({ params: idParams }, async (req, res) => {
-  res.json({ data: await events.getForViewer(req.user, req.params.id) });
-}));
+router.get(
+  '/:id',
+  optionalAuth,
+  validate({ params: idParams }, async (req, res) => {
+    res.json({ data: await events.getForViewer(req.user, req.params.id) });
+  })
+);
 
-router.get('/:id/calendar.ics', optionalAuth, validate({ params: idParams }, async (req, res) => {
-  const { filename, content } = await events.toCalendarFile(req.user, req.params.id);
-  res.type('text/calendar').attachment(filename).send(content);
-}));
+router.get(
+  '/:id/calendar.ics',
+  optionalAuth,
+  validate({ params: idParams }, async (req, res) => {
+    const { filename, content } = await events.toCalendarFile(req.user, req.params.id);
+    res.type('text/calendar').attachment(filename).send(content);
+  })
+);
 
 // --- Management ------------------------------------------------------------
 
-router.post('/', authenticate, validate({ body: schemas.create }, async (req, res) => {
-  res.status(201).json({ data: await events.create(currentUser(req), req.body) });
-}));
+router.post(
+  '/',
+  authenticate,
+  validate({ body: schemas.create }, async (req, res) => {
+    res.status(201).json({ data: await events.create(currentUser(req), req.body) });
+  })
+);
 
-router.patch('/:id', authenticate, validate({ params: idParams, body: schemas.update }, async (req, res) => {
-  res.json({ data: await events.update(currentUser(req), req.params.id, req.body) });
-}));
+router.patch(
+  '/:id',
+  authenticate,
+  validate({ params: idParams, body: schemas.update }, async (req, res) => {
+    res.json({ data: await events.update(currentUser(req), req.params.id, req.body) });
+  })
+);
 
-router.post('/:id/cancel', authenticate, validate({ params: idParams, body: schemas.cancel }, async (req, res) => {
-  res.json({ data: await events.cancel(currentUser(req), req.params.id, req.body) });
-}));
+router.post(
+  '/:id/cancel',
+  authenticate,
+  validate({ params: idParams, body: schemas.cancel }, async (req, res) => {
+    res.json({ data: await events.cancel(currentUser(req), req.params.id, req.body) });
+  })
+);
 
-router.delete('/:id', authenticate, validate({ params: idParams }, async (req, res) => {
-  await events.remove(currentUser(req), req.params.id);
-  res.status(204).end();
-}));
+router.delete(
+  '/:id',
+  authenticate,
+  validate({ params: idParams }, async (req, res) => {
+    await events.remove(currentUser(req), req.params.id);
+    res.status(204).end();
+  })
+);
 
 // --- Registration ----------------------------------------------------------
 
-router.post('/:id/registration', authenticate, validate({ params: idParams }, async (req, res) => {
-  res.json({ data: await registrations.register(currentUser(req), req.params.id) });
-}));
+router.post(
+  '/:id/registration',
+  authenticate,
+  validate({ params: idParams }, async (req, res) => {
+    res.json({ data: await registrations.register(currentUser(req), req.params.id) });
+  })
+);
 
-router.delete('/:id/registration', authenticate, validate({ params: idParams }, async (req, res) => {
-  res.json({ data: await registrations.unregister(currentUser(req), req.params.id) });
-}));
+router.delete(
+  '/:id/registration',
+  authenticate,
+  validate({ params: idParams }, async (req, res) => {
+    res.json({ data: await registrations.unregister(currentUser(req), req.params.id) });
+  })
+);
 
 const attendeesQuery = z.object({ status: z.enum(REGISTRATION_STATUS).optional() });
 
@@ -77,9 +113,13 @@ router.get(
 );
 
 /** Door staff's list: names and check-in state, no email addresses. */
-router.get('/:id/door-list', authenticate, validate({ params: idParams }, async (req, res) => {
-  res.json({ data: await registrations.doorListForEvent(currentUser(req), req.params.id) });
-}));
+router.get(
+  '/:id/door-list',
+  authenticate,
+  validate({ params: idParams }, async (req, res) => {
+    res.json({ data: await registrations.doorListForEvent(currentUser(req), req.params.id) });
+  })
+);
 
 router.put(
   '/:id/attendees/:userId/check-in',
@@ -92,9 +132,13 @@ router.put(
 
 // --- Ratings ---------------------------------------------------------------
 
-router.get('/:id/ratings', authenticate, validate({ params: idParams }, async (req, res) => {
-  res.json({ data: await ratings.summaryFor(currentUser(req), req.params.id) });
-}));
+router.get(
+  '/:id/ratings',
+  authenticate,
+  validate({ params: idParams }, async (req, res) => {
+    res.json({ data: await ratings.summaryFor(currentUser(req), req.params.id) });
+  })
+);
 
 const ratingBody = z.object({ rating: z.number().int().min(1).max(MAX_RATING) });
 
@@ -108,10 +152,14 @@ router.put(
 
 // --- Door check-in by QR ---------------------------------------------------
 
-router.get('/:id/ticket', authenticate, validate({ params: idParams }, async (req, res) => {
-  const ticket = await checkin.ticketFor(currentUser(req), req.params.id);
-  res.json({ data: ticket });
-}));
+router.get(
+  '/:id/ticket',
+  authenticate,
+  validate({ params: idParams }, async (req, res) => {
+    const ticket = await checkin.ticketFor(currentUser(req), req.params.id);
+    res.json({ data: ticket });
+  })
+);
 
 const scanBody = z.object({ token: z.string().trim().min(1, 'Scan a ticket code') });
 
@@ -138,13 +186,21 @@ const messageBody = z.object({
   announcement: z.boolean().default(false),
 });
 
-router.get('/:id/messages', authenticate, validate({ params: idParams, query: messagesQuery }, async (req, res) => {
-  const { items, hasMore } = await chat.listMessages(currentUser(req), req.params.id, req.query);
-  res.json({ data: items, meta: { hasMore } });
-}));
+router.get(
+  '/:id/messages',
+  authenticate,
+  validate({ params: idParams, query: messagesQuery }, async (req, res) => {
+    const { items, hasMore } = await chat.listMessages(currentUser(req), req.params.id, req.query);
+    res.json({ data: items, meta: { hasMore } });
+  })
+);
 
-router.post('/:id/messages', authenticate, validate({ params: idParams, body: messageBody }, async (req, res) => {
-  res.status(201).json({ data: await chat.postMessage(currentUser(req), req.params.id, req.body) });
-}));
+router.post(
+  '/:id/messages',
+  authenticate,
+  validate({ params: idParams, body: messageBody }, async (req, res) => {
+    res.status(201).json({ data: await chat.postMessage(currentUser(req), req.params.id, req.body) });
+  })
+);
 
 export default router;

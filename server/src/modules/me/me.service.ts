@@ -22,7 +22,10 @@ export async function updateProfile(user: UserDocument, changes: ProfileChanges)
 }
 
 /** Changing the password signs out every other session; a fresh token is returned. */
-export async function changePassword(user: UserDocument, { currentPassword, newPassword }: { currentPassword: string; newPassword: string }) {
+export async function changePassword(
+  user: UserDocument,
+  { currentPassword, newPassword }: { currentPassword: string; newPassword: string }
+) {
   const account = await User.findById(user.id).select('+passwordHash');
   if (!account) throw notFound('Account not found');
   if (!(await account.checkPassword(currentPassword))) {

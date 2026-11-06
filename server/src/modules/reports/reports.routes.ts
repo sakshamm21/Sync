@@ -12,9 +12,13 @@ const fileBody = z.object({
   details: z.string().trim().max(1000).default(''),
 });
 
-router.post('/:id/report', authenticate, validate({ params: idParams, body: fileBody }, async (req, res) => {
-  const report = await reports.file(currentUser(req), req.params.id, req.body);
-  res.status(201).json({ data: { id: report.id, status: report.status } });
-}));
+router.post(
+  '/:id/report',
+  authenticate,
+  validate({ params: idParams, body: fileBody }, async (req, res) => {
+    const report = await reports.file(currentUser(req), req.params.id, req.body);
+    res.status(201).json({ data: { id: report.id, status: report.status } });
+  })
+);
 
 export default router;

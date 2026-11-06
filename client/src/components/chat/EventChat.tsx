@@ -33,7 +33,8 @@ export default function EventChat({ eventId, canAnnounce = false, className }: E
   const feedRef = useRef<HTMLDivElement>(null);
   const lastTypingSent = useRef(0);
 
-  const scrollToBottom = () => requestAnimationFrame(() => feedRef.current?.scrollTo({ top: feedRef.current.scrollHeight, behavior: 'smooth' }));
+  const scrollToBottom = () =>
+    requestAnimationFrame(() => feedRef.current?.scrollTo({ top: feedRef.current.scrollHeight, behavior: 'smooth' }));
 
   useEffect(() => {
     setLoading(true);
@@ -166,7 +167,13 @@ export default function EventChat({ eventId, canAnnounce = false, className }: E
           {messages.map((msg) => {
             if (msg.isAnnouncement) {
               return (
-                <motion.div key={msg.id} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} style={{ rotate: '-0.6deg' }} className="rounded-3xl bg-pink p-4 text-white">
+                <motion.div
+                  key={msg.id}
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  style={{ rotate: '-0.6deg' }}
+                  className="rounded-3xl bg-pink p-4 text-white"
+                >
                   <p className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.14em] text-white/80">
                     <Megaphone className="size-3.5" /> Announcement · {msg.sender.name} · {formatTime(msg.createdAt)}
                   </p>
@@ -188,7 +195,11 @@ export default function EventChat({ eventId, canAnnounce = false, className }: E
                   {!isMe && (
                     <p className="mb-1 flex items-center gap-1.5 text-xs text-muted">
                       <span className="font-medium text-foreground">{msg.sender.name}</span>
-                      {msg.sender.role !== 'member' && <span className="rounded-full bg-primary-soft px-1.5 text-[10px] font-medium text-primary-soft-foreground">{ROLE_LABELS[msg.sender.role]}</span>}
+                      {msg.sender.role !== 'member' && (
+                        <span className="rounded-full bg-primary-soft px-1.5 text-[10px] font-medium text-primary-soft-foreground">
+                          {ROLE_LABELS[msg.sender.role]}
+                        </span>
+                      )}
                     </p>
                   )}
                   <div
@@ -212,7 +223,12 @@ export default function EventChat({ eventId, canAnnounce = false, className }: E
           <span className="inline-flex items-center gap-1.5">
             <span className="flex gap-0.5">
               {[0, 1, 2].map((i) => (
-                <motion.span key={i} className="size-1 rounded-full bg-muted" animate={{ opacity: [0.3, 1, 0.3] }} transition={{ duration: 1, repeat: Infinity, delay: i * 0.15 }} />
+                <motion.span
+                  key={i}
+                  className="size-1 rounded-full bg-muted"
+                  animate={{ opacity: [0.3, 1, 0.3] }}
+                  transition={{ duration: 1, repeat: Infinity, delay: i * 0.15 }}
+                />
               ))}
             </span>
             {typingNames.join(', ')} {typingNames.length === 1 ? 'is' : 'are'} typing
@@ -223,7 +239,12 @@ export default function EventChat({ eventId, canAnnounce = false, className }: E
       <form onSubmit={handleSend} className="border-t border-border p-3 sm:p-4">
         {canAnnounce && (
           <label className="mb-2 flex w-fit cursor-pointer items-center gap-2 text-xs text-muted">
-            <input type="checkbox" checked={announcement} onChange={(e) => setAnnouncement(e.target.checked)} className="size-3.5 accent-[var(--primary)]" />
+            <input
+              type="checkbox"
+              checked={announcement}
+              onChange={(e) => setAnnouncement(e.target.checked)}
+              className="size-3.5 accent-[var(--primary)]"
+            />
             <Megaphone className="size-3.5" /> Send as an announcement (notifies every attendee)
           </label>
         )}
