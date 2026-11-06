@@ -146,7 +146,8 @@ const handlers: { [Name in ToolName]: (args: z.output<(typeof schemas)[Name]>, c
  */
 export async function runTool(call: ToolCall, context: ToolContext): Promise<unknown> {
   const name = call.function?.name as ToolName;
-  if (!(name in schemas)) return { error: `Unknown tool "${call.function?.name}"` };
+  // `in` would also accept inherited keys such as "constructor".
+  if (!Object.hasOwn(schemas, name)) return { error: `Unknown tool "${call.function?.name}"` };
 
   let args: unknown;
   try {

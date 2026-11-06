@@ -23,7 +23,11 @@ interface VenueMapProps {
 }
 
 // Shown before anything is selected; the busiest venue replaces it once loaded.
-const DEFAULT_CENTER = { latitude: 26.5123, longitude: 80.2329 };
+/** Where the map opens before a venue is picked: the campus (NEXT_PUBLIC_CAMPUS_LATITUDE/LONGITUDE). */
+const DEFAULT_CENTER = {
+  latitude: Number(process.env.NEXT_PUBLIC_CAMPUS_LATITUDE) || 26.5123,
+  longitude: Number(process.env.NEXT_PUBLIC_CAMPUS_LONGITUDE) || 80.2329,
+};
 
 function osmEmbedUrl(lat: number, lng: number) {
   const d = 0.008;

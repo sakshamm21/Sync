@@ -228,11 +228,11 @@ describe('door check-in by QR', () => {
 });
 
 describe('post-event ratings', () => {
-  it('lets an attendee rate a finished event once', async () => {
+  it('lets a checked-in attendee rate a finished event once', async () => {
     const owner = await createUser({ role: 'organizer' });
     const member = await createUser();
     const past = await publishEvent(owner, { startsAt: hoursFromNow(-4), endsAt: hoursFromNow(-2) });
-    await Registration.create({ event: past.id, user: member.user.id, status: 'going' });
+    await Registration.create({ event: past.id, user: member.user.id, status: 'going', checkedInAt: new Date() });
 
     const rated = await api().put(`/api/events/${past.id}/ratings`).set(member.auth).send({ rating: 5 }).expect(200);
     assert.equal(rated.body.data.mine, 5);
@@ -250,12 +250,12 @@ describe('post-event ratings', () => {
     const stranger = await createUser();
     const finished = await publishEvent(owner, { startsAt: hoursFromNow(-4), endsAt: hoursFromNow(-2) });
     const upcoming = await publishEvent(owner);
-      await Registration.create({ event: upcoming.id, user: owner.user.id, status: 'going' });
+    await Registration.create({ event: upcoming.id, user: owner.user.id, status: 'going', checkedInAt: new Date() });
 
-      await api().put(`/api/events/${finished.id}/ratings`).set(stranger.auth).send({ rating: 5 }).expect(403);
-      // An organiser who is also registered still cannot rate before it ends.
-      await api().put(`/api/events/${upcoming.id}/ratings`).set(owner.auth).send({ rating: 5 }).expect(400);
-    });
+    await api().put(`/api/events/${finished.id}/ratings`).set(stranger.auth).send({ rating: 5 }).expect(403);
+    // Even someone registered and checked in cannot rate before it ends.
+    await api().put(`/api/events/${upcoming.id}/ratings`).set(owner.auth).send({ rating: 5 }).expect(400);
+  });
 });
 
 describe('event reports', () => {

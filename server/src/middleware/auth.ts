@@ -23,10 +23,10 @@ export async function resolveUserFromToken(token: unknown): Promise<UserDocument
     throw unauthenticated('Your session has expired. Please sign in again.', 'INVALID_TOKEN');
   }
 
-  const user = await User.findById(payload.sub).select('+passwordChangedAt');
+  const user = await User.findById(payload.sub).select('+passwordChangedAt +sessionsRevokedAt');
   if (!user) throw unauthenticated('This account no longer exists.', 'INVALID_TOKEN');
   if (user.tokenIssuedBeforePasswordChange(payload.iat)) {
-    throw unauthenticated('Your password was changed. Please sign in again.', 'INVALID_TOKEN');
+    throw unauthenticated('You were signed out. Please sign in again.', 'INVALID_TOKEN');
   }
   if (user.status === USER_STATUS.SUSPENDED) {
     throw forbidden('This account has been suspended.', 'ACCOUNT_SUSPENDED');

@@ -19,6 +19,8 @@ type Id = { toString(): string };
 export const rooms = {
   user: (userId: Id) => `user:${userId}`,
   event: (eventId: Id) => `event:${eventId}`,
+  /** The event id in an event room's name, or null for other rooms. */
+  eventIdOf: (room: string) => (room.startsWith('event:') ? room.slice('event:'.length) : null),
 };
 
 export function emitToUser(userId: Id, eventName: string, payload: unknown): void {

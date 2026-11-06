@@ -45,6 +45,16 @@ router.post('/password', validate({ body: passwordBody }, async (req, res) => {
   res.json({ data: await service.changePassword(currentUser(req), req.body) });
 }));
 
+/** Signs out every device, this one included, by refusing all tokens issued so far. */
+router.post('/sign-out-everywhere', async (req, res) => {
+  const user = currentUser(req);
+  // A shared demo account would sign out every visitor using it.
+  assertNotDemoAccount(user.email);
+  user.sessionsRevokedAt = new Date();
+  await user.save();
+  res.json({ data: { ok: true } });
+});
+
 router.get('/calendar', validate({ query: eventSchemas.calendarRange }, async (req, res) => {
   res.json({ data: await events.calendarFor(currentUser(req), req.query) });
 }));
