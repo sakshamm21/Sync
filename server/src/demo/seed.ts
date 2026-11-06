@@ -163,16 +163,57 @@ export async function seed(): Promise<SeedResult> {
   return { users, eventIds };
 }
 
-/** Deletes every document in every collection. Indexes are kept. */
-export async function wipeDatabase(): Promise<void> {
+/** Holds the demo-reset lock; kept out of `wipeDatabase` so a reset can't erase its own lock. */
+const LOCKS_COLLECTION = 'job_locks';
+const RESET_LOCK_ID = 'demo-reset';
+/** Longer than any reset can run (the function limit), so a crashed run can't block the next one forever. */
+const RESET_LOCK_MS = 5 * 60 * 1000;
+
+function database() {
   const db = mongoose.connection.db;
   if (!db) throw new Error('Database is not connected');
-  const collections = await db.collections();
-  await Promise.all(collections.map((c) => c.deleteMany({})));
+  return db;
 }
 
-/** Replaces everything with fresh demo data dated from today. */
-export async function resetDemoData(): Promise<SeedResult> {
-  await wipeDatabase();
-  return seed();
+/** Deletes every document in every collection except job locks. Indexes are kept. */
+export async function wipeDatabase(): Promise<void> {
+  const collections = await database().collections();
+  await Promise.all(collections.filter((c) => c.collectionName !== LOCKS_COLLECTION).map((c) => c.deleteMany({})));
+}
+
+/** Takes the reset lock if nobody holds it (or the holder's lock has expired). */
+async function acquireResetLock(): Promise<boolean> {
+  const locks = database().collection<{ _id: string; until: Date }>(LOCKS_COLLECTION);
+  const now = new Date();
+  try {
+    // Matches only an expired lock; when a live one exists the upsert collides with its _id.
+    await locks.updateOne(
+      { _id: RESET_LOCK_ID, until: { $lt: now } },
+      { $set: { until: new Date(now.getTime() + RESET_LOCK_MS) } },
+      { upsert: true }
+    );
+    return true;
+  } catch (err) {
+    if ((err as { code?: unknown }).code === 11000) return false;
+    throw err;
+  }
+}
+
+async function releaseResetLock(): Promise<void> {
+  await database().collection<{ _id: string; until: Date }>(LOCKS_COLLECTION).updateOne({ _id: RESET_LOCK_ID }, { $set: { until: new Date(0) } });
+}
+
+/**
+ * Replaces everything with fresh demo data dated from today. Two resets at
+ * once would wipe each other's half-loaded data, so only one may run: a second
+ * caller gets `null` while the first is still going.
+ */
+export async function resetDemoData(): Promise<SeedResult | null> {
+  if (!(await acquireResetLock())) return null;
+  try {
+    await wipeDatabase();
+    return await seed();
+  } finally {
+    await releaseResetLock();
+  }
 }

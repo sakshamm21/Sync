@@ -139,6 +139,8 @@ Severity labels:
 
 ### B7. On Vercel, notification emails go out once a day, 25 at a time (P0, production)
 
+> **Update, 6 Nov 2026:** the jobs now run on Vercel Schedules (which replace Cron Jobs), and the outbox drains every 15 minutes even on Hobby. The opportunistic drain and the bigger batches below are still worth doing; the GitHub Actions scheduler no longer is.
+
 - **Where:** `server/vercel.json` (crons) and `outbox.ts:10` (`BATCH_SIZE = 25`).
 - **What's wrong.** The outbox is drained only by the daily 07:30 UTC cron, and each run sends at most 25 emails. So a waitlist promotion, a cancellation or an announcement reaches inboxes up to 24 hours later, often after the event. A cancellation to 200 attendees takes 8 days. Event reminders are queued at 07:00 and also capped at 25 a day.
 - **Fix, do both:**

@@ -1,7 +1,7 @@
 import crypto from 'node:crypto';
 import { Router, type RequestHandler } from 'express';
 import env from '../../config/env';
-import { forbidden, notFound } from '../../lib/errors';
+import { conflict, forbidden, notFound } from '../../lib/errors';
 import { sendDueReminders } from '../../jobs/eventReminders';
 import { drainOutbox } from '../../jobs/outbox';
 import { recountAttendees, pruneOldData } from '../../jobs/maintenance';
@@ -42,8 +42,9 @@ router.get('/maintenance', requireCronSecret, async (_req, res) => {
  */
 router.get('/demo-reset', requireCronSecret, async (_req, res) => {
   if (!env.demoMode) throw notFound('Demo mode is not enabled', 'DEMO_MODE_OFF');
-  const { users, eventIds } = await resetDemoData();
-  res.json({ data: { users: users.size, events: eventIds.size } });
+  const result = await resetDemoData();
+  if (!result) throw conflict('A demo reset is already running', 'RESET_IN_PROGRESS');
+  res.json({ data: { users: result.users.size, events: result.eventIds.size } });
 });
 
 export default router;

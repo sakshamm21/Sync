@@ -139,7 +139,7 @@ flowchart LR
   W[Next.js web app<br/>Vercel] -->|REST + JWT| A[Express API<br/>one policy layer]
   A --> DB[(MongoDB Atlas<br/>events · registrations · outbox)]
   A <-->|Socket.io, or polling<br/>on serverless| W
-  C[Vercel Cron<br/>or in-process timers] --> J[Jobs: reminders ·<br/>email outbox · maintenance]
+  C[Vercel Schedules<br/>or in-process timers] --> J[Jobs: reminders ·<br/>email outbox · maintenance]
   J --> DB
   J --> M[Brevo / SMTP]
   A --> AI[Ask Sync: model with<br/>4 read-only tools]
@@ -155,7 +155,7 @@ flowchart LR
 - **One permission layer.** A single policy module answers "what can this person do with this event?" for every feature. Door staff can scan tickets but cannot open the attendee list, because it holds everyone's email. A hidden event returns "not found", never "forbidden". Private plans are visible to their owner only, not even to admins.
 - **An assistant that cannot change anything.** Ask Sync has four tools (`search_events`, `get_my_schedule`, `get_event_details`, `get_recommendations`), each a thin read-only wrapper over the same services the app uses, so it sees exactly what the signed-in user may see. The server formats every time in the user's time zone, so the model never does time-zone maths, and it gets at most five rounds of tool calls before it must answer.
 - **Entry codes carry no personal data.** A ticket is a signed token holding three ids, valid for 14 days and for one event only. The scan re-checks the live registration, so a waitlisted ticket is refused, and scanning twice says "already checked in" instead of failing. The QR encoder is written in the repository rather than pulled in as a dependency.
-- **One codebase, two shapes.** On a long-running host the API holds WebSockets and runs its jobs on timers. On Vercel the same app runs as a serverless function: `/api/meta` tells the web app to poll instead, and Vercel Cron triggers the same job functions.
+- **One codebase, two shapes.** On a long-running host the API holds WebSockets and runs its jobs on timers. On Vercel the same app runs as a serverless function: `/api/meta` tells the web app to poll instead, and Vercel Schedules trigger the same job functions.
 - **Every dependency has a fallback.** No email service: verification codes and reset links are shown on screen. No AI key: the assistant hides itself. No `BarcodeDetector` in the browser: door staff use the attendee list. Database down: `/api/health` answers 503.
 
 ## Tech stack
@@ -172,7 +172,7 @@ flowchart LR
 | AI | Any OpenAI-compatible Chat Completions API, in Ask Sync only |
 | Maps | OpenStreetMap, with place search through Nominatim |
 | Security | helmet, a CORS allowlist, three rate limiters (sign-in, the whole API, the assistant per user) |
-| Jobs | Vercel Cron in production, in-process timers elsewhere |
+| Jobs | Vercel Schedules in production, in-process timers elsewhere |
 | Testing | Node's built-in test runner with supertest, against an in-memory MongoDB |
 | Hosting | Vercel (web app and API as two projects), GitHub Actions for CI |
 
@@ -297,14 +297,16 @@ There are no automated tests for the web app yet; it is covered by the type-chec
 4. On the web project set `NEXT_PUBLIC_API_URL` (the API's address) and `NEXT_PUBLIC_SITE_URL` (its own).
 5. Deploy, then, with `DB_URI` in `server/.env` pointing at your database, run `npm --prefix server run create-admin -- --email you@example.com` for the first admin.
 
-`server/vercel.json` schedules these jobs once a day, each called with `Authorization: Bearer $CRON_SECRET`:
+`server/vercel.json` runs these jobs with [Vercel Schedules](https://vercel.com/docs/schedules). Each is called with `Authorization: Bearer $CRON_SECRET`, and each can be run by hand from the project's **Schedules** page in the Vercel dashboard:
 
-| Job | What it does |
-|---|---|
-| `/api/jobs/event-reminders` | Emails attendees 24 hours before an event starts |
-| `/api/jobs/email-outbox` | Delivers queued emails |
-| `/api/jobs/maintenance` | Recounts attendees from the registrations that exist, and prunes old rows |
-| `/api/jobs/demo-reset` | Public demos only (`DEMO_MODE=true`): wipes the database and reloads fresh demo data |
+| Job | When | What it does |
+|---|---|---|
+| `/api/jobs/email-outbox` | Every 15 minutes | Delivers queued emails |
+| `/api/jobs/event-reminders` | Every hour | Emails attendees 24 hours before an event starts |
+| `/api/jobs/maintenance` | Daily, 09:00 IST | Recounts attendees from the registrations that exist, and prunes old rows |
+| `/api/jobs/demo-reset` | Daily, 02:00 IST | Public demos only (`DEMO_MODE=true`): wipes the database and reloads fresh demo data |
+
+On the Hobby plan, schedules run at most every 15 minutes, start within a 15-minute window, and are capped at 5,000 runs a month; these four use about 3,800. The API runs in Vercel's Mumbai region (`bom1`), next to the MongoDB Atlas cluster: put it in the same region as your database, because every request makes several queries.
 
 For a public demo with shared accounts, like the live app, set `DEMO_MODE=true` on the API project. **It deletes everything in the database every night**, so never set it on a real deployment.
 

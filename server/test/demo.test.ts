@@ -47,6 +47,20 @@ describe('nightly demo reset', () => {
     assert.ok(upcoming.body.meta.total > 0, 'the demo should always have upcoming events');
   });
 
+  it('lets only one reset run at a time, so two never wipe each other', async () => {
+    const [first, second] = await Promise.all([
+      api().get('/api/jobs/demo-reset').set(cron),
+      api().get('/api/jobs/demo-reset').set(cron),
+    ]);
+    assert.deepEqual([first.status, second.status].sort(), [200, 409]);
+    assert.equal([first, second].find((r) => r.status === 409)!.body.error.code, 'RESET_IN_PROGRESS');
+
+    // Exactly one copy of the data, and the next reset can run.
+    assert.equal(await Event.countDocuments(), data.events.length);
+    assert.equal(await Event.countDocuments({ title: 'Tech Summit 2026' }), 1);
+    await api().get('/api/jobs/demo-reset').set(cron).expect(200);
+  });
+
   it('reports demo mode to the web app', async () => {
     const res = await api().get('/api/meta').expect(200);
     assert.equal(res.body.data.demo, true);
