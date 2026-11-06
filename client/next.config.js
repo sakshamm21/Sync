@@ -1,5 +1,7 @@
 const API_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000').replace(/\/$/, '');
 const isDev = process.env.NODE_ENV !== 'production';
+// Preview deployments load Vercel's comments toolbar from vercel.live.
+const toolbar = process.env.VERCEL_ENV === 'preview' ? ' https://vercel.live' : '';
 
 /**
  * Security headers for every page (E7). The API has helmet; these cover the
@@ -10,12 +12,12 @@ const isDev = process.env.NODE_ENV !== 'production';
  */
 const csp = [
   "default-src 'self'",
-  `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ''}`,
-  "style-src 'self' 'unsafe-inline'",
+  `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ''}${toolbar}`,
+  `style-src 'self' 'unsafe-inline'${toolbar}`,
   "img-src 'self' data: blob: https:",
   "font-src 'self' data:",
-  `connect-src 'self' ${API_URL} ${API_URL.replace(/^http/, 'ws')}${isDev ? ' ws://localhost:* http://localhost:*' : ''}`,
-  'frame-src https://www.openstreetmap.org',
+  `connect-src 'self' ${API_URL} ${API_URL.replace(/^http/, 'ws')}${isDev ? ' ws://localhost:* http://localhost:*' : ''}${toolbar}${toolbar && ' wss://ws-us3.pusher.com'}`,
+  `frame-src https://www.openstreetmap.org${toolbar}`,
   "media-src 'self' blob:",
   "worker-src 'self' blob:",
   "object-src 'none'",
