@@ -16,7 +16,8 @@ const inviteBody = z.object({
   role: z.enum([STAFF_ROLES.MANAGER, STAFF_ROLES.CHECKIN]),
 });
 
-const roleBody = z.object({ role: z.enum(STAFF_ROLES) });
+// Ownership is not a role anyone can be given: only `manager` and `checkin` are assignable.
+const roleBody = z.object({ role: z.enum([STAFF_ROLES.MANAGER, STAFF_ROLES.CHECKIN]) });
 
 /** Everyone who can help run an event. */
 router.get('/:id/staff', authenticate, validate({ params: idParams }, async (req, res) => {

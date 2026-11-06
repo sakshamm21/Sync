@@ -4,6 +4,7 @@ import type {
   AttendeeList,
   CategoryValue,
   ChatMessage,
+  DoorList,
   EventInput,
   EventRating,
   EventReport,
@@ -120,6 +121,8 @@ export const eventsApi = {
   unregister: (id: string) => data<SyncEvent>(http.delete(`/events/${id}/registration`)),
   attendees: (id: string, status?: RegistrationStatus) =>
     data<AttendeeList>(http.get(`/events/${id}/attendees`, { params: { status } })),
+  /** Names and check-ins for door staff (no emails). */
+  doorList: (id: string) => data<DoorList>(http.get(`/events/${id}/door-list`)),
   setCheckIn: (id: string, userId: string, checkedIn: boolean) =>
     data<{ checkedInAt: string | null }>(http.put(`/events/${id}/attendees/${userId}/check-in`, { checkedIn })),
     /** The signed code this user shows at the door. Null when not attending. */
@@ -220,9 +223,9 @@ export const adminApi = {
     data<OrganizerApplication>(http.post(`/admin/organizer-applications/${id}/reject`, { note })),
     reports: (query: { status?: ReportStatus; page?: number; limit?: number } = {}) =>
       page<EventReport>(http.get('/admin/reports', { params: query })),
-    /** Marking a report `reviewed` also cancels the event it was about. */
-    resolveReport: (id: string, status: Exclude<ReportStatus, 'open'>) =>
-      data<EventReport>(http.patch(`/admin/reports/${id}`, { status })),
+    /** Marking a report `reviewed` also cancels the event it was about; `reason` goes to attendees and the organiser. */
+    resolveReport: (id: string, status: Exclude<ReportStatus, 'open'>, reason = '') =>
+      data<EventReport>(http.patch(`/admin/reports/${id}`, { status, reason })),
   };
 
 // --- AI assistant -----------------------------------------------------------------

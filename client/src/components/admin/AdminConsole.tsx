@@ -310,6 +310,8 @@ function Applications() {
 function Reports() {
   const [filter, setFilter] = useState<EventReport['status']>('open');
   const [items, setItems] = useState<EventReport[] | null>(null);
+  const [cancelling, setCancelling] = useState<EventReport | null>(null);
+  const [reason, setReason] = useState('');
 
   const load = useCallback(() => {
     adminApi
@@ -323,10 +325,10 @@ function Reports() {
 
   useEffect(load, [load]);
 
-  async function resolve(id: string, status: 'reviewed' | 'dismissed') {
+  async function resolve(id: string, status: 'reviewed' | 'dismissed', why = '') {
     try {
-      await adminApi.resolveReport(id, status);
-      toast.success(status === 'reviewed' ? 'Marked reviewed — the event is now cancelled.' : 'Report dismissed.');
+      await adminApi.resolveReport(id, status, why);
+      toast.success(status === 'reviewed' ? 'Event cancelled. Attendees and the organiser have been told.' : 'Report dismissed.');
       load();
     } catch (err) {
       toast.error(errorMessage(err));
@@ -391,7 +393,7 @@ function Reports() {
                     <Button size="sm" variant="ghost" onClick={() => resolve(report.id, 'dismissed')}>
                       <X /> Dismiss
                     </Button>
-                    <Button size="sm" variant="secondary" onClick={() => resolve(report.id, 'reviewed')}>
+                    <Button size="sm" variant="secondary" onClick={() => { setReason(''); setCancelling(report); }}>
                       <Check /> Cancel event
                     </Button>
                   </div>
@@ -401,6 +403,20 @@ function Reports() {
           ))}
         </ul>
       )}
+
+      <ConfirmDialog
+        open={Boolean(cancelling)}
+        onClose={() => setCancelling(null)}
+        onConfirm={async () => {
+          if (cancelling) await resolve(cancelling.id, 'reviewed', reason);
+        }}
+        title={`Cancel “${cancelling?.event?.title ?? 'this event'}”?`}
+        description="Everyone registered and the organiser are notified in the app and by email. This can't be undone."
+        confirmLabel="Cancel event"
+      >
+        <label htmlFor="report-reason" className="mb-1.5 block text-sm font-medium">Reason, sent to attendees and the organiser (optional)</label>
+        <Textarea id="report-reason" rows={3} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="e.g. This event breaks the campus events policy." />
+      </ConfirmDialog>
     </Card>
   );
 }

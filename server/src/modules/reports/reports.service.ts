@@ -4,10 +4,12 @@
  * a problem in the first place.
  */
 import { Report, Event, type UserDocument } from '../../models';
+import * as notifications from '../notifications/notifications.service';
+import { cancelEvent } from '../events/events.service';
 import { paginationMeta, type Page } from '../../lib/schemas';
 import { badRequest, notFound } from '../../lib/errors';
 import { findViewableEvent } from '../events/events.policy';
-import { REPORT_STATUS, EVENT_STATUS, type ReportReason, type ReportStatus } from '../../constants';
+import { REPORT_STATUS, EVENT_STATUS, NOTIFICATION_TYPES, type ReportReason, type ReportStatus } from '../../constants';
 
 /** Files or updates a member's report on an event. */
 export async function file(user: UserDocument, eventId: string, { reason, details }: { reason: ReportReason; details: string }) {
@@ -66,9 +68,10 @@ export async function listReports({ status, page, limit }: Page & { status?: Rep
 
 /**
  * Closes a report. Marking it `reviewed` also cancels the event it is about,
- * since that is the action a report almost always ends in.
+ * since that is the action a report almost always ends in. Attendees are told
+ * as for any cancellation, and the organiser is told why.
  */
-export async function resolve(admin: UserDocument, id: string, { status }: { status: ReportStatus }) {
+export async function resolve(admin: UserDocument, id: string, { status, reason = '' }: { status: ReportStatus; reason?: string }) {
   const report = await Report.findById(id);
   if (!report) throw notFound('Report not found');
 
@@ -80,8 +83,17 @@ export async function resolve(admin: UserDocument, id: string, { status }: { sta
   if (status === REPORT_STATUS.REVIEWED && report.event) {
     const event = await Event.findById(report.event);
     if (event && event.status === EVENT_STATUS.PUBLISHED) {
-      event.status = EVENT_STATUS.CANCELLED;
-      await event.save();
+      await cancelEvent(event, { reason, fallback: 'This event has been cancelled by the Sync team.' });
+      await notifications.notify(
+        event.organizers?.length ? event.organizers : [event.owner],
+        {
+          type: NOTIFICATION_TYPES.EVENT_CANCELLED,
+          title: `Taken down: ${event.title}`,
+          body: `An admin cancelled this event after it was reported${reason ? `: ${reason}` : '.'} Attendees have been told.`,
+          eventId: event._id,
+        },
+        { email: true }
+      );
     }
   }
   return report;

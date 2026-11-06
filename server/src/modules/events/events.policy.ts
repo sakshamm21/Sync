@@ -25,37 +25,34 @@ export interface ViewerAccess {
   canCheckIn: boolean;
 }
 
+const NO_ACCESS: ViewerAccess = { isOrganizer: false, canManage: false, canCheckIn: false };
+const FULL_ACCESS: ViewerAccess = { isOrganizer: true, canManage: true, canCheckIn: true };
+const DOOR_ACCESS: ViewerAccess = { isOrganizer: true, canManage: false, canCheckIn: true };
+
 /**
  * What a viewer may do with an event. Admins moderate public events but never
  * see anyone's private calendar; `checkin` staff work the door only.
+ *
+ * `staffRole` is the viewer's row in EventStaff (see `staffRoleFor`). It is
+ * required on purpose: a co-organiser whose role isn't known gets door rights
+ * only, never full rights, so forgetting to look the role up fails safe.
  */
-export function accessFor(user: Viewer, event: EventDocument, staffRole: StaffRoleOfViewer = null): ViewerAccess {
-  if (!user) return { isOrganizer: false, canManage: false, canCheckIn: false };
-
-  if (user.role === ROLES.ADMIN && event.visibility === EVENT_VISIBILITY.PUBLIC) {
-    return { isOrganizer: true, canManage: true, canCheckIn: true };
-  }
-
-  if (!event.isCoOrganizer(user.id)) return { isOrganizer: false, canManage: false, canCheckIn: false };
-
-  if (staffRole === STAFF_ROLES.CHECKIN) return { isOrganizer: true, canManage: false, canCheckIn: true };
-  // The creator can always manage; an invitee can unless they are door-only staff.
-  return { isOrganizer: true, canManage: true, canCheckIn: true };
+export function accessFor(user: Viewer, event: EventDocument, staffRole: StaffRoleOfViewer): ViewerAccess {
+  if (!user) return NO_ACCESS;
+  if (user.role === ROLES.ADMIN && event.visibility === EVENT_VISIBILITY.PUBLIC) return FULL_ACCESS;
+  // The creator can always manage, whatever their EventStaff row says.
+  if (event.isOwnedBy(user.id)) return FULL_ACCESS;
+  if (!event.isCoOrganizer(user.id)) return NO_ACCESS;
+  return staffRole === STAFF_ROLES.MANAGER || staffRole === STAFF_ROLES.OWNER ? FULL_ACCESS : DOOR_ACCESS;
 }
 
-/** Edit rights. Admins count for public events; check-in staff do not. */
-export function canManage(user: Viewer, event: EventDocument, staffRole: StaffRoleOfViewer = null): boolean {
-  return accessFor(user, event, staffRole).canManage;
-}
-
-/** Door rights: organisers, managers and check-in staff may all scan people in. */
-export function canCheckIn(user: Viewer, event: EventDocument, staffRole: StaffRoleOfViewer = null): boolean {
-  return accessFor(user, event, staffRole).canCheckIn;
-}
+/** True for the creator and anyone on the event's team, whatever their role. */
+const isOnTeam = (user: Viewer, event: EventDocument) => Boolean(user) && event.isCoOrganizer(user?.id);
 
 function canView(user: Viewer, event: EventDocument): boolean {
-  if (event.visibility === EVENT_VISIBILITY.PRIVATE) return Boolean(user) && event.isCoOrganizer(user?.id);
-  if (event.status === EVENT_STATUS.DRAFT) return canManage(user, event);
+  if (event.visibility === EVENT_VISIBILITY.PRIVATE) return isOnTeam(user, event);
+  // A draft is shown to its team and to admins, who moderate public events.
+  if (event.status === EVENT_STATUS.DRAFT) return isOnTeam(user, event) || user?.role === ROLES.ADMIN;
   return true;
 }
 
@@ -101,10 +98,10 @@ export async function findCheckinEvent(user: UserDocument, id: string): Promise<
   return loaded;
 }
 
-/** Chat is for public events, between the organiser, attendees and admins. */
+/** Chat is for public events, between the event's team, its attendees and admins. */
 export function canChat(user: Viewer, event: EventDocument, registrationStatus: RegistrationStatus | null | undefined): boolean {
   if (!user || event.visibility !== EVENT_VISIBILITY.PUBLIC || event.status === EVENT_STATUS.DRAFT) return false;
-  return canManage(user, event) || Boolean(registrationStatus);
+  return user.role === ROLES.ADMIN || isOnTeam(user, event) || Boolean(registrationStatus);
 }
 
 /** An event as the API returns it: the stored fields plus the viewer's relationship to it. */
@@ -148,22 +145,22 @@ export async function withViewerContext(events: EventDocument[], viewer: Viewer)
 
   return events.map((event) => {
     const registration = statusByEvent.get(String(event._id)) ?? null;
-      const isOwner = viewer ? event.isOwnedBy(viewer.id) : false;
-      const staffRole = roleByEvent.get(String(event._id)) ?? (isOwner ? STAFF_ROLES.OWNER : null);
-      const access = accessFor(viewer, event, staffRole);
-      return {
-        // toJSON adds `id` and the virtuals (see config/db.ts), which Mongoose's types don't model.
-        ...(event.toJSON() as unknown as Omit<PresentedEvent, 'viewer'>),
-        viewer: {
-          isOwner,
-          isOrganizer: access.isOrganizer,
-          canManage: access.canManage,
-          canCheckIn: access.canCheckIn,
-          canChat: canChat(viewer, event, registration),
-          staffRole,
-          registration,
-        },
-      };
+    const isOwner = viewer ? event.isOwnedBy(viewer.id) : false;
+    const staffRole = roleByEvent.get(String(event._id)) ?? (isOwner ? STAFF_ROLES.OWNER : null);
+    const access = accessFor(viewer, event, staffRole);
+    return {
+      // toJSON adds `id` and the virtuals (see config/db.ts), which Mongoose's types don't model.
+      ...(event.toJSON() as unknown as Omit<PresentedEvent, 'viewer'>),
+      viewer: {
+        isOwner,
+        isOrganizer: access.isOrganizer,
+        canManage: access.canManage,
+        canCheckIn: access.canCheckIn,
+        canChat: canChat(viewer, event, registration),
+        staffRole,
+        registration,
+      },
+    };
   });
 }
 

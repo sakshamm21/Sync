@@ -16,7 +16,7 @@ import {
   type Viewer,
 } from './events.policy';
 import type { CalendarRange, CreateEventInput, ListEventsQuery, UpdateEventInput } from './events.schemas';
-import { EVENT_VISIBILITY, EVENT_STATUS, NOTIFICATION_TYPES, type Category, type NotificationType } from '../../constants';
+import { ROLES, EVENT_VISIBILITY, EVENT_STATUS, NOTIFICATION_TYPES, type Category, type NotificationType } from '../../constants';
 
 const publicListing = (): FilterQuery<IEvent> => ({ visibility: EVENT_VISIBILITY.PUBLIC, status: EVENT_STATUS.PUBLISHED });
 
@@ -181,6 +181,20 @@ export async function update(user: UserDocument, id: string, changes: UpdateEven
     }
   }
 
+  if (changes.status === EVENT_STATUS.DRAFT && event.status !== EVENT_STATUS.DRAFT) {
+    if (event.visibility !== EVENT_VISIBILITY.PUBLIC) throw badRequest('Personal events cannot be drafts');
+    // Unpublishing would hide the event from people holding a ticket, without telling them.
+    if (await Registration.exists({ event: event._id })) {
+      throw badRequest('People have already registered, so this event cannot go back to draft. Cancel it instead.', 'HAS_REGISTRATIONS');
+    }
+  }
+  const isPublicAfter = (changes.visibility ?? event.visibility) === EVENT_VISIBILITY.PUBLIC;
+  if (!isPublicAfter && changes.capacity != null) throw badRequest('Personal events have no capacity');
+  const publishing = changes.status === EVENT_STATUS.PUBLISHED && event.status === EVENT_STATUS.DRAFT;
+  if (publishing && (changes.endsAt ?? event.endsAt) <= new Date()) {
+    throw badRequest('This event has already ended, so it cannot be published', 'EVENT_ENDED');
+  }
+
   const logisticsBefore = logisticsSnapshot(event);
   const wasPublished = event.status === EVENT_STATUS.PUBLISHED;
   const previousCapacity = event.capacity;
@@ -204,27 +218,38 @@ export async function update(user: UserDocument, id: string, changes: UpdateEven
   return getForViewer(user, id);
 }
 
+/**
+ * Cancels an event and tells everyone registered. Shared by the organiser's
+ * cancel button and an admin acting on a report, so attendees are never left
+ * holding a ticket for something that is off. Does nothing if already cancelled.
+ */
+export async function cancelEvent(event: EventDocument, { reason, fallback }: { reason: string; fallback: string }) {
+  if (event.status === EVENT_STATUS.CANCELLED) return false;
+  event.status = EVENT_STATUS.CANCELLED;
+  await event.save();
+  await notifyAttendees(event, {
+    type: NOTIFICATION_TYPES.EVENT_CANCELLED,
+    title: `Cancelled: ${event.title}`,
+    body: reason || fallback,
+  });
+  return true;
+}
+
 export async function cancel(user: UserDocument, id: string, { reason }: { reason: string }) {
   const { event, access } = await loadEvent(user, id);
   if (!access.canManage) throw forbidden('Only the organiser can cancel this event');
   if (event.visibility !== EVENT_VISIBILITY.PUBLIC) {
     throw badRequest('Only public events can be cancelled. Delete personal events instead.');
   }
-  if (event.status !== EVENT_STATUS.CANCELLED) {
-    event.status = EVENT_STATUS.CANCELLED;
-    await event.save();
-    await notifyAttendees(event, {
-      type: NOTIFICATION_TYPES.EVENT_CANCELLED,
-      title: `Cancelled: ${event.title}`,
-      body: reason || 'The organiser has cancelled this event.',
-    });
-  }
+  await cancelEvent(event, { reason, fallback: 'The organiser has cancelled this event.' });
   return present(event, user);
 }
 
 export async function remove(user: UserDocument, id: string): Promise<void> {
-  const { event, access } = await loadEvent(user, id);
-  if (!access.canManage) throw forbidden('Only the organiser can delete this event');
+  const { event } = await loadEvent(user, id);
+  // Deleting destroys registrations and history, so co-organisers may not.
+  const isAdmin = user.role === ROLES.ADMIN && event.visibility === EVENT_VISIBILITY.PUBLIC;
+  if (!event.isOwnedBy(user.id) && !isAdmin) throw forbidden('Only the event owner can delete this event', 'OWNER_ONLY');
 
   if (event.visibility === EVENT_VISIBILITY.PUBLIC && event.status === EVENT_STATUS.PUBLISHED && !event.isPast) {
     await notifyAttendees(event, {

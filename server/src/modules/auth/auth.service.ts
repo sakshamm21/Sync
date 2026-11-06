@@ -17,6 +17,12 @@ export interface Session {
   user: ReturnType<UserDocument['toJSON']>;
 }
 
+function assertNotSuspended(user: UserDocument) {
+  if (user.status === USER_STATUS.SUSPENDED) {
+    throw forbidden('This account has been suspended. Contact an administrator.', 'ACCOUNT_SUSPENDED');
+  }
+}
+
 export function createSession(user: UserDocument): Session {
   return { token: signAccessToken(user), user: user.toJSON() };
 }
@@ -110,6 +116,8 @@ export async function verifyEmail({ email, code }: { email: string; code: string
 
   user.emailVerified = true;
   user.emailVerification = undefined;
+  await user.save();
+  assertNotSuspended(user);
   user.lastLoginAt = new Date();
   await user.save();
   return createSession(user);
@@ -123,9 +131,7 @@ export async function login({ email, password }: { email: string; password: stri
   if (!user.emailVerified) {
     throw forbidden('Please verify your email to continue.', 'EMAIL_NOT_VERIFIED');
   }
-  if (user.status === USER_STATUS.SUSPENDED) {
-    throw forbidden('This account has been suspended. Contact an administrator.', 'ACCOUNT_SUSPENDED');
-  }
+  assertNotSuspended(user);
 
   user.lastLoginAt = new Date();
   await user.save();
@@ -160,6 +166,9 @@ export async function resetPassword({ token, password }: { token: string; passwo
   user.passwordReset = undefined;
   // Following the emailed link proves ownership of the address.
   user.emailVerified = true;
+  // The new password is kept, but a suspended account still gets no session.
+  if (user.status === USER_STATUS.SUSPENDED) await user.save();
+  assertNotSuspended(user);
   user.lastLoginAt = new Date();
   await user.save();
   return createSession(user);
