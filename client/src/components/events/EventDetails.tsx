@@ -34,6 +34,7 @@ import { SITE_URL, whatsappShareUrl } from '@/lib/calendarLinks';
 import { Button, ButtonLink } from '@/components/ui/button';
 import { Avatar, Card, EmptyState, Kicker, Sticker } from '@/components/ui/surface';
 import { FadeIn } from '@/components/ui/motion';
+import { cn } from '@/lib/cn';
 
 /** What the server rendered, before any client-side fetch. */
 interface ServerEvent {
@@ -243,7 +244,7 @@ export default function EventDetails({
   // Start from the server's copy so the page is readable before any fetch,
   // then replace it with the authenticated view once that arrives.
   const [missing, setMissing] = useState(false);
-  const [event, setEvent] = useState<SyncEvent | null>(
+  const [loaded, setEvent] = useState<SyncEvent | null>(
     () =>
       initialEvent && {
         ...(initialEvent as unknown as SyncEvent),
@@ -313,6 +314,31 @@ export default function EventDetails({
     }
   }
 
+  // "Preview as attendee": organisers see the page exactly as a member who
+  // hasn't RSVPed would, without the organiser-only controls.
+  const [previewing, setPreviewing] = useState(false);
+  const canPreview = Boolean(loaded?.viewer.isOrganizer || loaded?.viewer.canCheckIn);
+  const event = useMemo<SyncEvent | null>(
+    () =>
+      loaded && previewing
+        ? {
+            ...loaded,
+            viewer: {
+              ...loaded.viewer,
+              isOwner: false,
+              isOrganizer: false,
+              canManage: false,
+              canCheckIn: false,
+              staffRole: null,
+              registration: null,
+              interested: false,
+              waitlistPosition: undefined,
+            },
+          }
+        : loaded,
+    [loaded, previewing]
+  );
+
   const embed = useMemo(() => (event ? mapEmbed(event) : null), [event]);
   const badge = event && statusOf(event);
   const host = event ? event.owner?.organization || event.owner?.name || '' : '';
@@ -343,6 +369,24 @@ export default function EventDetails({
   return (
     <>
       {!event && <div className="mx-auto mt-6 h-[55vh] max-w-7xl animate-pulse rounded-[40px] bg-surface-muted" />}
+
+      {canPreview && (
+        <div className="sticky top-16 z-30 mx-auto mt-3 flex max-w-7xl justify-end px-4 sm:px-6 lg:px-8">
+          <button
+            type="button"
+            aria-pressed={previewing}
+            onClick={() => setPreviewing((p) => !p)}
+            className={cn(
+              'rounded-full border px-4 py-2 text-sm font-semibold shadow-lifted backdrop-blur transition',
+              previewing
+                ? 'border-transparent bg-foreground text-background'
+                : 'border-border bg-surface/90 text-muted hover:text-foreground'
+            )}
+          >
+            {previewing ? 'Previewing as an attendee · Exit' : 'Preview as attendee'}
+          </button>
+        </div>
+      )}
 
       {event && (
         <>

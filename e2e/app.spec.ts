@@ -213,3 +213,14 @@ test('an event with a future sign-up window says when registration opens', async
   await page.goto(`/events/${id}`);
   await expect(page.getByRole('button', { name: /^Opens / })).toBeDisabled();
 });
+
+test('organisers can preview their event as an attendee sees it', async ({ page }) => {
+  const token = await signInAs(page, 'organizer@syncronify.dev');
+  const overview = await apiGet<{ events: (Ev & { viewer: { canManage: boolean } })[] }>(token, '/api/organizer/overview');
+  const mine = overview.events.find((e) => e.status === 'published' && !e.isPast && e.viewer.canManage)!;
+  await page.goto(`/events/${mine.id}`);
+  await expect(page.getByRole('link', { name: 'Manage' })).toBeVisible();
+  await page.getByRole('button', { name: 'Preview as attendee' }).click();
+  await expect(page.getByRole('link', { name: 'Manage' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: /I'm in|Join waitlist/ }).first()).toBeVisible();
+});
