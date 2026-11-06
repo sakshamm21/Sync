@@ -1,7 +1,7 @@
-import type { FilterQuery, Types } from 'mongoose';
+import type { FilterQuery } from 'mongoose';
 import { Event, Registration, type IEvent, type UserDocument } from '../../models';
 import { badRequest, forbidden, notFound } from '../../lib/errors';
-import { fillFromWaitlist, clashesWith, type Clash } from './waitlist.service';
+import { handOverSeat, hasWaitlist, clashesWith, type Clash } from './waitlist.service';
 import { claimSeat, releaseSeat } from './seats';
 import { loadEvent, withViewerContext, present, OWNER_FIELDS, type PresentedEvent } from './events.policy';
 import { EVENT_STATUS, REGISTRATION_STATUS, type RegistrationStatus } from '../../constants';
@@ -32,7 +32,9 @@ export async function register(user: UserDocument, eventId: string): Promise<Reg
 
   const existing = await Registration.findOne({ event: event._id, user: user.id });
   if (!existing) {
-    const gotSeat = await claimSeat(event._id);
+    // Nobody jumps the queue: while people are waiting, a new RSVP waits too,
+    // even if a seat looks free for a moment.
+    const gotSeat = !(await hasWaitlist(event._id)) && (await claimSeat(event._id));
     try {
       await Registration.create({
         event: event._id,
@@ -62,12 +64,7 @@ export async function unregister(user: UserDocument, eventId: string) {
   if (!registration) throw notFound('You are not registered for this event', 'NOT_REGISTERED');
 
   if (registration.status === REGISTRATION_STATUS.GOING) {
-    await releaseSeat(event._id);
-    // Promoting people off the waitlist queues their emails, but it still
-    // touches several documents; keep it off the request path entirely.
-    void fillFromWaitlist(event).catch(() => {
-      // The outbox drainer and the recount job are the safety net.
-    });
+    await handOverSeat(event);
   }
   const fresh = await loadEvent(user, eventId);
   return present(fresh.event, user);

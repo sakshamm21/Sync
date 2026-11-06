@@ -5,41 +5,67 @@
  * These jobs recompute it from the registrations that actually exist.
  */
 import { Event, Registration, Notification, OutboxEmail } from '../models';
+import { fillFromWaitlist } from '../modules/events/waitlist.service';
+import { EVENT_STATUS, REGISTRATION_STATUS } from '../constants';
 import logger from '../lib/logger';
 
 const CHECK_EVERY_MS = 60 * 60 * 1000;
-/** Never touch more than this many events per run, to bound the work. */
-const MAX_EVENTS = 500;
+/** Events are checked in pages of this size, so one run never loads them all at once. */
+const PAGE_SIZE = 200;
 
 /**
- * Sets every event's `attendeeCount` to the number of confirmed
- * registrations, and reports how many events were corrected.
+ * Sets each capped event's `attendeeCount` to the number of confirmed
+ * registrations, then fills any seats that were wrongly shown as taken from
+ * the waitlist. Returns how many events were corrected.
+ *
+ * Only events that haven't ended are checked: a finished event's counter is
+ * never used to hand out seats again. Each write is conditional on the old
+ * value, so an RSVP that lands mid-recount wins and the event is simply
+ * checked again next run.
  */
 export async function recountAttendees(now = new Date()): Promise<number> {
-  // Only public events with a capacity use the counter for anything.
-  const events = await Event.find({ capacity: { $ne: null } }).select('_id attendeeCount').limit(MAX_EVENTS);
-  if (!events.length) return 0;
-
-  const counts = await Registration.aggregate([
-    { $match: { status: 'going' } },
-    { $group: { _id: '$event', count: { $sum: 1 } } },
-  ]);
-  const byEvent = new Map(counts.map((c) => [String(c._id), c.count as number]));
-
   const drift: { eventId: string; was: number; now: number }[] = [];
-  const writes: Promise<unknown>[] = [];
+  let promoted = 0;
+  let lastId: unknown = null;
 
-  for (const event of events) {
-    const actual = byEvent.get(String(event._id)) ?? 0;
-    if (event.attendeeCount === actual) continue;
-    drift.push({ eventId: event.id, was: event.attendeeCount, now: actual });
-    writes.push(Event.updateOne({ _id: event._id }, { $set: { attendeeCount: actual } }));
+  for (;;) {
+    const events = await Event.find({
+      capacity: { $ne: null },
+      endsAt: { $gte: now },
+      ...(lastId ? { _id: { $gt: lastId } } : {}),
+    })
+      .sort({ _id: 1 })
+      .limit(PAGE_SIZE);
+    if (!events.length) break;
+    lastId = events[events.length - 1]._id;
+
+    const counts = await Registration.aggregate<{ _id: unknown; count: number }>([
+      { $match: { event: { $in: events.map((e) => e._id) }, status: REGISTRATION_STATUS.GOING } },
+      { $group: { _id: '$event', count: { $sum: 1 } } },
+    ]);
+    const byEvent = new Map(counts.map((c) => [String(c._id), c.count]));
+
+    for (const event of events) {
+      const actual = byEvent.get(String(event._id)) ?? 0;
+      if (event.attendeeCount !== actual) {
+        const fixed = await Event.updateOne(
+          { _id: event._id, attendeeCount: event.attendeeCount },
+          { $set: { attendeeCount: actual } }
+        );
+        if (fixed.modifiedCount !== 1) continue;
+        drift.push({ eventId: event.id, was: event.attendeeCount, now: actual });
+        event.attendeeCount = actual;
+      }
+      // A seat that is free while people wait means a promotion was missed.
+      if (event.status === EVENT_STATUS.PUBLISHED && event.capacity != null && event.attendeeCount < event.capacity) {
+        promoted += (await fillFromWaitlist(event)).length;
+      }
+    }
+    if (events.length < PAGE_SIZE) break;
   }
 
-  if (drift.length) {
-    await Promise.all(writes);
-    logger.warn({ drift }, 'Corrected attendeeCount drift');
-  }
+  if (drift.length) logger.warn({ drift }, 'Corrected attendeeCount drift');
+  if (promoted) logger.info({ promoted }, 'Promoted people off waitlists after a recount');
   return drift.length;
 }
 
