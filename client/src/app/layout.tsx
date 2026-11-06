@@ -15,7 +15,8 @@ export const metadata: Metadata = {
     template: '%s · Sync',
   },
   description: 'Campus plans, minus the chaos. Find what’s on, RSVP in a tap, and never miss the good stuff.',
-  icons: { icon: '/icon.svg' },
+  icons: { icon: '/icon.svg', apple: '/apple-touch-icon.png' },
+  appleWebApp: { capable: true, title: 'Sync', statusBarStyle: 'black-translucent' },
   openGraph: {
     type: 'website',
     siteName: 'Sync',

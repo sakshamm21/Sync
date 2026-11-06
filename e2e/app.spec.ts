@@ -152,3 +152,16 @@ test('the notification centre lists history and lets you keep a kind out of emai
   await page.reload();
   await expect(page.getByRole('switch', { name: 'Email me announcements' })).toHaveAttribute('aria-checked', 'false');
 });
+
+test('Sync is installable and offers notifications on this device', async ({ page, request }) => {
+  const manifest = await (await request.get('/manifest.webmanifest')).json();
+  expect(manifest.display).toBe('standalone');
+  expect(manifest.icons.some((i: { purpose: string }) => i.purpose === 'maskable')).toBe(true);
+  expect((await request.get('/sw.js')).status()).toBe(200);
+
+  await signInAs(page, 'member@syncronify.dev');
+  await page.goto('/settings');
+  await expect(page.getByRole('button', { name: 'Turn on notifications' })).toBeVisible();
+  const registered = await page.evaluate(async () => Boolean(await navigator.serviceWorker.getRegistration()));
+  expect(registered).toBe(true);
+});

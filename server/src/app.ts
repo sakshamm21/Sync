@@ -60,6 +60,8 @@ export function createApp(): Express {
         assistant: env.ai.enabled,
         demo: env.demoMode,
         allowedEmailDomains: env.allowedEmailDomains,
+        // The browser needs this to subscribe; null when push isn't set up.
+        pushPublicKey: env.push.enabled ? env.push.publicKey : null,
       },
     });
   });

@@ -10,3 +10,4 @@ export { Report, type IReport, type ReportDocument } from './Report';
 export { Rating, type IRating, type RatingDocument } from './Rating';
 export { OutboxEmail, type IOutboxEmail, type OutboxEmailDocument } from './OutboxEmail';
 export { Interest, type IInterest, type InterestDocument } from './Interest';
+export { PushSubscription, type IPushSubscription, type PushSubscriptionDocument } from './PushSubscription';

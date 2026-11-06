@@ -7,7 +7,7 @@ import * as service from './me.service';
 import { assertNotDemoAccount } from '../../demo/accounts';
 import * as events from '../events/events.service';
 import * as registrations from '../events/registrations.service';
-import { Event } from '../../models';
+import { Event, PushSubscription } from '../../models';
 import * as eventSchemas from '../events/events.schemas';
 
 const router = Router();
@@ -65,6 +65,34 @@ router.post('/sign-out-everywhere', async (req, res) => {
   await user.save();
   res.json({ data: { ok: true } });
 });
+
+const pushBody = z.object({
+  endpoint: z.url({ protocol: /^https$/ }).max(1000),
+  keys: z.object({ p256dh: z.string().min(1).max(200), auth: z.string().min(1).max(100) }),
+});
+
+/** Registers this device for push notifications (idempotent per endpoint). */
+router.post(
+  '/push-subscriptions',
+  validate({ body: pushBody }, async (req, res) => {
+    const user = currentUser(req);
+    await PushSubscription.updateOne(
+      { endpoint: req.body.endpoint },
+      { $set: { user: user._id, keys: req.body.keys } },
+      { upsert: true }
+    );
+    res.status(201).json({ data: { ok: true } });
+  })
+);
+
+/** Stops push to this device. */
+router.post(
+  '/push-subscriptions/remove',
+  validate({ body: z.object({ endpoint: z.string().max(1000) }) }, async (req, res) => {
+    await PushSubscription.deleteOne({ endpoint: req.body.endpoint, user: currentUser(req)._id });
+    res.json({ data: { ok: true } });
+  })
+);
 
 /** The secret calendar subscription URL ("Subscribe in Google/Apple/Outlook Calendar"). */
 const feedUrls = (req: Request, token: string) => {

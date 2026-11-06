@@ -27,6 +27,11 @@ export default tseslint.config(
     languageOptions: { sourceType: 'commonjs', globals: globals.node },
   },
   {
+    // The service worker runs in its own global scope.
+    files: ['client/public/sw.js'],
+    languageOptions: { sourceType: 'script', globals: globals.serviceworker },
+  },
+  {
     // Mongoose's generics use `{}` for "no extra query helpers / methods".
     files: ['server/src/models/**/*.ts'],
     rules: { '@typescript-eslint/no-empty-object-type': 'off' },

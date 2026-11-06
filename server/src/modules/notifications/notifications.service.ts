@@ -4,6 +4,8 @@ import env from '../../config/env';
 import { notFound } from '../../lib/errors';
 import { emitToUser } from '../../lib/realtime';
 import { queueMail } from '../../jobs/outbox';
+import { pushConfigured, sendPush } from '../../lib/push';
+import { runInBackground } from '../../lib/background';
 import * as emails from '../../lib/emailTemplates';
 import { paginationMeta, type Page } from '../../lib/schemas';
 import type { NotificationType } from '../../constants';
@@ -35,6 +37,12 @@ export async function notify(
 
   const docs = await Notification.insertMany(recipients.map((user) => ({ user, type, title, body, event: eventId })));
   for (const doc of docs) emitToUser(doc.user, 'notification:new', doc.toJSON());
+
+  // Phones and desktops that allowed notifications get them even with the app closed.
+  if (pushConfigured()) {
+    const url = eventId ? `/events/${eventId}` : '/notifications';
+    runInBackground('push', () => sendPush(recipients, { title, body, url, tag: eventId ? `event-${eventId}` : undefined }));
+  }
 
   if (!email) return;
   // Suspended accounts keep their in-app history but get no more email.
