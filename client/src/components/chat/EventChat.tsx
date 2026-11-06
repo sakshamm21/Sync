@@ -172,7 +172,7 @@ export default function EventChat({ eventId, canAnnounce = false, className }: E
                   initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
                   style={{ rotate: '-0.6deg' }}
-                  className="rounded-3xl bg-pink p-4 text-white"
+                  className="rounded-3xl bg-pink p-4 text-[#09090d]"
                 >
                   <p className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.14em] text-white/80">
                     <Megaphone className="size-3.5" /> Announcement · {msg.sender.name} · {formatTime(msg.createdAt)}

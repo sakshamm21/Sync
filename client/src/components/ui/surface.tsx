@@ -17,7 +17,7 @@ const badgeTones: Record<BadgeTone, string> = {
   success: 'bg-success-soft text-success border-transparent',
   warning: 'bg-warning-soft text-warning border-transparent',
   danger: 'bg-danger-soft text-danger border-transparent',
-  pink: 'bg-pink text-white border-transparent',
+  pink: 'bg-pink text-[#09090d] border-transparent',
   cyan: 'bg-cyan text-black border-transparent',
 };
 
