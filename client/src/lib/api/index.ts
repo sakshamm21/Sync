@@ -1,3 +1,4 @@
+import { saveBlob } from '../download';
 import { http } from './client';
 import type {
   AppNotification,
@@ -145,12 +146,7 @@ export const eventsApi = {
   /** Downloads the event as an .ics file ("Add to calendar"). */
   async downloadCalendarFile(event: Pick<SyncEvent, 'id' | 'title'>) {
     const response = await http.get<Blob>(`/events/${event.id}/calendar.ics`, { responseType: 'blob' });
-    const url = URL.createObjectURL(response.data);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `${event.title.replace(/[^a-z0-9]+/gi, '-').toLowerCase() || 'event'}.ics`;
-    link.click();
-    URL.revokeObjectURL(url);
+    saveBlob(response.data, `${event.title.replace(/[^a-z0-9]+/gi, '-').toLowerCase() || 'event'}.ics`);
   },
 };
 
