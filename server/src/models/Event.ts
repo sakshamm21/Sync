@@ -16,6 +16,14 @@ export interface Venue {
   longitude?: number;
 }
 
+export interface EventQuestion {
+  _id: Types.ObjectId;
+  label: string;
+  kind: 'text' | 'choice';
+  options: string[];
+  required: boolean;
+}
+
 export interface IEvent {
   title: string;
   description: string;
@@ -39,6 +47,10 @@ export interface IEvent {
   registrationClosesAt: Date | null;
   /** Hours a freed seat is held for the next person to claim; null = move them in automatically. */
   waitlistClaimHours: number | null;
+  /** Extra questions asked when someone RSVPs (roll number, T-shirt size, ...). */
+  questions: EventQuestion[];
+  /** Each RSVP waits for the organiser to approve it. */
+  requiresApproval: boolean;
   attendeeCount: number;
   /** People who bookmarked it as "Interested" (a cache of Interest rows). */
   interestedCount: number;
@@ -100,6 +112,21 @@ const eventSchema = new Schema<IEvent, EventModel, EventMethods, {}, EventVirtua
     registrationOpensAt: { type: Date, default: null },
     registrationClosesAt: { type: Date, default: null },
     waitlistClaimHours: { type: Number, min: 1, max: 72, default: null },
+    questions: {
+      type: [
+        new Schema(
+          {
+            label: { type: String, required: true, trim: true, maxlength: 200 },
+            kind: { type: String, enum: ['text', 'choice'], default: 'text' },
+            options: { type: [{ type: String, trim: true, maxlength: 80 }], default: [] },
+            required: { type: Boolean, default: false },
+          },
+          { _id: true }
+        ),
+      ],
+      default: [],
+    },
+    requiresApproval: { type: Boolean, default: false },
     attendeeCount: { type: Number, min: 0, default: 0 },
     interestedCount: { type: Number, min: 0, default: 0 },
     ratingSum: { type: Number, min: 0, default: 0 },

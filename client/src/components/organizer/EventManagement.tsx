@@ -31,7 +31,7 @@ import { Segmented } from '@/components/ui/tabs';
 import { cn } from '@/lib/cn';
 import { saveBlob } from '@/lib/download';
 
-type Filter = 'all' | 'going' | 'waitlisted' | 'checked-in';
+type Filter = 'all' | 'pending' | 'going' | 'waitlisted' | 'checked-in';
 
 function downloadCsv(event: SyncEvent, attendees: Attendee[]) {
   // A cell starting with = + - @ (or a tab/CR) is run as a formula by Excel and
@@ -40,9 +40,19 @@ function downloadCsv(event: SyncEvent, attendees: Attendee[]) {
     const safe = /^[=+\-@\t\r]/.test(value) ? `'${value}` : value;
     return `"${safe.replace(/"/g, '""')}"`;
   };
+  // One column per question, so answers (roll number, T-shirt size, ...) line up.
+  const questions = (event.questions ?? []).map((q) => q.label);
+  const answerFor = (a: Attendee, label: string) => a.answers?.find((x) => x.question === label)?.answer ?? '';
   const rows = [
-    ['Name', 'Email', 'Status', 'Registered at', 'Checked in at'],
-    ...attendees.map((a) => [a.user?.name ?? '', a.user?.email ?? '', a.status, a.registeredAt, a.checkedInAt ?? '']),
+    ['Name', 'Email', 'Status', 'Registered at', 'Checked in at', ...questions],
+    ...attendees.map((a) => [
+      a.user?.name ?? '',
+      a.user?.email ?? '',
+      a.status,
+      a.registeredAt,
+      a.checkedInAt ?? '',
+      ...questions.map((q) => answerFor(a, q)),
+    ]),
   ];
   // The byte-order mark makes Excel read the file as UTF-8, so names like "Aanya Śarma" survive.
   const blob = new Blob(['\uFEFF', rows.map((r) => r.map(escape).join(',')).join('\r\n')], { type: 'text/csv;charset=utf-8' });
@@ -79,10 +89,21 @@ export default function EventManagement({ eventId }: { eventId: string }) {
     return list.items.filter((a) => {
       if (filter === 'going' && a.status !== 'going') return false;
       if (filter === 'waitlisted' && a.status !== 'waitlisted') return false;
+      if (filter === 'pending' && a.status !== 'pending') return false;
       if (filter === 'checked-in' && !a.checkedInAt) return false;
       return !q || `${a.user?.name} ${a.user?.email}`.toLowerCase().includes(q);
     });
   }, [list, search, filter]);
+
+  async function decide(attendee: Attendee, approve: boolean) {
+    if (!attendee.user) return;
+    try {
+      setList(await eventsApi.decide(eventId, attendee.user.id, approve));
+      toast.success(approve ? `${attendee.user.name} is in` : `Declined ${attendee.user.name}`);
+    } catch (err) {
+      toast.error(errorMessage(err));
+    }
+  }
 
   async function toggleCheckIn(attendee: Attendee) {
     if (!attendee.user) return;
@@ -208,6 +229,9 @@ export default function EventManagement({ eventId }: { eventId: string }) {
                 { value: 'all', label: 'All' },
                 { value: 'going', label: 'Going' },
                 { value: 'waitlisted', label: 'Waitlist' },
+                ...(event.requiresApproval
+                  ? [{ value: 'pending' as Filter, label: `Requests (${list.counts.pending ?? 0})` }]
+                  : []),
                 { value: 'checked-in', label: 'Checked in' },
               ]}
             />
@@ -227,8 +251,22 @@ export default function EventManagement({ eventId }: { eventId: string }) {
                     <p className="truncate text-xs text-muted">
                       {a.user?.email} · registered {formatDateTime(a.registeredAt)}
                     </p>
+                    {a.answers?.length ? (
+                      <p className="mt-0.5 truncate text-xs text-subtle">
+                        {a.answers.map((x) => `${x.question}: ${x.answer}`).join(' · ')}
+                      </p>
+                    ) : null}
                   </div>
-                  {a.status === 'waitlisted' ? (
+                  {a.status === 'pending' ? (
+                    <div className="flex shrink-0 gap-1.5">
+                      <Button size="sm" onClick={() => decide(a, true)}>
+                        Approve
+                      </Button>
+                      <Button size="sm" variant="ghost" onClick={() => decide(a, false)}>
+                        Decline
+                      </Button>
+                    </div>
+                  ) : a.status === 'waitlisted' ? (
                     <Badge tone="warning">
                       <Hourglass /> Waitlisted
                     </Badge>

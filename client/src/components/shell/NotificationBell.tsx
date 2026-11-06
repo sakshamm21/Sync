@@ -17,6 +17,7 @@ import {
   Users,
   Sparkles,
   Ticket,
+  UserCheck,
 } from 'lucide-react';
 import { useAuth, usePolling, useSocketEvent } from '@/context/AuthContext';
 import { notificationsApi, type AppNotification, type NotificationType } from '@/lib/api';
@@ -38,6 +39,7 @@ export const NOTIFICATION_ICONS: Record<NotificationType, React.ComponentType<{ 
   staff_invited: Users,
   club_new_event: Sparkles,
   waitlist_offer: Ticket,
+  registration_decision: UserCheck,
 };
 
 export default function NotificationBell() {

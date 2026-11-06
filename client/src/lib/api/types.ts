@@ -44,7 +44,7 @@ export interface Session {
 }
 
 /** `offered`: a freed seat is being held for you to claim before `viewer.offerExpiresAt`. */
-export type RegistrationStatus = 'going' | 'waitlisted' | 'offered';
+export type RegistrationStatus = 'going' | 'waitlisted' | 'offered' | 'pending';
 export type EventVisibility = 'public' | 'private';
 export type EventStatus = 'draft' | 'published' | 'cancelled';
 /** What a person is allowed to do with an event. */
@@ -114,6 +114,10 @@ export interface SyncEvent {
   registrationClosesAt?: string | null;
   /** Hours a freed seat is held for the next person; null = automatic. */
   waitlistClaimHours?: number | null;
+  /** Asked when someone RSVPs. */
+  questions?: EventQuestion[];
+  /** RSVPs wait for the organiser's approval. */
+  requiresApproval?: boolean;
   /** People who bookmarked it as "Interested". */
   interestedCount?: number;
   spotsLeft: number | null;
@@ -152,6 +156,10 @@ export interface EventInput {
   registrationClosesAt?: string | null;
   /** Hours a freed seat is held for the next person; null = automatic. */
   waitlistClaimHours?: number | null;
+  /** Asked when someone RSVPs. */
+  questions?: Omit<EventQuestion, 'id'>[];
+  /** RSVPs wait for the organiser's approval. */
+  requiresApproval?: boolean;
 }
 
 export interface Attendee {
@@ -159,12 +167,14 @@ export interface Attendee {
   status: RegistrationStatus;
   registeredAt: string;
   checkedInAt: string | null;
+  /** Answers to the event's questions, labelled. */
+  answers?: { question: string; answer: string }[];
   user: { id: string; name: string; email: string; avatarUrl: string } | null;
 }
 
 export interface AttendeeList {
   items: Attendee[];
-  counts: { going: number; waitlisted: number; offered?: number; checkedIn: number };
+  counts: { going: number; waitlisted: number; offered?: number; pending?: number; checkedIn: number };
 }
 
 /** Door staff's view of who is coming: names and check-ins, no email addresses. */
@@ -205,7 +215,8 @@ export type NotificationType =
   | 'organizer_rejected'
   | 'staff_invited'
   | 'club_new_event'
-  | 'waitlist_offer';
+  | 'waitlist_offer'
+  | 'registration_decision';
 
 export interface AppNotification {
   id: string;
@@ -334,4 +345,13 @@ export interface ClubSuggestion {
   avatarUrl: string;
   bio: string;
   upcomingEvents: number;
+}
+
+/** A question an organiser asks at RSVP time. */
+export interface EventQuestion {
+  id: string;
+  label: string;
+  kind: 'text' | 'choice';
+  options: string[];
+  required: boolean;
 }

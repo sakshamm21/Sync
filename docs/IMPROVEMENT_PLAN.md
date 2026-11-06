@@ -58,6 +58,7 @@ Severity labels:
 | #20 | Now #6: waitlist claim window, "take any seat automatically" |
 | #21 | Now #10: cover photo upload (Vercel Blob; off until a store is connected) |
 | #22 | E3: API contract test for shared types |
+| #23 | Next #1: registration questions and organiser approval |
 
 **Still open, and why:**
 

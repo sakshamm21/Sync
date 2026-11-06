@@ -114,8 +114,8 @@ router.delete(
 router.post(
   '/:id/registration',
   authenticate,
-  validate({ params: idParams }, async (req, res) => {
-    res.json({ data: await registrations.register(currentUser(req), req.params.id) });
+  validate({ params: idParams, body: schemas.registerBody }, async (req, res) => {
+    res.json({ data: await registrations.register(currentUser(req), req.params.id, req.body) });
   })
 );
 
@@ -125,6 +125,18 @@ router.delete(
   validate({ params: idParams }, async (req, res) => {
     res.json({ data: await registrations.unregister(currentUser(req), req.params.id) });
   })
+);
+
+/** Approve or decline someone's request to join (events that need approval). */
+router.put(
+  '/:id/attendees/:userId/approval',
+  authenticate,
+  validate(
+    { params: z.object({ id: objectId, userId: objectId }), body: z.object({ approve: z.boolean() }) },
+    async (req, res) => {
+      res.json({ data: await registrations.decide(currentUser(req), req.params.id, req.params.userId, req.body.approve) });
+    }
+  )
 );
 
 const attendeesQuery = z.object({ status: z.enum(REGISTRATION_STATUS).optional() });
