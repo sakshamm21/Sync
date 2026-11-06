@@ -78,3 +78,21 @@ test('B3: door staff reach door mode, not an error', async ({ page }) => {
   await expect(page.getByText('Check in by name')).toBeVisible();
   await expect(page.getByRole('button', { name: 'Export CSV' })).toHaveCount(0);
 });
+
+test('waitlisted people see their place in line, and Settings offers a calendar feed', async ({ page }) => {
+  const token = await signInAs(page, 'ishaan@syncronify.dev');
+  const waiting = (await apiGet<Ev[]>(token, '/api/me/registrations?upcoming=true')).find(
+    (e) => e.viewer.registration === 'waitlisted'
+  )!;
+  await page.goto(`/events/${waiting.id}`);
+  await expect(page.getByText(/You're #\d+ on the waitlist/)).toBeVisible();
+
+  await page.goto('/settings');
+  const subscribe = page.getByRole('link', { name: 'Subscribe', exact: true });
+  await expect(subscribe).toHaveAttribute('href', /^webcal:\/\/.+\/api\/calendar\/.+\.ics$/);
+  const feed = await page.request.get((await subscribe.getAttribute('href'))!.replace(/^webcal:/, 'http:'));
+  const ics = await feed.text();
+  expect(ics).toContain('X-WR-CALNAME:Sync');
+  // Only confirmed plans go on the calendar, not ones you're still waiting for.
+  expect(ics).not.toContain(`SUMMARY:${waiting.title}`);
+});

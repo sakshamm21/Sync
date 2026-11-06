@@ -122,6 +122,8 @@ export type PresentedEvent = Omit<IEvent, 'owner' | 'organizers'> & {
     /** The viewer's staff role on this event, when they hold one. */
     staffRole: StaffRole | null;
     registration: RegistrationStatus | null;
+    /** 1 = next in line; only on a single event the viewer is waitlisted for. */
+    waitlistPosition?: number;
   };
 };
 

@@ -90,6 +90,9 @@ export const meApi = {
   get: () => data<User>(http.get('/me')),
   update: (body: ProfileUpdate) => data<User>(http.patch('/me', body)),
   changePassword: (body: { currentPassword: string; newPassword: string }) => data<Session>(http.post('/me/password', body)),
+  /** The secret calendar subscription URL; `reset` replaces it. */
+  calendarFeed: (reset = false) =>
+    data<{ url: string; webcalUrl: string }>(reset ? http.post('/me/calendar-feed/reset') : http.get('/me/calendar-feed')),
   /** Ends every session for this account, this device included. */
   signOutEverywhere: () => data<{ ok: true }>(http.post('/me/sign-out-everywhere')),
   calendar: (range: { from: string; to: string }) => data<SyncEvent[]>(http.get('/me/calendar', { params: range })),

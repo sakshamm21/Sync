@@ -1,6 +1,8 @@
+import crypto from 'node:crypto';
 import { Types, type FilterQuery, type SortOrder } from 'mongoose';
 import {
   Event,
+  User,
   Registration,
   Message,
   Note,
@@ -15,7 +17,7 @@ import {
 import env from '../../config/env';
 import { forbidden, badRequest } from '../../lib/errors';
 import { paginationMeta, escapeRegex } from '../../lib/schemas';
-import { buildEventCalendar } from '../../lib/ics';
+import { buildCalendar, buildEventCalendar } from '../../lib/ics';
 import * as notifications from '../notifications/notifications.service';
 import { fillFromWaitlist } from './waitlist.service';
 import {
@@ -169,7 +171,66 @@ export async function venueDirectory(): Promise<VenueListing[]> {
 }
 
 export async function getForViewer(viewer: Viewer, id: string) {
-  return present(await findViewableEvent(viewer, id), viewer);
+  const presented = await present(await findViewableEvent(viewer, id), viewer);
+  // "You're #3 in line": only worked out for the single event being viewed.
+  if (viewer && presented.viewer.registration === 'waitlisted') {
+    const mine = await Registration.findOne({ event: presented.id, user: viewer.id }).select('createdAt');
+    if (mine) {
+      const ahead = await Registration.countDocuments({
+        event: presented.id,
+        status: 'waitlisted',
+        $or: [{ createdAt: { $lt: mine.createdAt } }, { createdAt: mine.createdAt, _id: { $lt: mine._id } }],
+      });
+      return { ...presented, viewer: { ...presented.viewer, waitlistPosition: ahead + 1 } };
+    }
+  }
+  return presented;
+}
+
+/** How far back and ahead a calendar subscription covers. */
+const FEED_PAST_DAYS = 60;
+const FEED_FUTURE_DAYS = 365;
+
+const entryFor = (event: EventDocument) => ({
+  uid: `${event.id}@sync`,
+  title: event.title,
+  description: event.description,
+  location: [event.venue?.name, event.venue?.address].filter(Boolean).join(', ') || event.onlineUrl,
+  url: `${env.clientUrl}/events/${event.id}`,
+  startsAt: event.startsAt,
+  endsAt: event.endsAt,
+  cancelled: event.status === EVENT_STATUS.CANCELLED,
+  updatedAt: event.updatedAt,
+});
+
+/**
+ * The user's calendar subscription (Roadmap: "a calendar that stays in sync"):
+ * events they're going to, plans of their own and events they help run.
+ * Calendar apps re-fetch it, so moved and cancelled events update by themselves.
+ */
+export async function calendarFeed(token: string) {
+  const user = await User.findOne({ calendarToken: token, status: { $ne: 'suspended' } });
+  if (!user) return null;
+  const now = Date.now();
+  const going = await Registration.find({ user: user._id, status: 'going' }).distinct('event');
+  const events = await Event.find({
+    status: { $ne: EVENT_STATUS.DRAFT },
+    endsAt: { $gte: new Date(now - FEED_PAST_DAYS * 864e5) },
+    startsAt: { $lte: new Date(now + FEED_FUTURE_DAYS * 864e5) },
+    $or: [{ _id: { $in: going } }, { owner: user._id }, { organizers: user._id }],
+  })
+    .sort({ startsAt: 1 })
+    .limit(500);
+  return buildCalendar(events.map(entryFor), { name: 'Sync' });
+}
+
+/** The user's feed token, created on first use (or replaced when `reset`). */
+export async function calendarTokenFor(user: UserDocument, { reset = false } = {}): Promise<string> {
+  const current = await User.findById(user._id).select('+calendarToken');
+  if (current?.calendarToken && !reset) return current.calendarToken;
+  const token = crypto.randomBytes(24).toString('base64url');
+  await User.updateOne({ _id: user._id }, { $set: { calendarToken: token } });
+  return token;
 }
 
 /** Everything that belongs on the user's calendar in a date range. */
@@ -354,15 +415,6 @@ export async function toCalendarFile(viewer: Viewer, id: string) {
       .toLowerCase() || 'event';
   return {
     filename: `${slug}.ics`,
-    content: buildEventCalendar({
-      uid: `${event.id}@sync`,
-      title: event.title,
-      description: event.description,
-      location,
-      url: `${env.clientUrl}/events/${event.id}`,
-      startsAt: event.startsAt,
-      endsAt: event.endsAt,
-      cancelled: event.status === EVENT_STATUS.CANCELLED,
-    }),
+    content: buildEventCalendar({ ...entryFor(event), location }),
   };
 }

@@ -356,6 +356,75 @@ function PasswordSection() {
   );
 }
 
+/** A subscription link calendar apps keep refreshing, so moved or cancelled events update by themselves. */
+function CalendarFeedSection() {
+  const [feed, setFeed] = useState<{ url: string; webcalUrl: string } | null>(null);
+  const [resetting, setResetting] = useState(false);
+
+  useEffect(() => {
+    meApi
+      .calendarFeed()
+      .then(setFeed)
+      .catch(() => setFeed(null));
+  }, []);
+
+  async function copy() {
+    if (!feed) return;
+    await navigator.clipboard.writeText(feed.url);
+    toast.success('Link copied', { description: 'Paste it into "Subscribe to calendar" / "From URL".' });
+  }
+
+  return (
+    <Section
+      title="Calendar subscription"
+      description="Everything you're going to, your plans and events you run, in Google, Apple or Outlook Calendar. Changes show up there by themselves."
+    >
+      {!feed ? (
+        <div className="h-10 animate-pulse rounded-xl bg-surface-muted" />
+      ) : (
+        <div className="space-y-3">
+          <div className="flex flex-wrap gap-2">
+            <ButtonLink href={feed.webcalUrl} variant="primary">
+              Subscribe
+            </ButtonLink>
+            <ButtonLink
+              href={`https://calendar.google.com/calendar/render?cid=${encodeURIComponent(feed.webcalUrl)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              variant="secondary"
+            >
+              Add to Google Calendar
+            </ButtonLink>
+            <Button variant="secondary" onClick={copy}>
+              Copy link
+            </Button>
+          </div>
+          <p className="text-xs text-muted">
+            Keep this link private: anyone with it can see your schedule.{' '}
+            <button
+              className="font-medium text-foreground underline underline-offset-2"
+              disabled={resetting}
+              onClick={async () => {
+                setResetting(true);
+                try {
+                  setFeed(await meApi.calendarFeed(true));
+                  toast.success('New link made', { description: 'The old link has stopped working.' });
+                } catch (err) {
+                  toast.error(errorMessage(err));
+                } finally {
+                  setResetting(false);
+                }
+              }}
+            >
+              Make a new link
+            </button>
+          </p>
+        </div>
+      )}
+    </Section>
+  );
+}
+
 function SessionsSection() {
   const { logout } = useAuth();
   const [confirming, setConfirming] = useState(false);
@@ -400,6 +469,7 @@ export default function SettingsView() {
         <ProfileSection />
         <AppearanceSection />
         <OrganizerSection />
+        <CalendarFeedSection />
         <PasswordSection />
         <SessionsSection />
       </div>
