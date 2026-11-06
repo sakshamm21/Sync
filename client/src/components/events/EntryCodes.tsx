@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { QrCode } from 'lucide-react';
-import { eventsApi, type SyncEvent } from '@/lib/api';
+import { type SyncEvent } from '@/lib/api';
 import { formatDay, formatTime } from '@/lib/format';
 import { TicketQr } from '@/components/events/QrTicket';
 import { Kicker } from '@/components/ui/surface';

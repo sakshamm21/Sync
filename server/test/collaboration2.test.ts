@@ -5,7 +5,7 @@ import { describe, it, before, after, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { Types } from 'mongoose';
 import { startDatabase, stopDatabase, resetDatabase, api, createUser, eventInput, hoursFromNow } from './helpers';
-import { Event, Registration, EventStaff, Rating, OutboxEmail, Notification } from '../src/models';
+import { Event, Registration, EventStaff, OutboxEmail, Notification } from '../src/models';
 import { recountAttendees, pruneOldData } from '../src/jobs/maintenance';
 import { drainOutbox } from '../src/jobs/outbox';
 

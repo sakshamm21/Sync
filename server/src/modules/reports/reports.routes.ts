@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { authenticate, currentUser } from '../../middleware/auth';
 import validate from '../../middleware/validate';
 import { z, idParams } from '../../lib/schemas';
-import { REPORT_REASONS, REPORT_STATUS } from '../../constants';
+import { REPORT_REASONS } from '../../constants';
 import * as reports from './reports.service';
 
 const router = Router();

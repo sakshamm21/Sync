@@ -1,4 +1,4 @@
-import { Schema, model, type HydratedDocument, type Types } from 'mongoose';
+import { Schema, model, type HydratedDocument } from 'mongoose';
 
 export interface IOutboxEmail {
   /** Set when a drainer claims the row, so two drains never send the same mail. */

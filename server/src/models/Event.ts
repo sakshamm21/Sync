@@ -98,6 +98,7 @@ const eventSchema = new Schema<IEvent, EventModel, EventMethods, {}, EventVirtua
 eventSchema.index({ visibility: 1, status: 1, startsAt: 1 });
 // Drives the organiser console and "events I help run".
 eventSchema.index({ organizers: 1, startsAt: -1 });
+eventSchema.index({ owner: 1, endsAt: 1 }); // organiser track records for recommendations
 
 eventSchema.virtual('spotsLeft').get(function spotsLeft() {
   if (this.capacity == null) return null;

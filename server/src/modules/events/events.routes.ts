@@ -6,7 +6,6 @@ import { REGISTRATION_STATUS, MAX_RATING } from '../../constants';
 import * as schemas from './events.schemas';
 import * as events from './events.service';
 import * as registrations from './registrations.service';
-import * as staff from './staff.service';
 import * as ratings from './ratings.service';
 import * as checkin from './checkin.service';
 import * as chat from '../chat/chat.service';
