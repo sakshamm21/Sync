@@ -47,12 +47,17 @@ export async function register(user: UserDocument, eventId: string): Promise<Reg
   }
 
   // Re-read the event so the caller sees the seat count after their own change.
-    const fresh = await loadEvent(user, eventId);
-    return { ...(await present(fresh.event, user)), clashes };
-  }
+  const fresh = await loadEvent(user, eventId);
+  return { ...(await present(fresh.event, user)), clashes };
+}
 
 export async function unregister(user: UserDocument, eventId: string) {
   const { event } = await loadEvent(user, eventId);
+  // Once an event has started, registrations are its attendance record (check-ins,
+  // the organiser's attendance rate, who may rate it), so they stay.
+  if (event.startsAt <= new Date() && event.status !== EVENT_STATUS.CANCELLED) {
+    throw badRequest('This event has already started, so you can no longer leave it', 'EVENT_STARTED');
+  }
   const registration = await Registration.findOneAndDelete({ event: event._id, user: user.id });
   if (!registration) throw notFound('You are not registered for this event', 'NOT_REGISTERED');
 
@@ -95,6 +100,30 @@ export async function listForEvent(user: UserDocument, eventId: string, { status
   return { items, counts };
 }
 
+/**
+ * Who is expected at the door, for check-in staff: names and check-in state
+ * only, never email addresses (those stay in the organiser's attendee list).
+ * Lets the door check someone in by name when their phone can't show a code.
+ */
+export async function doorListForEvent(user: UserDocument, eventId: string) {
+  const { event, access } = await loadEvent(user, eventId);
+  if (!access.canCheckIn) throw forbidden('You cannot check people in for this event');
+  const registrations = await Registration.find({ event: event._id, status: REGISTRATION_STATUS.GOING })
+    .sort({ createdAt: 1 })
+    .populate<{ user: Pick<UserDocument, 'id' | 'name' | 'avatarUrl'> | null }>('user', 'name avatarUrl');
+
+  const items = registrations
+    .filter((r) => r.user)
+    .map((r) => ({
+      id: r.id as string,
+      checkedInAt: r.checkedInAt,
+      user: { id: r.user!.id, name: r.user!.name, avatarUrl: r.user!.avatarUrl },
+    }))
+    .sort((a, b) => a.user.name.localeCompare(b.user.name));
+
+  return { items, counts: { going: items.length, checkedIn: items.filter((i) => i.checkedInAt).length } };
+}
+
 /** Requires door rights rather than full management rights. */
 export async function setCheckIn(user: UserDocument, eventId: string, attendeeId: string, checkedIn: boolean) {
   const { event, access } = await loadEvent(user, eventId);
@@ -116,5 +145,5 @@ export async function listForUser(user: UserDocument, { upcomingOnly }: { upcomi
   filter.status = { $ne: EVENT_STATUS.DRAFT };
 
   const events = await Event.find(filter).sort({ startsAt: upcomingOnly ? 1 : -1 }).populate('owner', OWNER_FIELDS);
-    return withViewerContext(events, user);
-  }
+  return withViewerContext(events, user);
+}

@@ -46,8 +46,15 @@ export interface Page {
 /** Query-string booleans arrive as strings. */
 export const queryBoolean = z.enum(['true', 'false']).transform((v) => v === 'true');
 
-/** Optional URL that also accepts an empty string (to clear the field). */
-export const optionalUrl = z.union([z.literal(''), z.url({ error: 'Enter a valid URL' })]);
+/**
+ * Optional web link that also accepts an empty string (to clear the field).
+ * Only http(s): these end up in links, images, emails and calendar files,
+ * where `javascript:` or `data:` would be a way to run or smuggle content.
+ */
+export const optionalUrl = z.union([
+  z.literal(''),
+  z.url({ protocol: /^https?$/, error: 'Enter a web address starting with https://' }),
+]);
 
 export function paginationMeta({ page, limit }: Page, total: number) {
   return { page, limit, total, totalPages: Math.max(Math.ceil(total / limit), 1) };

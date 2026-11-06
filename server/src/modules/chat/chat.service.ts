@@ -2,7 +2,7 @@ import { Message, Registration, type UserDocument } from '../../models';
 import { forbidden } from '../../lib/errors';
 import { emitToEvent } from '../../lib/realtime';
 import * as notifications from '../notifications/notifications.service';
-import { findViewableEvent, canChat, canManage } from '../events/events.policy';
+import { findViewableEvent, canChat, accessFor, staffRoleFor } from '../events/events.policy';
 import { NOTIFICATION_TYPES } from '../../constants';
 
 const SENDER_FIELDS = 'name avatarUrl role';
@@ -41,7 +41,10 @@ export async function listMessages(user: UserDocument, eventId: string, { before
 
 export async function postMessage(user: UserDocument, eventId: string, { text, announcement }: { text: string; announcement: boolean }) {
   const event = await findChatEvent(user, eventId);
-  if (announcement && !canManage(user, event)) throw forbidden('Only the organiser can post announcements');
+  // Announcements notify and email everyone, so door staff may not send them.
+  if (announcement && !accessFor(user, event, await staffRoleFor(user, event)).canManage) {
+    throw forbidden('Only the organiser can post announcements');
+  }
 
   const message = await Message.create({ event: event._id, sender: user._id, text, isAnnouncement: announcement });
   await message.populate('sender', SENDER_FIELDS);

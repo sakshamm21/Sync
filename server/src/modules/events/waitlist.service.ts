@@ -7,7 +7,7 @@
 import type { Types } from 'mongoose';
 import { Event, Registration, type EventDocument, type UserDocument } from '../../models';
 import * as notifications from '../notifications/notifications.service';
-import { REGISTRATION_STATUS, NOTIFICATION_TYPES, type RegistrationStatus } from '../../constants';
+import { EVENT_STATUS, REGISTRATION_STATUS, NOTIFICATION_TYPES, type RegistrationStatus } from '../../constants';
 import { claimSeat, releaseSeat } from './seats';
 
 /** A confirmed event the user already has in their calendar. */
@@ -30,6 +30,8 @@ export async function clashesWith(user: UserDocument, event: EventDocument): Pro
 
   const overlapping = await Event.find({
     _id: { $in: registeredIds, $ne: event._id },
+    // A cancelled event is no longer happening, so it can't clash.
+    status: EVENT_STATUS.PUBLISHED,
     startsAt: { $lt: event.endsAt },
     endsAt: { $gt: event.startsAt },
   })

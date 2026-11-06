@@ -35,7 +35,11 @@ const reportsQuery = z.object({
   ...pagination,
 });
 
-const resolveBody = z.object({ status: z.enum([REPORT_STATUS.REVIEWED, REPORT_STATUS.DISMISSED]) });
+const resolveBody = z.object({
+  status: z.enum([REPORT_STATUS.REVIEWED, REPORT_STATUS.DISMISSED]),
+  // Sent to attendees and the organiser when a reviewed report cancels the event.
+  reason: z.string().trim().max(500).default(''),
+});
 
 router.get('/stats', async (_req, res) => {
   res.json({ data: await service.stats() });

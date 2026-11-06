@@ -76,6 +76,11 @@ router.get(
   })
 );
 
+/** Door staff's list: names and check-in state, no email addresses. */
+router.get('/:id/door-list', authenticate, validate({ params: idParams }, async (req, res) => {
+  res.json({ data: await registrations.doorListForEvent(currentUser(req), req.params.id) });
+}));
+
 router.put(
   '/:id/attendees/:userId/check-in',
   authenticate,

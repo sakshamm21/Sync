@@ -154,6 +154,12 @@ export interface AttendeeList {
   counts: { going: number; waitlisted: number; checkedIn: number };
 }
 
+/** Door staff's view of who is coming: names and check-ins, no email addresses. */
+export interface DoorList {
+  items: { id: string; checkedInAt: string | null; user: { id: string; name: string; avatarUrl: string } }[];
+  counts: { going: number; checkedIn: number };
+}
+
 export type NoteTag = 'plan' | 'speaker' | 'logistics' | 'ideas' | 'personal';
 
 export interface Note {
