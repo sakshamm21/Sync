@@ -59,6 +59,8 @@ export interface ServerMeta {
   allowedEmailDomains?: string[];
   /** VAPID public key for Web Push, or null when push isn't set up. */
   pushPublicKey?: string | null;
+  /** Whether photo uploads (Vercel Blob) are set up. */
+  uploads?: boolean;
 }
 
 export const metaApi = {

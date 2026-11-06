@@ -56,12 +56,13 @@ Severity labels:
 | #18 | Now #5, #7: club pages and Follow, onboarding |
 | #19 | Now #10, #11: sign-up windows, targeted announcements, preview as attendee, offline door scans |
 | #20 | Now #6: waitlist claim window, "take any seat automatically" |
+| #21 | Now #10: cover photo upload (Vercel Blob; off until a store is connected) |
 
 **Still open, and why:**
 
 - Now #6 claim window: done in #20 (per-event, off by default; the 12-hour default the roadmap suggests is one of the choices).
 - **Needs a service set up on the account:**
-  - Now #10 cover photo upload (Vercel Blob or Cloudinary);
+  - cover photo upload is built (#21) but needs a Vercel Blob store connected to the API project;
   - E4 Sentry (a DSN);
   - push notifications need `VAPID_PUBLIC_KEY` and `VAPID_PRIVATE_KEY` on the API project;
   - typo-tolerant search (an Atlas Search index);

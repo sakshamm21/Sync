@@ -22,6 +22,7 @@ describe('serverless deployment support', () => {
       demo: false,
       allowedEmailDomains: [],
       pushPublicKey: null,
+      uploads: false,
     });
   });
 

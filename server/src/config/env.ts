@@ -53,6 +53,8 @@ const schema = z
     VAPID_PUBLIC_KEY: z.string().optional(),
     VAPID_PRIVATE_KEY: z.string().optional(),
     VAPID_SUBJECT: z.string().default('mailto:admin@example.com'),
+    // Vercel Blob store token: lets organisers upload cover photos instead of pasting URLs.
+    BLOB_READ_WRITE_TOKEN: z.string().optional(),
     // Comma-separated email domains allowed to sign up (e.g. "iitk.ac.in"); empty = anyone.
     // Subdomains count too: "iitk.ac.in" also allows "cse.iitk.ac.in".
     ALLOWED_EMAIL_DOMAINS: z.string().default(''),
@@ -141,6 +143,7 @@ const env = Object.freeze({
   cronSecret: raw.CRON_SECRET,
   demoMode: raw.DEMO_MODE,
   campusTimeZone: raw.CAMPUS_TIMEZONE,
+  uploads: { token: raw.BLOB_READ_WRITE_TOKEN, enabled: Boolean(raw.BLOB_READ_WRITE_TOKEN) },
   push: {
     publicKey: raw.VAPID_PUBLIC_KEY,
     privateKey: raw.VAPID_PRIVATE_KEY,
