@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import type { SyncEvent } from '@/lib/api';
-import { formatTime, formatVenue } from '@/lib/format';
+import { campusDateParts, formatTime, formatVenue } from '@/lib/format';
 import { Tilt } from '@/components/ui/motion';
 import { cn } from '@/lib/cn';
 import EventCover from './EventCover';
@@ -10,12 +10,12 @@ import RsvpButton from './RsvpButton';
 
 /** Big stamped date: weekday, giant day number, month. */
 export function DateStamp({ iso, className }: { iso: string; className?: string }) {
-  const d = new Date(iso);
+  const d = campusDateParts(iso);
   return (
     <div className={cn('flex w-14 shrink-0 flex-col items-center text-center leading-none', className)}>
-      <span className="font-mono text-[10px] font-medium uppercase tracking-[0.18em] text-muted">{d.toLocaleDateString(undefined, { weekday: 'short' })}</span>
-      <span className="my-0.5 font-display text-[2.6rem] font-extrabold tabular-nums tracking-tighter">{d.getDate()}</span>
-      <span className="font-mono text-[10px] font-medium uppercase tracking-[0.18em] text-primary">{d.toLocaleDateString(undefined, { month: 'short' })}</span>
+      <span className="font-mono text-[10px] font-medium uppercase tracking-[0.18em] text-muted">{d.weekday}</span>
+      <span className="my-0.5 font-display text-[2.6rem] font-extrabold tabular-nums tracking-tighter">{d.day}</span>
+      <span className="font-mono text-[10px] font-medium uppercase tracking-[0.18em] text-primary">{d.month}</span>
     </div>
   );
 }

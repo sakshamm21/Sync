@@ -104,7 +104,7 @@ export default function HomePage() {
   }, [version]);
 
   const replace = (updated: SyncEvent) => setPicked((prev) => prev?.map((e) => (e.id === updated.id ? updated : e)) ?? prev);
-  const today = new Date().toLocaleDateString(undefined, { weekday: 'short', day: '2-digit', month: 'short' });
+  const today = formatDay(new Date().toISOString());
   const thisWeek = upNext?.filter((e) => new Date(e.startsAt).getTime() - Date.now() < 7 * 24 * 60 * 60 * 1000).length ?? 0;
 
   return (

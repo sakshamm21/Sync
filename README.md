@@ -294,7 +294,7 @@ There are no automated tests for the web app yet; it is covered by the type-chec
 1. Create a free MongoDB Atlas database and, for real email, a free Brevo account with a verified sender.
 2. Import the repository on Vercel **twice**: one project with root directory `client/`, one with `server/`.
 3. On the API project set at least `DB_URI`, `JWT_SECRET` (32 characters or more), `CLIENT_URL` (the web app's address) and `CRON_SECRET`; add `BREVO_API_KEY`, `MAIL_FROM` and `AI_API_KEY` for email and Ask Sync.
-4. On the web project set `NEXT_PUBLIC_API_URL` (the API's address) and `NEXT_PUBLIC_SITE_URL` (its own).
+4. On the web project set `NEXT_PUBLIC_API_URL` (the API's address) and `NEXT_PUBLIC_SITE_URL` (its own). `NEXT_PUBLIC_CAMPUS_TIMEZONE` defaults to `Asia/Kolkata`; set it to match the API's `CAMPUS_TIMEZONE` if your campus is elsewhere.
 5. Deploy, then, with `DB_URI` in `server/.env` pointing at your database, run `npm --prefix server run create-admin -- --email you@example.com` for the first admin.
 
 `server/vercel.json` runs these jobs with [Vercel Schedules](https://vercel.com/docs/schedules). Each is called with `Authorization: Bearer $CRON_SECRET`, and each can be run by hand from the project's **Schedules** page in the Vercel dashboard:

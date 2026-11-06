@@ -11,7 +11,7 @@ import { notFound } from 'next/navigation';
 import PublicHeader from '@/components/shell/PublicHeader';
 import { AmbientGlow } from '@/components/shell/AppShell';
 import EventDetails from '@/components/events/EventDetails';
-import { CATEGORY_LABELS } from '@/lib/format';
+import { CATEGORY_LABELS, formatCampusDateTime } from '@/lib/format';
 
 const API_URL = (process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000').replace(/\/$/, '');
 const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000').replace(/\/$/, '');
@@ -56,15 +56,13 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   const event = await fetchPublicEvent(id);
 
   if (!event) {
-      return { title: 'Event not found', description: 'This event is no longer available on Sync.' };
+    // Private plans and drafts render client-side for their owner; never index them.
+    return { title: 'Event', robots: { index: false, follow: false } };
   }
 
   const host = event.owner?.organization || event.owner?.name || 'Sync';
-  const when = new Date(event.startsAt).toLocaleString('en-GB', {
-    dateStyle: 'full',
-    timeStyle: 'short',
-    timeZone: 'UTC',
-  });
+  // Link previews are read on phones on campus, so state the campus time with its zone.
+  const when = formatCampusDateTime(event.startsAt);
   const where = event.venue?.name || event.venue?.address;
   const description =
     event.description?.trim() ||
@@ -74,9 +72,9 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   const suffix = event.status === 'cancelled' ? ' · Cancelled' : '';
 
   return {
-      // The root layout's template already appends " · Sync".
-      title: event.title,
-      description,
+    // The root layout's template already appends " · Sync".
+    title: event.title,
+    description,
     alternates: { canonical: url },
     openGraph: {
       type: 'website',
@@ -97,11 +95,10 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
 
 export default async function EventPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+  if (!/^[a-f\d]{24}$/i.test(id)) notFound();
+  // Null for private plans and drafts: the client fetches those with the user's session.
   const publicEvent = await fetchPublicEvent(id);
-
-  if (!publicEvent) notFound();
-
-  const categoryLabel = CATEGORY_LABELS[publicEvent.category as keyof typeof CATEGORY_LABELS];
+  const categoryLabel = publicEvent ? CATEGORY_LABELS[publicEvent.category as keyof typeof CATEGORY_LABELS] : '';
 
   return (
     <div className="min-h-screen">
