@@ -198,10 +198,16 @@ export async function update(user: UserDocument, id: string, changes: UpdateEven
   const logisticsBefore = logisticsSnapshot(event);
   const wasPublished = event.status === EVENT_STATUS.PUBLISHED;
   const previousCapacity = event.capacity;
+  const previousStart = event.startsAt.getTime();
 
   event.set(changes);
   if (event.endsAt <= event.startsAt) throw badRequest('The event must end after it starts');
   await event.save();
+
+  // A moved event gets a fresh reminder for its new date.
+  if (event.startsAt.getTime() !== previousStart) {
+    await Registration.updateMany({ event: event._id }, { $set: { reminderSentAt: null } });
+  }
 
   if (event.visibility === EVENT_VISIBILITY.PUBLIC && wasPublished && logisticsSnapshot(event) !== logisticsBefore) {
     await notifyAttendees(event, {

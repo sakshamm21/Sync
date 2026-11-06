@@ -39,11 +39,14 @@ export async function notify(
   for (const doc of docs) emitToUser(doc.user, 'notification:new', doc.toJSON());
 
   if (!email) return;
-  const users = await User.find({ _id: { $in: recipients }, 'preferences.emailNotifications': true }).select('name email');
+  // Suspended accounts keep their in-app history but get no more email.
+  const users = await User.find({
+    _id: { $in: recipients },
+    'preferences.emailNotifications': true,
+    status: { $ne: 'suspended' },
+  }).select('name email');
   const url = eventId ? `${env.clientUrl}/events/${eventId}` : env.clientUrl;
-  for (const u of users) {
-    await queueMail({ to: u.email, ...emails.notification({ name: u.name, title, body, url }) });
-  }
+  await queueMail(...users.map((u) => ({ to: u.email, ...emails.notification({ name: u.name, title, body, url }) })));
 }
 
 export async function list(user: UserDocument, { unreadOnly, page, limit }: Page & { unreadOnly: boolean }) {
