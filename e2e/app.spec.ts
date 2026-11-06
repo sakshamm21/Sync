@@ -175,3 +175,24 @@ test('Explore toggles narrow the list and stay in the URL', async ({ page }) => 
   await expect(page).toHaveURL(/tag=free-food/);
   await expect(page.getByRole('link', { name: '24h Design & Build Hackathon' }).first()).toBeVisible();
 });
+
+test('a club page lists its events and can be followed from the event page', async ({ page, request }) => {
+  await signInAs(page, 'tester3@syncronify.dev');
+  const events = (await (await request.get(`${API}/api/events?limit=1`)).json()).data as (Ev & { owner: { id: string } })[];
+  await page.goto(`/events/${events[0].id}`);
+  await page.locator(`a[href="/clubs/${events[0].owner.id}"]`).first().click();
+  await expect(page).toHaveURL(new RegExp(`/clubs/${events[0].owner.id}`));
+  await expect(page.getByRole('heading', { name: 'Coming up' })).toBeVisible();
+  await page.getByRole('button', { name: 'Follow' }).click();
+  await expect(page.getByRole('button', { name: 'Following' })).toBeVisible();
+  await expect(page.getByText(/1 follower/)).toBeVisible();
+});
+
+test('new members get an onboarding step that suggests clubs', async ({ page }) => {
+  await signInAs(page, 'tester4@syncronify.dev');
+  await page.goto('/welcome');
+  await page.getByRole('button', { name: /Tech & Code/ }).click();
+  await expect(page.getByRole('button', { name: 'Follow' }).first()).toBeVisible();
+  await page.getByRole('button', { name: "Let's go" }).click();
+  await expect(page).toHaveURL(/\/dashboard/);
+});

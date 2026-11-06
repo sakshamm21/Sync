@@ -20,6 +20,7 @@ import adminRoutes from './modules/admin/admin.routes';
 import assistantRoutes from './modules/assistant/assistant.routes';
 import staffRoutes from './modules/events/staff.routes';
 import reportsRoutes from './modules/reports/reports.routes';
+import clubsRoutes from './modules/clubs/clubs.routes';
 import { calendarFeed } from './modules/events/events.service';
 
 export function createApp(): Express {
@@ -81,6 +82,7 @@ export function createApp(): Express {
     res.set('Cache-Control', 'private, max-age=300').type('text/calendar').send(content);
   });
   app.use('/api/events', eventsRoutes);
+  app.use('/api/clubs', clubsRoutes);
   app.use('/api/event-staff', staffRoutes);
   app.use('/api/reports', reportsRoutes);
   app.use('/api/notes', notesRoutes);

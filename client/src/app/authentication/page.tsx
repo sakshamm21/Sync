@@ -56,7 +56,11 @@ function AuthenticationFlow() {
           email={step.email}
           devCode={step.devCode}
           sendOnMount={step.sendOnMount}
-          onVerified={onSignedIn}
+          onVerified={(signedIn) => {
+            // A brand-new account goes through onboarding first (unless it came from a link).
+            toast.success(`Welcome, ${signedIn.name.split(' ')[0]}!`);
+            router.replace(params.get('next') ? destination : '/welcome');
+          }}
           onBack={() => setStep({ name: 'login' })}
         />
       );

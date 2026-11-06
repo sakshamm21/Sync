@@ -76,6 +76,8 @@ export const NOTIFICATION_TYPES = Object.freeze({
   ORGANIZER_APPROVED: 'organizer_approved',
   ORGANIZER_REJECTED: 'organizer_rejected',
   STAFF_INVITED: 'staff_invited',
+  /** A club you follow published a new event. */
+  CLUB_NEW_EVENT: 'club_new_event',
 } as const);
 export type NotificationType = ValueOf<typeof NOTIFICATION_TYPES>;
 

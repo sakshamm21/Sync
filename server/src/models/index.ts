@@ -11,3 +11,4 @@ export { Rating, type IRating, type RatingDocument } from './Rating';
 export { OutboxEmail, type IOutboxEmail, type OutboxEmailDocument } from './OutboxEmail';
 export { Interest, type IInterest, type InterestDocument } from './Interest';
 export { PushSubscription, type IPushSubscription, type PushSubscriptionDocument } from './PushSubscription';
+export { Follow, type IFollow, type FollowDocument } from './Follow';

@@ -15,6 +15,7 @@ import {
   ShieldX,
   RefreshCw,
   Users,
+  Sparkles,
 } from 'lucide-react';
 import { useAuth, usePolling, useSocketEvent } from '@/context/AuthContext';
 import { notificationsApi, type AppNotification, type NotificationType } from '@/lib/api';
@@ -34,6 +35,7 @@ export const NOTIFICATION_ICONS: Record<NotificationType, React.ComponentType<{ 
   organizer_approved: ShieldCheck,
   organizer_rejected: ShieldX,
   staff_invited: Users,
+  club_new_event: Sparkles,
 };
 
 export default function NotificationBell() {
