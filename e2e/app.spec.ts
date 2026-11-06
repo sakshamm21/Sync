@@ -1,7 +1,7 @@
 // The flows the review found broken, exercised in a real browser
 // (docs/IMPROVEMENT_PLAN.md, E1). Each test names the bug it guards.
 import { expect, test } from '@playwright/test';
-import { API, PASSWORD, apiGet, signInAs, type Ev } from './helpers';
+import { API, PASSWORD, apiGet, signInAs, tokenFor, type Ev } from './helpers';
 
 test('a demo account can sign in through the form', async ({ page }) => {
   await page.goto('/authentication');
@@ -195,4 +195,21 @@ test('new members get an onboarding step that suggests clubs', async ({ page }) 
   await expect(page.getByRole('button', { name: 'Follow' }).first()).toBeVisible();
   await page.getByRole('button', { name: "Let's go" }).click();
   await expect(page).toHaveURL(/\/dashboard/);
+});
+
+test('an event with a future sign-up window says when registration opens', async ({ page }) => {
+  const organizer = await tokenFor('organizer@syncronify.dev');
+  const api = await page.request;
+  const start = new Date(Date.now() + 5 * 864e5).toISOString();
+  const end = new Date(Date.now() + 5 * 864e5 + 2 * 36e5).toISOString();
+  const opens = new Date(Date.now() + 2 * 864e5).toISOString();
+  const created = await api.post(`${API}/api/events`, {
+    headers: { Authorization: `Bearer ${organizer}` },
+    data: { title: 'Window Test', category: 'tech', startsAt: start, endsAt: end, registrationOpensAt: opens },
+  });
+  expect(created.ok()).toBe(true);
+  const { id } = (await created.json()).data;
+  await signInAs(page, 'tester1@syncronify.dev');
+  await page.goto(`/events/${id}`);
+  await expect(page.getByRole('button', { name: /^Opens / })).toBeDisabled();
 });

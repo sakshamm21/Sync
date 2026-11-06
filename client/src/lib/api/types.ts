@@ -106,6 +106,9 @@ export interface SyncEvent {
   owner: UserSummary;
   capacity: number | null;
   attendeeCount: number;
+  /** Optional sign-up window. */
+  registrationOpensAt?: string | null;
+  registrationClosesAt?: string | null;
   /** People who bookmarked it as "Interested". */
   interestedCount?: number;
   spotsLeft: number | null;
@@ -140,6 +143,8 @@ export interface EventInput {
   visibility?: EventVisibility;
   status?: 'draft' | 'published';
   capacity?: number | null;
+  registrationOpensAt?: string | null;
+  registrationClosesAt?: string | null;
 }
 
 export interface Attendee {

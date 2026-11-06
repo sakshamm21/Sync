@@ -1,24 +1,13 @@
 import { Event, Interest, Registration } from '../models';
 import logger from '../lib/logger';
-import env from '../config/env';
+import { formatCampusTime } from '../lib/campusTime';
+
+export { formatCampusTime };
 import * as notifications from '../modules/notifications/notifications.service';
 import { EVENT_VISIBILITY, EVENT_STATUS, REGISTRATION_STATUS, NOTIFICATION_TYPES } from '../constants';
 
 const REMIND_BEFORE_MS = 24 * 60 * 60 * 1000;
 const CHECK_EVERY_MS = 5 * 60 * 1000;
-
-/** "Saturday 8 November, 10:00 am IST" in the campus time zone. */
-export function formatCampusTime(date: Date, timeZone = env.campusTimeZone): string {
-  return new Intl.DateTimeFormat('en-IN', {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-    hour: 'numeric',
-    minute: '2-digit',
-    timeZone,
-    timeZoneName: 'short',
-  }).format(date);
-}
 
 /** Reminds each confirmed attendee once, within 24 hours of the event starting. */
 export async function sendDueReminders(now = new Date()): Promise<number> {

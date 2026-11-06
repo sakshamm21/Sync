@@ -3,6 +3,7 @@ import { Event, Registration, type IEvent, type UserDocument } from '../../model
 import { badRequest, forbidden, notFound } from '../../lib/errors';
 import { handOverSeat, hasWaitlist, clashesWith, type Clash } from './waitlist.service';
 import { claimSeat, releaseSeat } from './seats';
+import { formatCampusTime } from '../../lib/campusTime';
 import { loadEvent, withViewerContext, present, OWNER_FIELDS, type PresentedEvent } from './events.policy';
 import { EVENT_STATUS, REGISTRATION_STATUS, type RegistrationStatus } from '../../constants';
 
@@ -26,6 +27,15 @@ export async function register(user: UserDocument, eventId: string): Promise<Reg
   const { event } = await loadEvent(user, eventId);
   if (!event.isOpenForRegistration()) throw badRequest('Registration is closed for this event', 'REGISTRATION_CLOSED');
   if (event.isCoOrganizer(user.id)) throw badRequest('You are organising this event', 'OWN_EVENT');
+  const window = event.registrationWindowProblem();
+  if (window && !(await Registration.exists({ event: event._id, user: user.id }))) {
+    throw badRequest(
+      window.code === 'REGISTRATION_NOT_OPEN'
+        ? `Registration opens ${formatCampusTime(window.at)}`
+        : 'Registration for this event has closed',
+      window.code
+    );
+  }
 
   // Checked before claiming so the user sees the clash without a seat waitlisting first.
   const clashes = await clashesWith(user, event);

@@ -2,7 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Camera, CheckCircle2, X, XCircle } from 'lucide-react';
-import { errorMessage, eventsApi, type SyncEvent } from '@/lib/api';
+import { ApiError, errorMessage, eventsApi, type SyncEvent } from '@/lib/api';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/cn';
 
@@ -56,6 +57,33 @@ function beep(ok: boolean) {
   }
 }
 
+/** Codes scanned without a connection, per event, kept on this phone until they sync. */
+const queueKey = (eventId: string) => `sync.door-queue.${eventId}`;
+function offlineQueue(eventId: string): string[] {
+  try {
+    return JSON.parse(window.localStorage.getItem(queueKey(eventId)) ?? '[]') as string[];
+  } catch {
+    return [];
+  }
+}
+function saveQueue(eventId: string, codes: string[]) {
+  try {
+    if (codes.length) window.localStorage.setItem(queueKey(eventId), JSON.stringify(codes));
+    else window.localStorage.removeItem(queueKey(eventId));
+  } catch {
+    // Storage blocked: the scan simply isn't kept.
+  }
+}
+const queueOffline = (eventId: string, code: string) => {
+  const codes = offlineQueue(eventId);
+  if (!codes.includes(code)) saveQueue(eventId, [...codes, code]);
+};
+const dequeueOffline = (eventId: string, code: string) =>
+  saveQueue(
+    eventId,
+    offlineQueue(eventId).filter((c) => c !== code)
+  );
+
 type Outcome = { ok: boolean; title: string; detail: string };
 
 const FRAME_MS = 125; // about 8 frames a second
@@ -91,6 +119,49 @@ export default function DoorScanner({ event, onScanned }: { event: SyncEvent; on
   // Never leave the camera on after leaving the page.
   useEffect(() => stop, [stop]);
 
+  // Load the fallback decoder now, while there's signal: door Wi-Fi is often
+  // patchy, and a lazy load at scan time would fail offline.
+  useEffect(() => {
+    if (!('BarcodeDetector' in window)) void import('jsqr').catch(() => {});
+  }, []);
+
+  // Codes scanned while offline, sent when the connection returns (and every 15 s).
+  const [pending, setPending] = useState(0);
+  useEffect(() => {
+    setPending(offlineQueue(event.id).length);
+    let syncing = false;
+    const sync = async () => {
+      if (syncing || !navigator.onLine) return;
+      syncing = true;
+      try {
+        for (const code of offlineQueue(event.id)) {
+          try {
+            await eventsApi.scan(event.id, code);
+          } catch (err) {
+            // Still offline: try again later. Any other answer is final (e.g. a bad code).
+            if (err instanceof ApiError && err.code === 'NETWORK_ERROR') break;
+            toast.error(`An offline scan was refused: ${errorMessage(err)}`);
+          }
+          dequeueOffline(event.id, code);
+        }
+      } finally {
+        syncing = false;
+        const left = offlineQueue(event.id).length;
+        setPending((before) => {
+          if (before && !left) onScannedRef.current?.();
+          return left;
+        });
+      }
+    };
+    void sync();
+    window.addEventListener('online', sync);
+    const timer = window.setInterval(() => void sync(), 15_000);
+    return () => {
+      window.removeEventListener('online', sync);
+      window.clearInterval(timer);
+    };
+  }, [event.id]);
+
   const handleCode = useCallback(
     async (code: string) => {
       const now = Date.now();
@@ -106,6 +177,19 @@ export default function DoorScanner({ event, onScanned }: { event: SyncEvent; on
         navigator.vibrate?.(80);
         onScannedRef.current?.();
       } catch (err) {
+        if (err instanceof ApiError && err.code === 'NETWORK_ERROR') {
+          // No signal at the door: keep the code and check them in once back online.
+          queueOffline(event.id, code);
+          setPending(offlineQueue(event.id).length);
+          setOutcome({
+            ok: true,
+            title: 'Saved offline',
+            detail: 'Let them in. The check-in syncs when the connection is back.',
+          });
+          beep(true);
+          navigator.vibrate?.(80);
+          return;
+        }
         setOutcome({ ok: false, title: 'Not admitted', detail: errorMessage(err) });
         beep(false);
         navigator.vibrate?.([60, 60, 60]);
@@ -172,6 +256,12 @@ export default function DoorScanner({ event, onScanned }: { event: SyncEvent; on
         <Button variant="primary" onClick={start} disabled={starting} className="w-full">
           <Camera /> {starting ? 'Starting camera…' : 'Scan entry codes'}
         </Button>
+      )}
+
+      {pending > 0 && (
+        <p className="rounded-xl bg-warning-soft p-3 text-sm text-warning" role="status">
+          {pending} check-in{pending === 1 ? '' : 's'} waiting to sync. They&apos;ll go through when you&apos;re back online.
+        </p>
       )}
 
       {cameraError && <p className="rounded-xl bg-surface-muted p-4 text-sm text-muted">{cameraError}</p>}

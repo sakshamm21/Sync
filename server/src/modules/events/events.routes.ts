@@ -200,6 +200,8 @@ const messagesQuery = z.object({
 const messageBody = z.object({
   text: z.string().trim().min(1, 'Message cannot be empty').max(2000),
   announcement: z.boolean().default(false),
+  /** Who an announcement notifies: everyone registered, only those going, or only the waitlist. */
+  audience: z.enum(['all', 'going', 'waitlisted']).default('all'),
 });
 
 router.get(
