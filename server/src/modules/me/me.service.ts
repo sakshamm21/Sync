@@ -1,3 +1,4 @@
+import type { NotificationType } from '../../constants';
 import { User, type UserDocument } from '../../models';
 import { badRequest, notFound } from '../../lib/errors';
 import { createSession } from '../auth/auth.service';
@@ -8,7 +9,7 @@ export interface ProfileChanges {
   bio?: string;
   avatarUrl?: string;
   interests?: Category[];
-  preferences?: { emailNotifications?: boolean };
+  preferences?: { emailNotifications?: boolean; mutedEmailTypes?: NotificationType[] };
 }
 
 export async function updateProfile(user: UserDocument, changes: ProfileChanges) {

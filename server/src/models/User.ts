@@ -1,7 +1,16 @@
 import { Schema, model, type HydratedDocument, type Model } from 'mongoose';
 import bcrypt from 'bcryptjs';
 import env from '../config/env';
-import { ROLES, USER_STATUS, CATEGORY_VALUES, type Category, type Role, type UserStatus } from '../constants';
+import {
+  ROLES,
+  USER_STATUS,
+  CATEGORY_VALUES,
+  NOTIFICATION_TYPES,
+  type Category,
+  type NotificationType,
+  type Role,
+  type UserStatus,
+} from '../constants';
 
 // Hashing is deliberately slow; tests use the minimum cost to stay fast.
 const BCRYPT_ROUNDS = env.isTest ? 4 : 12;
@@ -25,7 +34,8 @@ export interface IUser {
   avatarUrl: string;
   organization: string;
   interests: Category[];
-  preferences: { emailNotifications: boolean };
+  /** `mutedEmailTypes`: notification types that stay in the app and are never emailed. */
+  preferences: { emailNotifications: boolean; mutedEmailTypes: NotificationType[] };
   lastLoginAt?: Date;
   createdAt: Date;
   updatedAt: Date;
@@ -78,6 +88,7 @@ const userSchema = new Schema<IUser, UserModel, UserMethods>(
     interests: [{ type: String, enum: CATEGORY_VALUES }],
     preferences: {
       emailNotifications: { type: Boolean, default: true },
+      mutedEmailTypes: { type: [{ type: String, enum: Object.values(NOTIFICATION_TYPES) }], default: [] },
     },
     lastLoginAt: Date,
   },

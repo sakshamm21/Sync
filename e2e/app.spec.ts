@@ -123,3 +123,32 @@ test('an organiser can duplicate an event into a new one a week later', async ({
   await expect(form.getByRole('button', { name: /Save changes/ })).toHaveCount(0);
   expect(source).toBeTruthy();
 });
+
+test('a member can mark an event as interested without taking a seat', async ({ page }) => {
+  const token = await signInAs(page, 'tester1@syncronify.dev');
+  const events = (await (await page.request.get(`${API}/api/events?limit=5`)).json()).data as Ev[];
+  const target = events[0];
+  await page.goto(`/events/${target.id}`);
+  await page.getByRole('button', { name: "I'm interested" }).click();
+  await expect(page.getByRole('button', { name: /^Interested/ })).toHaveAttribute('aria-pressed', 'true');
+  const after = await apiGet<Ev & { interestedCount: number }>(token, `/api/events/${target.id}`);
+  expect(after.viewer.registration).toBeNull();
+  expect(after.interestedCount).toBeGreaterThan(0);
+});
+
+test('the notification centre lists history and lets you keep a kind out of email', async ({ page }) => {
+  const token = await signInAs(page, 'tester2@syncronify.dev');
+  // Demo accounts start with email off, which disables the per-kind switches.
+  await page.request.patch(`${API}/api/me`, {
+    headers: { Authorization: `Bearer ${token}` },
+    data: { preferences: { emailNotifications: true } },
+  });
+  await page.goto('/notifications');
+  await expect(page.getByRole('heading', { name: /notifications/i })).toBeVisible();
+  const toggle = page.getByRole('switch', { name: 'Email me announcements' });
+  await expect(toggle).toHaveAttribute('aria-checked', 'true');
+  await toggle.click();
+  await expect(toggle).toHaveAttribute('aria-checked', 'false');
+  await page.reload();
+  await expect(page.getByRole('switch', { name: 'Email me announcements' })).toHaveAttribute('aria-checked', 'false');
+});

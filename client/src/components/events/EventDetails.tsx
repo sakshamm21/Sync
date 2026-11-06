@@ -23,6 +23,7 @@ import {
   Users,
 } from 'lucide-react';
 import RsvpButton from './RsvpButton';
+import InterestedButton from './InterestedButton';
 import EventCover, { statusOf } from './EventCover';
 import { CapacityBar, DateStamp } from './EventCard';
 import EventChat from '@/components/chat/EventChat';
@@ -478,6 +479,7 @@ export default function EventDetails({
                     </p>
                   )}
                   <RsvpButton event={event} onChange={setEvent} size="xl" className="w-full" />
+                  <InterestedButton event={event} onChange={setEvent} />
                   <div className="flex justify-around pt-1">
                     <RoundAction label="Calendar" onClick={addToCalendar}>
                       <CalendarPlus />

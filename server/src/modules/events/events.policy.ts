@@ -2,7 +2,7 @@
  * Who can see and do what with an event, and the per-viewer view of it.
  * Shared by the events, registrations, chat, staff and notes services.
  */
-import { Event, Registration, EventStaff, type EventDocument, type IEvent, type UserDocument } from '../../models';
+import { Event, Registration, EventStaff, Interest, type EventDocument, type IEvent, type UserDocument } from '../../models';
 import { forbidden, notFound } from '../../lib/errors';
 import { ROLES, EVENT_VISIBILITY, EVENT_STATUS, STAFF_ROLES, type RegistrationStatus, type StaffRole } from '../../constants';
 
@@ -124,6 +124,8 @@ export type PresentedEvent = Omit<IEvent, 'owner' | 'organizers'> & {
     registration: RegistrationStatus | null;
     /** 1 = next in line; only on a single event the viewer is waitlisted for. */
     waitlistPosition?: number;
+    /** Bookmarked as "Interested". */
+    interested: boolean;
   };
 };
 
@@ -145,6 +147,11 @@ export async function withViewerContext(events: EventDocument[], viewer: Viewer)
     : [];
   const roleByEvent = new Map(staff.map((s) => [String(s.event), s.role]));
 
+  const interests = viewer
+    ? await Interest.find({ user: viewer.id, event: { $in: events.map((e) => e._id) } }).select('event')
+    : [];
+  const interestedIn = new Set(interests.map((i) => String(i.event)));
+
   return events.map((event) => {
     const registration = statusByEvent.get(String(event._id)) ?? null;
     const isOwner = viewer ? event.isOwnedBy(viewer.id) : false;
@@ -161,6 +168,7 @@ export async function withViewerContext(events: EventDocument[], viewer: Viewer)
         canChat: canChat(viewer, event, registration),
         staffRole,
         registration,
+        interested: interestedIn.has(String(event._id)),
       },
     };
   });
