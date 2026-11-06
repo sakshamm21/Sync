@@ -93,7 +93,7 @@ function Palette({ open, onClose }: { open: boolean; onClose: () => void }) {
 
   const commands: Command[] = useMemo(() => {
     const q = query.trim().toLowerCase();
-    const pages = [...PRIMARY_NAV, ...visibleFor(SECONDARY_NAV, user?.role), { href: '/settings', label: 'Settings', icon: Settings }].map<Command>((item) => ({
+    const pages = [...PRIMARY_NAV, ...visibleFor(SECONDARY_NAV, user), { href: '/settings', label: 'Settings', icon: Settings }].map<Command>((item) => ({
       id: item.href,
       group: 'Go to',
       label: item.label,

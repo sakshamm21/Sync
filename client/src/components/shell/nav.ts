@@ -1,5 +1,5 @@
 import { CalendarDays, Compass, Home, Map, Megaphone, MessagesSquare, ShieldCheck, StickyNote, type LucideIcon } from 'lucide-react';
-import type { Role } from '@/lib/api';
+import type { Role, User } from '@/lib/api';
 
 export interface NavItem {
   href: string;
@@ -7,6 +7,8 @@ export interface NavItem {
   icon: LucideIcon;
   /** Only shown to these roles; omitted means everyone. */
   roles?: Role[];
+  /** Also shown to members who help run someone else's event. */
+  orEventStaff?: boolean;
 }
 
 /** Always visible in the dock. */
@@ -21,13 +23,15 @@ export const PRIMARY_NAV: NavItem[] = [
 export const SECONDARY_NAV: NavItem[] = [
   { href: '/notes', label: 'Notes', icon: StickyNote },
   { href: '/map', label: 'Map', icon: Map },
-  // Everyone can open the console: organisers manage their own events, and a
-  // member invited to help run an event finds it there too.
-  { href: '/organizer', label: 'Organizer', icon: Megaphone },
+  // Organisers manage their own events here, and a member invited to help run
+  // an event finds it here too. Other members would only see an empty console.
+  { href: '/organizer', label: 'Organizer', icon: Megaphone, roles: ['organizer', 'admin'], orEventStaff: true },
   { href: '/admin', label: 'Admin', icon: ShieldCheck, roles: ['admin'] },
 ];
 
-export const visibleFor = (items: NavItem[], role: Role | undefined) =>
-  items.filter((item) => !item.roles || (role && item.roles.includes(role)));
+export const visibleFor = (items: NavItem[], user: Pick<User, 'role' | 'isEventStaff'> | null | undefined) =>
+  items.filter(
+    (item) => !item.roles || (user && (item.roles.includes(user.role) || (item.orEventStaff && user.isEventStaff)))
+  );
 
 export const isActive = (pathname: string, href: string) => pathname === href || pathname.startsWith(`${href}/`);

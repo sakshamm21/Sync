@@ -4,11 +4,13 @@ import { useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import confetti from 'canvas-confetti';
-import { Check, Hourglass, Settings2, Plus, ScanLine } from 'lucide-react';
+import { CalendarPlus, Check, Hourglass, Settings2, Plus, ScanLine, X } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useEventsSync } from '@/context/EventContext';
 import { errorMessage, eventsApi, type SyncEvent } from '@/lib/api';
 import { Button, ButtonLink } from '@/components/ui/button';
+import { Dialog } from '@/components/ui/overlay';
+import { TicketQr } from '@/components/events/QrTicket';
 
 interface RsvpButtonProps {
   event: SyncEvent;
@@ -36,6 +38,8 @@ export default function RsvpButton({ event, onChange, size = 'sm', className }: 
   const router = useRouter();
   const { eventsChanged } = useEventsSync();
   const [pending, setPending] = useState(false);
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [confirmingLeave, setConfirmingLeave] = useState(false);
   const buttonRef = useRef<HTMLDivElement>(null);
 
   if (event.visibility === 'private') return null;
@@ -65,59 +69,121 @@ export default function RsvpButton({ event, onChange, size = 'sm', className }: 
 
   const registration = event.viewer.registration;
 
-  async function toggle() {
+  async function register() {
     if (!user) {
       router.push(`/authentication?next=${encodeURIComponent(`/events/${event.id}`)}`);
       return;
     }
     setPending(true);
     try {
-          if (registration) {
-            onChange(await eventsApi.unregister(event.id));
-            eventsChanged();
-            toast(registration === 'going' ? 'Plans cancelled. Your spot went back in the pool.' : 'You left the waitlist');
-            return;
-          }
-
-          // Registering can report a clash with something already in the calendar.
-          // It is a warning, not a block: the RSVP still goes through.
-          const result = await eventsApi.register(event.id);
-          onChange(result);
-          eventsChanged();
-          if (result.viewer.registration === 'going') {
-            celebrate(buttonRef.current);
-            toast.success("You're in! 🎉", { description: "It's on your schedule. We'll nudge you the day before." });
-          } else {
-            toast("You're on the waitlist ⏳", { description: "It's packed rn. If a spot opens, you're in automatically." });
-          }
-          for (const clash of result.clashes) {
-            toast.warning(`Heads up, clashes with ${clash.title}`, {
-              description: "Both are on your calendar — you can drop one whenever.",
-              action: { label: 'View', onClick: () => router.push(`/events/${clash.id}`) },
-            });
-          }
-        } catch (err) {
-          toast.error(errorMessage(err));
-        } finally {
-          setPending(false);
-        }
+      // Registering can report a clash with something already in the calendar.
+      // It is a warning, not a block: the RSVP still goes through.
+      const result = await eventsApi.register(event.id);
+      onChange(result);
+      eventsChanged();
+      if (result.viewer.registration === 'going') {
+        celebrate(buttonRef.current);
+        toast.success("You're in! 🎉", { description: "It's on your schedule. We'll nudge you the day before." });
+      } else {
+        toast("You're on the waitlist ⏳", { description: "It's packed rn. If a spot opens, you're in automatically." });
       }
+      for (const clash of result.clashes) {
+        toast.warning(`Heads up, clashes with ${clash.title}`, {
+          description: 'Both are on your calendar — you can drop one whenever.',
+          action: { label: 'View', onClick: () => router.push(`/events/${clash.id}`) },
+        });
+      }
+    } catch (err) {
+      toast.error(errorMessage(err));
+    } finally {
+      setPending(false);
+    }
+  }
+
+  async function leave() {
+    try {
+      onChange(await eventsApi.unregister(event.id));
+      eventsChanged();
+      setSheetOpen(false);
+      toast(registration === 'going' ? 'Plans cancelled. Your spot went to the next person.' : 'You left the waitlist');
+    } catch (err) {
+      toast.error(errorMessage(err));
+    }
+  }
+
+  async function addToCalendar() {
+    try {
+      await eventsApi.downloadCalendarFile(event);
+    } catch (err) {
+      toast.error(errorMessage(err));
+    }
+  }
 
   if (registration) {
+    // A single tap used to cancel (the "Cancel plans" label only showed on
+    // hover, which phones don't have). Now it opens a sheet; cancelling is a
+    // deliberate second step.
+    const contested = event.spotsLeft === 0;
     return (
       <div ref={buttonRef} className={className}>
-        <Button variant="soft" size={size} loading={pending} onClick={toggle} title="Click to cancel" className="group/rsvp w-full">
-          {!pending && (registration === 'going' ? <Check /> : <Hourglass />)}
-          <span className="group-hover/rsvp:hidden">{registration === 'going' ? "You're in" : 'Waitlisted'}</span>
-          <span className="hidden group-hover/rsvp:inline">{registration === 'going' ? 'Cancel plans' : 'Leave waitlist'}</span>
+        <Button variant="soft" size={size} onClick={() => setSheetOpen(true)} className="w-full" aria-haspopup="dialog">
+          {registration === 'going' ? <Check /> : <Hourglass />}
+          {registration === 'going' ? "You're in" : 'Waitlisted'}
         </Button>
+        <Dialog
+          open={sheetOpen}
+          onClose={() => {
+            setSheetOpen(false);
+            setConfirmingLeave(false);
+          }}
+          size="sm"
+          title={registration === 'going' ? "You're in" : "You're on the waitlist"}
+          description={event.title}
+        >
+          <div className="space-y-3 px-6 pb-6 sm:px-8">
+            {registration === 'going' && event.visibility === 'public' && (
+              <div className="flex justify-center py-2">
+                <TicketQr event={event} />
+              </div>
+            )}
+            {registration === 'waitlisted' && (
+              <p className="text-sm text-muted">If a spot opens you&apos;ll be moved in automatically and notified.</p>
+            )}
+            <Button variant="secondary" className="w-full" onClick={addToCalendar}>
+              <CalendarPlus /> Add to calendar
+            </Button>
+            {confirmingLeave ? (
+              <div className="space-y-3 rounded-2xl bg-danger-soft p-4">
+                <p className="text-sm text-danger">
+                  {registration === 'going'
+                    ? contested
+                      ? "This event is full. Your spot goes to the next person on the waitlist and you'll have to queue to get back in."
+                      : 'Your spot goes back in the pool.'
+                    : "You'll lose your place in the queue."}
+                </p>
+                <div className="flex gap-2">
+                  <Button variant="ghost" className="flex-1" onClick={() => setConfirmingLeave(false)}>
+                    Keep it
+                  </Button>
+                  <Button variant="danger" className="flex-1" onClick={leave}>
+                    {registration === 'going' ? 'Cancel my spot' : 'Leave waitlist'}
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <Button variant="ghost" className="w-full text-danger" onClick={() => setConfirmingLeave(true)}>
+                <X /> {registration === 'going' ? 'Cancel my spot' : 'Leave the waitlist'}
+              </Button>
+            )}
+          </div>
+        </Dialog>
       </div>
     );
   }
 
   return (
     <div ref={buttonRef} className={className}>
-      <Button variant={event.spotsLeft === 0 ? 'secondary' : 'primary'} size={size} loading={pending} onClick={toggle} className="w-full">
+      <Button variant={event.spotsLeft === 0 ? 'secondary' : 'primary'} size={size} loading={pending} onClick={register} className="w-full">
         {!pending && <Plus />}
         {event.spotsLeft === 0 ? 'Join waitlist' : "I'm in"}
       </Button>

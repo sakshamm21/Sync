@@ -10,6 +10,7 @@ import { ShieldCheck, Trash2, UserPlus, Users } from 'lucide-react';
 import { errorMessage, staffApi, type StaffMember, type StaffRole } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Avatar, Badge, Card, Kicker } from '@/components/ui/surface';
+import { ConfirmDialog } from '@/components/ui/overlay';
 import { Segmented } from '@/components/ui/tabs';
 
 const ROLE_LABEL: Record<StaffRole, string> = {
@@ -28,6 +29,7 @@ export default function EventTeam({ eventId }: { eventId: string }) {
   const [email, setEmail] = useState('');
   const [role, setRole] = useState<Exclude<StaffRole, 'owner'>>('manager');
   const [pending, setPending] = useState(false);
+  const [removing, setRemoving] = useState<StaffMember | null>(null);
 
   const load = useCallback(() => {
     staffApi
@@ -62,9 +64,15 @@ export default function EventTeam({ eventId }: { eventId: string }) {
     }
   }
 
-  async function changeRole(member: StaffMember, next: StaffRole) {
+  async function changeRole(member: StaffMember, next: StaffRole, { undoable = true } = {}) {
+    const previous = member.role;
     try {
       setTeam(await staffApi.setRole(eventId, member.id, next));
+      if (undoable) {
+        toast.success(`${member.user?.name ?? 'They'} is now ${ROLE_LABEL[next].toLowerCase()}`, {
+          action: { label: 'Undo', onClick: () => void changeRole(member, previous, { undoable: false }) },
+        });
+      }
     } catch (err) {
       toast.error(errorMessage(err));
     }
@@ -72,6 +80,14 @@ export default function EventTeam({ eventId }: { eventId: string }) {
 
   return (
     <Card className="p-5">
+      <ConfirmDialog
+        open={Boolean(removing)}
+        onClose={() => setRemoving(null)}
+        onConfirm={() => (removing ? remove(removing) : undefined)}
+        title={`Remove ${removing?.user?.name ?? 'this person'}?`}
+        description="They lose access to this event's console straight away. You can invite them again later."
+        confirmLabel="Remove"
+      />
       <Kicker className="mb-1">The team</Kicker>
       <p className="mb-4 text-sm text-muted">
         Anyone on the team sees this event in their organizer console and can help run it.
@@ -105,7 +121,7 @@ export default function EventTeam({ eventId }: { eventId: string }) {
                     <option value="checkin">{ROLE_LABEL.checkin}</option>
                   </select>
                   <button
-                    onClick={() => remove(member)}
+                    onClick={() => setRemoving(member)}
                     aria-label={`Remove ${member.user?.name ?? 'this person'}`}
                     className="rounded-lg p-2 text-muted transition hover:bg-danger-soft hover:text-danger"
                   >

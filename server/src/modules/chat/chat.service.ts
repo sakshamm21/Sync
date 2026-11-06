@@ -16,24 +16,35 @@ export async function findChatEvent(user: UserDocument, eventId: string) {
   return event;
 }
 
+/** A page cursor: a message id (exact) or, from older clients, a time. */
+export type MessageCursor = string | Date;
+
+/** ObjectIds grow with time, so paging by `_id` keeps order without skipping messages sent in the same millisecond. */
+const cursorFilter = (cursor: MessageCursor, op: '$gt' | '$lt') =>
+  cursor instanceof Date ? { createdAt: { [op]: cursor } } : { _id: { [op]: cursor } };
+
 /**
  * Messages for display, oldest-first.
  * - `before`: the newest `limit` messages older than the cursor (scrolling back).
  * - `after`: messages newer than the cursor (polling for new ones).
  */
-export async function listMessages(user: UserDocument, eventId: string, { before, after, limit }: { before?: Date; after?: Date; limit: number }) {
+export async function listMessages(
+  user: UserDocument,
+  eventId: string,
+  { before, after, limit }: { before?: MessageCursor; after?: MessageCursor; limit: number }
+) {
   const event = await findChatEvent(user, eventId);
 
   if (after) {
-    const newer = await Message.find({ event: event._id, createdAt: { $gt: after } })
-      .sort({ createdAt: 1 })
-      .limit(limit)
+    const newer = await Message.find({ event: event._id, ...cursorFilter(after, '$gt') })
+      .sort({ _id: 1 })
+      .limit(limit + 1)
       .populate('sender', SENDER_FIELDS);
-    return { items: newer, hasMore: false };
+    return { items: newer.slice(0, limit), hasMore: newer.length > limit };
   }
 
-  const messages = await Message.find({ event: event._id, ...(before ? { createdAt: { $lt: before } } : {}) })
-    .sort({ createdAt: -1 })
+  const messages = await Message.find({ event: event._id, ...(before ? cursorFilter(before, '$lt') : {}) })
+    .sort({ _id: -1 })
     .limit(limit)
     .populate('sender', SENDER_FIELDS);
   return { items: messages.reverse(), hasMore: messages.length === limit };

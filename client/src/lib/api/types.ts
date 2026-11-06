@@ -31,6 +31,8 @@ export interface User {
   interests: CategoryValue[];
   preferences: { emailNotifications: boolean };
   lastLoginAt?: string;
+  /** On the team of an event someone else owns (only on the signed-in user). */
+  isEventStaff?: boolean;
   createdAt: string;
   updatedAt: string;
 }

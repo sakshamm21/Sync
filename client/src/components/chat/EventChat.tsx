@@ -72,7 +72,7 @@ export default function EventChat({ eventId, canAnnounce = false, className }: E
     () => {
       const last = messages[messages.length - 1];
       eventsApi
-        .messages(eventId, last ? { after: last.createdAt } : {})
+        .messages(eventId, last ? { after: last.id } : {})
         .then(({ items }) => appendMessages(items))
         .catch(() => {});
     },
@@ -103,9 +103,13 @@ export default function EventChat({ eventId, canAnnounce = false, className }: E
   async function loadOlder() {
     const oldest = messages[0];
     if (!oldest) return;
-    const { items, hasMore: more } = await eventsApi.messages(eventId, { before: oldest.createdAt });
-    setMessages((prev) => [...items, ...prev]);
-    setHasMore(more);
+    try {
+      const { items, hasMore: more } = await eventsApi.messages(eventId, { before: oldest.id });
+      setMessages((prev) => [...items.filter((m) => !prev.some((p) => p.id === m.id)), ...prev]);
+      setHasMore(more);
+    } catch (err) {
+      toast.error(errorMessage(err));
+    }
   }
 
   function handleTyping(value: string) {

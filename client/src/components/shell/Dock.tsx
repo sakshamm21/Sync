@@ -39,7 +39,7 @@ export default function Dock() {
   const { user } = useAuth();
   const { openCreateEvent } = useCreateEvent();
   const pathname = usePathname();
-  const secondary = visibleFor(SECONDARY_NAV, user?.role);
+  const secondary = visibleFor(SECONDARY_NAV, user);
   const secondaryActive = secondary.some((item) => isActive(pathname, item.href));
   const [first, second, ...rest] = PRIMARY_NAV;
 

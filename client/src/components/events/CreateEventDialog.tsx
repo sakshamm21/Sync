@@ -1,13 +1,13 @@
 'use client';
 
-import React, { createContext, useCallback, useContext, useMemo, useState } from 'react';
+import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { Check, Globe, Lock, MapPin } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useEventsSync } from '@/context/EventContext';
 import { ApiError, errorMessage, eventsApi, type CategoryValue, type EventInput, type SyncEvent } from '@/lib/api';
 import { CATEGORIES, CATEGORY_EMOJI, CATEGORY_LABELS, campusDateKey, fromDateTimeInput, toDateTimeInput } from '@/lib/format';
-import { Dialog } from '@/components/ui/overlay';
+import { ConfirmDialog, Dialog } from '@/components/ui/overlay';
 import { Button } from '@/components/ui/button';
 import { Field, Input, Textarea } from '@/components/ui/field';
 import VenueMap, { type PickedLocation } from '@/components/map/VenueMap';
@@ -114,21 +114,62 @@ const parseTags = (value: string) =>
   [...new Set(value.split(',').map((t) => t.trim().replace(/^#/, '').toLowerCase()).filter(Boolean))].slice(0, 10);
 
 function CreateEventDialog({ open, event, date, onClose }: { open: boolean; event?: SyncEvent; date?: Date; onClose: () => void }) {
+  // Closing by Escape, the backdrop or the X asks first if anything was typed.
+  const dirty = useRef(false);
+  const [confirmDiscard, setConfirmDiscard] = useState(false);
+  const requestClose = () => (dirty.current ? setConfirmDiscard(true) : onClose());
+  useEffect(() => {
+    if (open) dirty.current = false;
+  }, [open]);
+
   return (
+    <>
+    <ConfirmDialog
+      open={confirmDiscard}
+      onClose={() => setConfirmDiscard(false)}
+      onConfirm={() => {
+        dirty.current = false;
+        onClose();
+      }}
+      title={event ? 'Discard your changes?' : 'Discard this event?'}
+      description="What you've typed will be lost."
+      confirmLabel="Discard"
+    />
     <Dialog
       open={open}
-      onClose={onClose}
+      onClose={requestClose}
       size="lg"
       title={event ? <>Edit <em>event</em></> : <>Drop an <em>event</em></>}
       description={event ? 'Attendees are notified if the time or place changes.' : 'Share it with campus, or keep it on your own calendar.'}
     >
       {/* Remounting resets the form every time the dialog opens. */}
-      {open && <EventForm key={`${event?.id ?? 'new'}-${date?.getTime() ?? ''}`} event={event} date={date} onDone={onClose} />}
+      {open && (
+        <EventForm
+          key={`${event?.id ?? 'new'}-${date?.getTime() ?? ''}`}
+          event={event}
+          date={date}
+          onDirtyChange={(d) => {
+            dirty.current = d;
+          }}
+          onDone={onClose}
+        />
+      )}
     </Dialog>
+    </>
   );
 }
 
-function EventForm({ event, date, onDone }: { event?: SyncEvent; date?: Date; onDone: () => void }) {
+function EventForm({
+  event,
+  date,
+  onDone,
+  onDirtyChange,
+}: {
+  event?: SyncEvent;
+  date?: Date;
+  onDone: () => void;
+  onDirtyChange: (dirty: boolean) => void;
+}) {
   const { user } = useAuth();
   const { eventsChanged } = useEventsSync();
   const canPublish = user?.role === 'organizer' || user?.role === 'admin';
@@ -136,6 +177,10 @@ function EventForm({ event, date, onDone }: { event?: SyncEvent; date?: Date; on
   const isDraft = event?.status === 'draft';
 
   const [form, setForm] = useState<FormState>(() => initialState(event, canPublish, date));
+  const [pristine] = useState(() => JSON.stringify(form));
+  useEffect(() => {
+    onDirtyChange(JSON.stringify(form) !== pristine);
+  }, [form, pristine, onDirtyChange]);
   const [venueQuery, setVenueQuery] = useState('');
   const [mapOpen, setMapOpen] = useState(false);
   const [errors, setErrors] = useState<Record<string, string | undefined>>({});

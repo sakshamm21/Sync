@@ -7,6 +7,7 @@ import * as service from './me.service';
 import { assertNotDemoAccount } from '../../demo/accounts';
 import * as events from '../events/events.service';
 import * as registrations from '../events/registrations.service';
+import { Event } from '../../models';
 import * as eventSchemas from '../events/events.schemas';
 
 const router = Router();
@@ -28,8 +29,11 @@ const passwordBody = z.object({
   newPassword: password,
 });
 
-router.get('/', (req, res) => {
-  res.json({ data: currentUser(req) });
+router.get('/', async (req, res) => {
+  const user = currentUser(req);
+  // Lets the app show the organizer console to members who help run an event.
+  const isEventStaff = Boolean(await Event.exists({ organizers: user._id, owner: { $ne: user._id } }));
+  res.json({ data: { ...user.toJSON(), isEventStaff } });
 });
 
 router.patch('/', validate({ body: profileBody }, async (req, res) => {
