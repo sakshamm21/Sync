@@ -3,7 +3,19 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { toast } from 'sonner';
-import { Ban, CalendarCheck, CalendarDays, Hourglass, Pencil, Plus, ScanLine, Trash2, TrendingUp, Users } from 'lucide-react';
+import {
+  Ban,
+  Copy,
+  CalendarCheck,
+  CalendarDays,
+  Hourglass,
+  Pencil,
+  Plus,
+  ScanLine,
+  Trash2,
+  TrendingUp,
+  Users,
+} from 'lucide-react';
 import { useEventsSync } from '@/context/EventContext';
 import { errorMessage, eventsApi, organizerApi, type OrganizedEvent, type OrganizerOverview } from '@/lib/api';
 import { formatEventWhen, formatVenue } from '@/lib/format';
@@ -224,6 +236,17 @@ export default function OrganizerConsole() {
                       }}
                     >
                       <Ban />
+                    </Button>
+                  )}
+                  {event.viewer.canManage && (
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      aria-label="Duplicate"
+                      title="Duplicate (same details, a week later)"
+                      onClick={() => openCreateEvent({ copyFrom: event })}
+                    >
+                      <Copy />
                     </Button>
                   )}
                   {/* Only the owner may delete (managers can cancel instead). */}

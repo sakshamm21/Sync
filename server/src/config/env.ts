@@ -48,6 +48,9 @@ const schema = z
     CAMPUS_LATITUDE: z.coerce.number().min(-90).max(90).default(26.5123),
     CAMPUS_LONGITUDE: z.coerce.number().min(-180).max(180).default(80.2329),
     PLACES_COUNTRY_CODES: z.string().default('in'),
+    // Comma-separated email domains allowed to sign up (e.g. "iitk.ac.in"); empty = anyone.
+    // Subdomains count too: "iitk.ac.in" also allows "cse.iitk.ac.in".
+    ALLOWED_EMAIL_DOMAINS: z.string().default(''),
     // IANA time zone of the campus; used for demo dates and server-side formatting.
     CAMPUS_TIMEZONE: z
       .string()
@@ -133,6 +136,9 @@ const env = Object.freeze({
   cronSecret: raw.CRON_SECRET,
   demoMode: raw.DEMO_MODE,
   campusTimeZone: raw.CAMPUS_TIMEZONE,
+  allowedEmailDomains: raw.ALLOWED_EMAIL_DOMAINS.split(',')
+    .map((d) => d.trim().toLowerCase().replace(/^@/, ''))
+    .filter(Boolean),
   campus: { latitude: raw.CAMPUS_LATITUDE, longitude: raw.CAMPUS_LONGITUDE, countryCodes: raw.PLACES_COUNTRY_CODES },
   exposeVerificationCodes: raw.NODE_ENV !== 'production' || raw.EXPOSE_VERIFICATION_CODES,
   mail: {

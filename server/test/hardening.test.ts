@@ -5,6 +5,7 @@ import { startDatabase, stopDatabase, resetDatabase, api, createUser, eventInput
 import { Event, Notification, Registration, User } from '../src/models';
 import { runTool } from '../src/modules/assistant/assistant.tools';
 import { MongoRateLimitStore } from '../src/middleware/rateLimitStore';
+import { emailDomainAllowed } from '../src/modules/auth/auth.service';
 
 before(startDatabase);
 after(stopDatabase);
@@ -163,5 +164,16 @@ describe('B19: shared rate-limit counts', () => {
     assert.equal((await a.get('ip'))?.totalHits, 1);
     await a.resetKey('ip');
     assert.equal(await a.get('ip'), undefined);
+  });
+});
+
+describe('Roadmap #12: campus-only sign-up', () => {
+  it('matches the domain and its subdomains, and allows anyone when unset', async () => {
+    const campus = ['iitk.ac.in'];
+    assert.equal(emailDomainAllowed('a@iitk.ac.in', campus), true);
+    assert.equal(emailDomainAllowed('a@cse.iitk.ac.in', campus), true);
+    assert.equal(emailDomainAllowed('a@gmail.com', campus), false);
+    assert.equal(emailDomainAllowed('a@notiitk.ac.in', campus), false);
+    assert.equal(emailDomainAllowed('a@gmail.com', []), true);
   });
 });

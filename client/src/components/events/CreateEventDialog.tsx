@@ -23,6 +23,8 @@ interface OpenOptions {
   event?: SyncEvent;
   /** Pre-fill the start date (e.g. a day clicked on the calendar). */
   date?: Date;
+  /** Start a new event as a copy of this one ("Duplicate"). */
+  copyFrom?: SyncEvent;
 }
 
 const CreateEventContext = createContext<{ openCreateEvent: (options?: OpenOptions) => void } | null>(null);
@@ -39,6 +41,7 @@ export function CreateEventProvider({ children }: { children: React.ReactNode })
         open={state.open}
         event={state.event}
         date={state.date}
+        copyFrom={state.copyFrom}
         onClose={() => setState((prev) => ({ ...prev, open: false }))}
       />
     </CreateEventContext.Provider>
@@ -72,7 +75,24 @@ interface FormState {
   isPublic: boolean;
 }
 
-function initialState(event: SyncEvent | undefined, canPublish: boolean, date?: Date): FormState {
+const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+
+/** A copy keeps the weekday and time, moved forward whole weeks until it is in the future. */
+function copyOf(event: SyncEvent, canPublish: boolean): FormState {
+  const start = new Date(event.startsAt).getTime();
+  const length = new Date(event.endsAt).getTime() - start;
+  const weeks = Math.max(1, Math.ceil((Date.now() - start) / WEEK_MS));
+  const nextStart = new Date(start + weeks * WEEK_MS);
+  return {
+    ...initialState(event, canPublish),
+    startsAt: toDateTimeInput(nextStart),
+    endsAt: toDateTimeInput(new Date(nextStart.getTime() + length)),
+    isPublic: event.visibility === 'public' && canPublish,
+  };
+}
+
+function initialState(event: SyncEvent | undefined, canPublish: boolean, date?: Date, copyFrom?: SyncEvent): FormState {
+  if (copyFrom) return copyOf(copyFrom, canPublish);
   if (event) {
     return {
       title: event.title,
@@ -124,11 +144,13 @@ function CreateEventDialog({
   open,
   event,
   date,
+  copyFrom,
   onClose,
 }: {
   open: boolean;
   event?: SyncEvent;
   date?: Date;
+  copyFrom?: SyncEvent;
   onClose: () => void;
 }) {
   // Closing by Escape, the backdrop or the X asks first if anything was typed.
@@ -176,9 +198,10 @@ function CreateEventDialog({
         {/* Remounting resets the form every time the dialog opens. */}
         {open && (
           <EventForm
-            key={`${event?.id ?? 'new'}-${date?.getTime() ?? ''}`}
+            key={`${event?.id ?? copyFrom?.id ?? 'new'}-${date?.getTime() ?? ''}`}
             event={event}
             date={date}
+            copyFrom={copyFrom}
             onDirtyChange={(d) => {
               dirty.current = d;
             }}
@@ -193,11 +216,13 @@ function CreateEventDialog({
 function EventForm({
   event,
   date,
+  copyFrom,
   onDone,
   onDirtyChange,
 }: {
   event?: SyncEvent;
   date?: Date;
+  copyFrom?: SyncEvent;
   onDone: () => void;
   onDirtyChange: (dirty: boolean) => void;
 }) {
@@ -207,7 +232,7 @@ function EventForm({
   const isEdit = Boolean(event);
   const isDraft = event?.status === 'draft';
 
-  const [form, setForm] = useState<FormState>(() => initialState(event, canPublish, date));
+  const [form, setForm] = useState<FormState>(() => initialState(event, canPublish, date, copyFrom));
   const [pristine] = useState(() => JSON.stringify(form));
   useEffect(() => {
     onDirtyChange(JSON.stringify(form) !== pristine);

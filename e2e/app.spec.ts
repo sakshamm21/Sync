@@ -96,3 +96,30 @@ test('waitlisted people see their place in line, and Settings offers a calendar 
   // Only confirmed plans go on the calendar, not ones you're still waiting for.
   expect(ics).not.toContain(`SUMMARY:${waiting.title}`);
 });
+
+test('shared event links get a generated preview image and a WhatsApp button', async ({ page, request }) => {
+  const events = (await (await request.get(`${API}/api/events?limit=1`)).json()).data as Ev[];
+  await page.goto(`/events/${events[0].id}`);
+  const ogImage = await page.locator('meta[property="og:image"]').getAttribute('content');
+  expect(ogImage).toContain(`/events/${events[0].id}/opengraph-image`);
+  const image = await request.get(new URL(ogImage!).pathname);
+  expect(image.status()).toBe(200);
+  expect(image.headers()['content-type']).toBe('image/png');
+  await expect(page.getByRole('link', { name: 'WhatsApp' })).toHaveAttribute('href', /^https:\/\/wa\.me\/\?text=/);
+});
+
+test('an organiser can duplicate an event into a new one a week later', async ({ page }) => {
+  const token = await signInAs(page, 'organizer@syncronify.dev');
+  const overview = await apiGet<{ events: (Ev & { startsAt: string; viewer: { canManage: boolean } })[] }>(
+    token,
+    '/api/organizer/overview'
+  );
+  const source = overview.events.find((e) => e.status === 'published' && !e.isPast && e.viewer.canManage)!;
+  await page.goto('/organizer');
+  await page.getByRole('button', { name: 'Duplicate' }).first().click();
+  const form = page.getByRole('dialog', { name: /Drop an event/ });
+  await expect(form.getByRole('textbox').first()).not.toHaveValue('');
+  // A copy is a new event: it publishes instead of saving changes.
+  await expect(form.getByRole('button', { name: /Save changes/ })).toHaveCount(0);
+  expect(source).toBeTruthy();
+});

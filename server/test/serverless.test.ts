@@ -15,7 +15,13 @@ beforeEach(resetDatabase);
 describe('serverless deployment support', () => {
   it('tells the client to poll', async () => {
     const res = await api().get('/api/meta').expect(200);
-    assert.deepEqual(res.body.data, { realtime: 'polling', emailDelivery: false, assistant: false, demo: false });
+    assert.deepEqual(res.body.data, {
+      realtime: 'polling',
+      emailDelivery: false,
+      assistant: false,
+      demo: false,
+      allowedEmailDomains: [],
+    });
   });
 
   it('runs reminders only for callers with the cron secret', async () => {
