@@ -138,7 +138,11 @@ export const eventsApi = {
   update: (id: string, body: Partial<EventInput>) => data<SyncEvent>(http.patch(`/events/${id}`, body)),
   cancel: (id: string, reason = '') => data<SyncEvent>(http.post(`/events/${id}/cancel`, { reason })),
   remove: (id: string) => http.delete(`/events/${id}`).then(() => undefined),
-  register: (id: string) => data<RegistrationResponse>(http.post(`/events/${id}/registration`)),
+  register: (id: string, answers: { question: string; answer: string }[] = []) =>
+    data<RegistrationResponse>(http.post(`/events/${id}/registration`, { answers })),
+  /** Approve or decline a request to join (events that need approval). */
+  decide: (id: string, userId: string, approve: boolean) =>
+    data<AttendeeList>(http.put(`/events/${id}/attendees/${userId}/approval`, { approve })),
   /** Accepts a seat held for you off the waitlist. */
   claim: (id: string) => data<RegistrationResponse>(http.post(`/events/${id}/registration/claim`)),
   /** Bookmark ("Interested") or un-bookmark; takes no seat. */

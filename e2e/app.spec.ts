@@ -247,3 +247,37 @@ test('a held waitlist spot can be claimed from the event page', async ({ page })
   await page.getByRole('button', { name: 'Claim your spot' }).click();
   await expect(page.getByRole('button', { name: "You're in" }).first()).toBeVisible();
 });
+
+test('RSVP questions and approval work end to end', async ({ page, browser }) => {
+  const organizer = await tokenFor('organizer@syncronify.dev');
+  const start = new Date(Date.now() + 7 * 864e5).toISOString();
+  const end = new Date(Date.now() + 7 * 864e5 + 2 * 36e5).toISOString();
+  const created = await page.request.post(`${API}/api/events`, {
+    headers: { Authorization: `Bearer ${organizer}` },
+    data: {
+      title: 'Selective Workshop',
+      category: 'workshop',
+      startsAt: start,
+      endsAt: end,
+      capacity: 10,
+      requiresApproval: true,
+      questions: [{ label: 'Roll number', kind: 'text', required: true }],
+    },
+  });
+  const { id } = (await created.json()).data;
+
+  await signInAs(page, 'tester3@syncronify.dev');
+  await page.goto(`/events/${id}`);
+  await page.getByRole('button', { name: 'Request a place' }).first().click();
+  await page.getByLabel(/Roll number/).fill('21CS042');
+  await page.getByRole('button', { name: 'Send request' }).click();
+  await expect(page.getByRole('button', { name: 'Requested' }).first()).toBeVisible();
+
+  const org = await browser.newPage();
+  await org.addInitScript((t) => window.localStorage.setItem('sync.token', t), organizer);
+  await org.goto(`/organizer/events/${id}`);
+  await expect(org.getByText('Roll number: 21CS042')).toBeVisible();
+  await org.getByRole('button', { name: 'Approve' }).click();
+  await expect(org.getByRole('button', { name: 'Check in' }).first()).toBeVisible();
+  await org.close();
+});

@@ -26,6 +26,22 @@ const fields = {
   registrationOpensAt: z.coerce.date().nullable(),
   registrationClosesAt: z.coerce.date().nullable(),
   waitlistClaimHours: z.number().int().min(1).max(72).nullable(),
+  questions: z
+    .array(
+      z
+        .object({
+          label: z.string().trim().min(1, 'Write the question').max(200),
+          kind: z.enum(['text', 'choice']).default('text'),
+          options: z.array(z.string().trim().min(1).max(80)).max(8).default([]),
+          required: z.boolean().default(false),
+        })
+        .refine((q) => q.kind === 'text' || q.options.length >= 2, {
+          message: 'A choice question needs at least two options',
+          path: ['options'],
+        })
+    )
+    .max(5, 'Ask at most five questions'),
+  requiresApproval: z.boolean(),
 };
 
 const windowInOrder = (e: { registrationOpensAt?: Date | null; registrationClosesAt?: Date | null }) =>
@@ -52,6 +68,8 @@ export const create = z
     registrationOpensAt: fields.registrationOpensAt.optional(),
     registrationClosesAt: fields.registrationClosesAt.optional(),
     waitlistClaimHours: fields.waitlistClaimHours.optional(),
+    questions: fields.questions.optional(),
+    requiresApproval: fields.requiresApproval.optional(),
   })
   .refine(endsAfterStart, endsAfterStartMessage)
   .refine(windowInOrder, windowMessage);
@@ -104,3 +122,12 @@ export const calendarRange = z
     path: ['to'],
   });
 export type CalendarRange = z.output<typeof calendarRange>;
+
+/** Answers sent with an RSVP, one per question id. */
+export const registerBody = z.object({
+  answers: z
+    .array(z.object({ question: objectId, answer: z.string().trim().max(1000) }))
+    .max(5)
+    .default([]),
+});
+export type RegisterBody = z.output<typeof registerBody>;

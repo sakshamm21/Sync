@@ -57,6 +57,8 @@ export default function RsvpButton({ event, onChange, size = 'sm', className }: 
   const [pending, setPending] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [confirmingLeave, setConfirmingLeave] = useState(false);
+  const [questionsOpen, setQuestionsOpen] = useState(false);
+  const [answers, setAnswers] = useState<Record<string, string>>({});
   const buttonRef = useRef<HTMLDivElement>(null);
 
   if (event.visibility === 'private') return null;
@@ -86,19 +88,27 @@ export default function RsvpButton({ event, onChange, size = 'sm', className }: 
 
   const registration = event.viewer.registration;
 
-  async function register() {
+  async function register(answers: { question: string; answer: string }[] = []) {
     if (!user) {
       router.push(`/authentication?next=${encodeURIComponent(`/events/${event.id}`)}`);
+      return;
+    }
+    // Events with questions ask them first, in a sheet.
+    if (event.questions?.length && !questionsOpen) {
+      setQuestionsOpen(true);
       return;
     }
     setPending(true);
     try {
       // Registering can report a clash with something already in the calendar.
       // It is a warning, not a block: the RSVP still goes through.
-      const result = await eventsApi.register(event.id);
+      const result = await eventsApi.register(event.id, answers);
       onChange(result);
       eventsChanged();
-      if (result.viewer.registration === 'going') {
+      setQuestionsOpen(false);
+      if (result.viewer.registration === 'pending') {
+        toast('Request sent', { description: "The organiser will approve or decline it. We'll let you know." });
+      } else if (result.viewer.registration === 'going') {
         celebrate(buttonRef.current);
         toast.success("You're in! 🎉", { description: "It's on your schedule. We'll nudge you the day before." });
       } else {
@@ -181,7 +191,7 @@ export default function RsvpButton({ event, onChange, size = 'sm', className }: 
       <div ref={buttonRef} className={className}>
         <Button variant="soft" size={size} onClick={() => setSheetOpen(true)} className="w-full" aria-haspopup="dialog">
           {registration === 'going' ? <Check /> : <Hourglass />}
-          {registration === 'going' ? "You're in" : 'Waitlisted'}
+          {registration === 'going' ? "You're in" : registration === 'pending' ? 'Requested' : 'Waitlisted'}
         </Button>
         <Dialog
           open={sheetOpen}
@@ -190,7 +200,7 @@ export default function RsvpButton({ event, onChange, size = 'sm', className }: 
             setConfirmingLeave(false);
           }}
           size="sm"
-          title={registration === 'going' ? "You're in" : "You're on the waitlist"}
+          title={registration === 'going' ? "You're in" : registration === 'pending' ? 'Request sent' : "You're on the waitlist"}
           description={event.title}
         >
           <div className="space-y-3 px-6 pb-6 sm:px-8">
@@ -198,6 +208,11 @@ export default function RsvpButton({ event, onChange, size = 'sm', className }: 
               <div className="flex justify-center py-2">
                 <TicketQr event={event} />
               </div>
+            )}
+            {registration === 'pending' && (
+              <p className="text-sm text-muted">
+                The organiser approves each place for this event. We&apos;ll let you know either way.
+              </p>
             )}
             {registration === 'waitlisted' && (
               <p className="text-sm text-muted">
@@ -267,6 +282,59 @@ export default function RsvpButton({ event, onChange, size = 'sm', className }: 
     );
   }
 
+  const questionsSheet = event.questions?.length ? (
+    <Dialog
+      open={questionsOpen}
+      onClose={() => setQuestionsOpen(false)}
+      size="sm"
+      title={event.requiresApproval ? 'Request a place' : 'A few questions'}
+      description={event.title}
+    >
+      <form
+        className="space-y-4 px-6 pb-6 sm:px-8"
+        onSubmit={(e) => {
+          e.preventDefault();
+          void register(Object.entries(answers).map(([question, answer]) => ({ question, answer })));
+        }}
+      >
+        {event.questions.map((q) => (
+          <label key={q.id} className="block space-y-1.5">
+            <span className="text-sm font-medium">
+              {q.label}
+              {q.required && <span className="text-danger"> *</span>}
+            </span>
+            {q.kind === 'choice' ? (
+              <select
+                required={q.required}
+                value={answers[q.id] ?? ''}
+                onChange={(e) => setAnswers((a) => ({ ...a, [q.id]: e.target.value }))}
+                className="h-11 w-full rounded-xl border border-border bg-surface-muted px-3 text-sm outline-none focus:border-primary"
+              >
+                <option value="">Choose…</option>
+                {q.options.map((o) => (
+                  <option key={o} value={o}>
+                    {o}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <input
+                required={q.required}
+                maxLength={1000}
+                value={answers[q.id] ?? ''}
+                onChange={(e) => setAnswers((a) => ({ ...a, [q.id]: e.target.value }))}
+                className="h-11 w-full rounded-xl border border-border bg-surface-muted px-3 text-sm outline-none focus:border-primary"
+              />
+            )}
+          </label>
+        ))}
+        <Button type="submit" loading={pending} className="w-full">
+          {event.requiresApproval ? 'Send request' : "I'm in"}
+        </Button>
+      </form>
+    </Dialog>
+  ) : null;
+
   return (
     <div ref={buttonRef} className={className}>
       <Button
@@ -274,12 +342,13 @@ export default function RsvpButton({ event, onChange, size = 'sm', className }: 
         variant={event.spotsLeft === 0 ? 'secondary' : 'primary'}
         size={size}
         loading={pending}
-        onClick={register}
+        onClick={() => register()}
         className="w-full"
       >
         {!pending && <Plus />}
-        {event.spotsLeft === 0 ? 'Join waitlist' : "I'm in"}
+        {event.requiresApproval ? 'Request a place' : event.spotsLeft === 0 ? 'Join waitlist' : "I'm in"}
       </Button>
+      {questionsSheet}
     </div>
   );
 }

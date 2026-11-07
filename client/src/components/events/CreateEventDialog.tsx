@@ -78,6 +78,9 @@ interface FormState {
   registrationClosesAt: string;
   /** '' = move people in automatically; otherwise hours a freed seat is held. */
   waitlistClaimHours: string;
+  /** Asked at RSVP time; choice options are typed comma-separated. */
+  questions: { label: string; kind: 'text' | 'choice'; options: string; required: boolean }[];
+  requiresApproval: boolean;
   isPublic: boolean;
 }
 
@@ -117,6 +120,13 @@ function initialState(event: SyncEvent | undefined, canPublish: boolean, date?: 
       registrationOpensAt: event.registrationOpensAt ? toDateTimeInput(new Date(event.registrationOpensAt)) : '',
       registrationClosesAt: event.registrationClosesAt ? toDateTimeInput(new Date(event.registrationClosesAt)) : '',
       waitlistClaimHours: event.waitlistClaimHours ? String(event.waitlistClaimHours) : '',
+      questions: (event.questions ?? []).map((q) => ({
+        label: q.label,
+        kind: q.kind,
+        options: q.options.join(', '),
+        required: q.required,
+      })),
+      requiresApproval: Boolean(event.requiresApproval),
       isPublic: event.visibility === 'public',
     };
   }
@@ -138,6 +148,8 @@ function initialState(event: SyncEvent | undefined, canPublish: boolean, date?: 
     registrationOpensAt: '',
     registrationClosesAt: '',
     waitlistClaimHours: '',
+    questions: [],
+    requiresApproval: false,
     isPublic: canPublish,
   };
 }
@@ -312,6 +324,21 @@ function EventForm({
       body.capacity = form.capacity ? Number(form.capacity) : null;
       body.registrationOpensAt = form.registrationOpensAt ? fromDateTimeInput(form.registrationOpensAt).toISOString() : null;
       body.waitlistClaimHours = form.waitlistClaimHours ? Number(form.waitlistClaimHours) : null;
+      body.requiresApproval = form.requiresApproval;
+      body.questions = form.questions
+        .filter((q) => q.label.trim())
+        .map((q) => ({
+          label: q.label.trim(),
+          kind: q.kind,
+          required: q.required,
+          options:
+            q.kind === 'choice'
+              ? q.options
+                  .split(',')
+                  .map((o) => o.trim())
+                  .filter(Boolean)
+              : [],
+        }));
       body.registrationClosesAt = form.registrationClosesAt ? fromDateTimeInput(form.registrationClosesAt).toISOString() : null;
       // Editing keeps the current status unless the user explicitly saves a draft or publishes one.
       if (!isEdit || isDraft) body.status = asDraft ? 'draft' : 'published';
@@ -614,6 +641,99 @@ function EventForm({
                 onChange={(e) => set('registrationClosesAt', e.target.value)}
               />
             </Field>
+          </div>
+        )}
+
+        {form.isPublic && (
+          <div className="space-y-3 rounded-2xl border border-border p-4">
+            <div className="flex items-start justify-between gap-4">
+              <span>
+                <span className="block text-sm font-medium">Approve each RSVP</span>
+                <span className="block text-sm text-muted">For selective workshops: people request a place and you decide.</span>
+              </span>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={form.requiresApproval}
+                aria-label="Approve each RSVP"
+                onClick={() => set('requiresApproval', !form.requiresApproval)}
+                className={cn(
+                  'relative h-6 w-11 shrink-0 rounded-full transition',
+                  form.requiresApproval ? 'bg-primary' : 'bg-border-strong'
+                )}
+              >
+                <span
+                  className={cn(
+                    'absolute top-0.5 size-5 rounded-full bg-white shadow transition-all',
+                    form.requiresApproval ? 'left-[22px]' : 'left-0.5'
+                  )}
+                />
+              </button>
+            </div>
+
+            <p className="pt-2 text-sm font-medium">Questions at RSVP</p>
+            {form.questions.map((q, i) => {
+              const update = (patch: Partial<FormState['questions'][number]>) =>
+                set(
+                  'questions',
+                  form.questions.map((x, j) => (j === i ? { ...x, ...patch } : x))
+                );
+              return (
+                <div key={i} className="grid gap-2 sm:grid-cols-[1fr_8rem]">
+                  <Input
+                    aria-label={`Question ${i + 1}`}
+                    placeholder="e.g. Roll number"
+                    value={q.label}
+                    onChange={(e) => update({ label: e.target.value })}
+                  />
+                  <select
+                    aria-label={`Question ${i + 1} type`}
+                    value={q.kind}
+                    onChange={(e) => update({ kind: e.target.value as 'text' | 'choice' })}
+                    className="h-12 rounded-2xl border border-border bg-surface-muted px-3 text-sm outline-none focus:border-primary"
+                  >
+                    <option value="text">Text</option>
+                    <option value="choice">Choice</option>
+                  </select>
+                  {q.kind === 'choice' && (
+                    <Input
+                      aria-label={`Question ${i + 1} options`}
+                      placeholder="Options, comma-separated: S, M, L"
+                      value={q.options}
+                      onChange={(e) => update({ options: e.target.value })}
+                      className="sm:col-span-2"
+                    />
+                  )}
+                  <div className="flex items-center justify-between sm:col-span-2">
+                    <label className="flex items-center gap-2 text-xs text-muted">
+                      <input type="checkbox" checked={q.required} onChange={(e) => update({ required: e.target.checked })} />{' '}
+                      Required
+                    </label>
+                    <button
+                      type="button"
+                      className="text-xs text-muted hover:text-danger"
+                      onClick={() =>
+                        set(
+                          'questions',
+                          form.questions.filter((_, j) => j !== i)
+                        )
+                      }
+                    >
+                      Remove
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+            {form.questions.length < 5 && (
+              <Button
+                variant="secondary"
+                size="sm"
+                onClick={() => set('questions', [...form.questions, { label: '', kind: 'text', options: '', required: false }])}
+              >
+                Add a question
+              </Button>
+            )}
           </div>
         )}
       </div>

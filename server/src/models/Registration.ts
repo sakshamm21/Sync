@@ -9,6 +9,8 @@ export interface IRegistration {
   reminderSentAt: Date | null;
   /** For `offered`: the seat goes to the next person after this. */
   offerExpiresAt: Date | null;
+  /** Answers to the event's questions, keyed by question id. */
+  answers: { question: Types.ObjectId; answer: string }[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -23,6 +25,10 @@ const registrationSchema = new Schema<IRegistration>(
     checkedInAt: { type: Date, default: null },
     reminderSentAt: { type: Date, default: null },
     offerExpiresAt: { type: Date, default: null },
+    answers: {
+      type: [{ question: { type: Schema.Types.ObjectId, required: true }, answer: { type: String, maxlength: 1000 } }],
+      default: [],
+    },
   },
   { timestamps: true }
 );

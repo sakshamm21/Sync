@@ -45,6 +45,8 @@ export const REGISTRATION_STATUS = Object.freeze({
   WAITLISTED: 'waitlisted',
   /** Offered a freed seat that must be claimed before `offerExpiresAt` (events with a claim window). */
   OFFERED: 'offered',
+  /** Asked to join an event that needs the organiser's approval; holds no seat yet. */
+  PENDING: 'pending',
 } as const);
 export type RegistrationStatus = ValueOf<typeof REGISTRATION_STATUS>;
 
@@ -82,6 +84,8 @@ export const NOTIFICATION_TYPES = Object.freeze({
   CLUB_NEW_EVENT: 'club_new_event',
   /** A spot opened up and is being held for you to claim. */
   WAITLIST_OFFER: 'waitlist_offer',
+  /** The organiser approved or declined your request to join. */
+  REGISTRATION_DECISION: 'registration_decision',
 } as const);
 export type NotificationType = ValueOf<typeof NOTIFICATION_TYPES>;
 
