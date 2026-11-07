@@ -6,6 +6,7 @@ import { CATEGORY_VALUES, NOTIFICATION_TYPES, type NotificationType } from '../.
 import * as service from './me.service';
 import * as account from './account.service';
 import * as auth from '../auth/auth.service';
+import * as chat from '../chat/chat.service';
 import { assertNotDemoAccount } from '../../demo/accounts';
 import * as events from '../events/events.service';
 import * as registrations from '../events/registrations.service';
@@ -127,6 +128,29 @@ router.post(
     await account.deleteAccount(currentUser(req), req.body.password);
     res.json({ data: { deleted: true } });
   })
+);
+
+/** Unread message counts for the given chats (?events=id,id). */
+router.get(
+  '/chats/unread',
+  validate(
+    {
+      query: z.object({
+        events: z
+          .string()
+          .max(5000)
+          .transform((v) =>
+            v
+              .split(',')
+              .filter((x) => /^[a-f\d]{24}$/i.test(x))
+              .slice(0, 100)
+          ),
+      }),
+    },
+    async (req, res) => {
+      res.json({ data: await chat.unreadCounts(currentUser(req), req.query.events) });
+    }
+  )
 );
 
 /** The secret calendar subscription URL ("Subscribe in Google/Apple/Outlook Calendar"). */

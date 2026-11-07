@@ -260,6 +260,8 @@ const messageBody = z.object({
   announcement: z.boolean().default(false),
   /** Who an announcement notifies: everyone registered, only those going, or only the waitlist. */
   audience: z.enum(['all', 'going', 'waitlisted']).default('all'),
+  /** Replying to another message in this chat. */
+  replyTo: objectId.optional(),
 });
 
 router.get(
@@ -278,6 +280,25 @@ router.delete(
   authenticate,
   validate({ params: messageParams }, async (req, res) => {
     res.json({ data: await chat.removeMessage(currentUser(req), req.params.id, req.params.messageId) });
+  })
+);
+
+router.put(
+  '/:id/messages/:messageId/reactions',
+  authenticate,
+  validate({ params: messageParams, body: z.object({ emoji: z.enum(chat.REACTIONS) }) }, async (req, res) => {
+    res.json({ data: await chat.toggleReaction(currentUser(req), req.params.id, req.params.messageId, req.body.emoji) });
+  })
+);
+
+/** "I've read this chat": clears its unread badge. */
+router.post(
+  '/:id/messages/read',
+  authenticate,
+  validate({ params: idParams }, async (req, res) => {
+    const event = await chat.findChatEvent(currentUser(req), req.params.id);
+    await chat.markRead(currentUser(req), event._id);
+    res.json({ data: { ok: true } });
   })
 );
 

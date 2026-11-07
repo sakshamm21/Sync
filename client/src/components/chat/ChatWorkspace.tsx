@@ -21,6 +21,7 @@ export default function ChatWorkspace() {
   const [activeId, setActiveId] = useState<string | null>(null);
   // On small screens show either the list or the thread.
   const [showThread, setShowThread] = useState(false);
+  const [unread, setUnread] = useState<Record<string, number>>({});
 
   useEffect(() => {
     // Events you're going to, plus every event you help run (owners and
@@ -37,6 +38,20 @@ export default function ChatWorkspace() {
       })
       .catch(() => setChannels([]));
   }, [user?.role, user?.isEventStaff, version]);
+
+  // Unread badges, refreshed every 30 s; the open chat is cleared as it's read.
+  const channelKey = channels?.map((c) => c.id).join(',') ?? '';
+  useEffect(() => {
+    if (!channelKey) return;
+    const load = () =>
+      meApi
+        .chatUnread(channelKey.split(','))
+        .then(setUnread)
+        .catch(() => {});
+    void load();
+    const timer = window.setInterval(load, 30_000);
+    return () => window.clearInterval(timer);
+  }, [channelKey]);
 
   if (channels === null) return <div className="h-[70vh] animate-pulse rounded-2xl bg-surface-muted" />;
 
@@ -71,6 +86,7 @@ export default function ChatWorkspace() {
                 onClick={() => {
                   setActiveId(channel.id);
                   setShowThread(true);
+                  setUnread((u) => ({ ...u, [channel.id]: 0 }));
                 }}
                 className={cn(
                   'flex w-full items-center gap-3 rounded-2xl p-2 text-left transition',
@@ -82,6 +98,14 @@ export default function ChatWorkspace() {
                   <span className="block truncate text-sm font-medium">{channel.title}</span>
                   <span className="font-mono text-[10px] uppercase tracking-wider opacity-90">{formatDay(channel.startsAt)}</span>
                 </span>
+                {channel.id !== activeId && (unread[channel.id] ?? 0) > 0 && (
+                  <span
+                    className="ml-auto flex min-w-5 items-center justify-center rounded-full bg-pink px-1.5 text-[11px] font-bold text-[#09090d]"
+                    aria-label={`${unread[channel.id]} unread`}
+                  >
+                    {unread[channel.id] > 9 ? '9+' : unread[channel.id]}
+                  </span>
+                )}
               </button>
             </li>
           ))}

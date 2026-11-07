@@ -67,6 +67,7 @@ Severity labels:
 | #29 | Next #12 (rest): change email, privacy and terms pages |
 | #30 | Next #9 (rest): platform trends, suspension reasons |
 | #31 | Next #7: friends and "friends going" |
+| #32 | Next #6 (rest): replies, reactions, unread badges |
 
 **Still open, and why:**
 

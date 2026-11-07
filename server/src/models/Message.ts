@@ -8,6 +8,10 @@ export interface IMessage {
   isAnnouncement: boolean;
   /** Set when an organiser, the sender or an admin removed it; the text is cleared. */
   removedAt: Date | null;
+  /** The message this one answers, if any. */
+  replyTo: Types.ObjectId | null;
+  /** Emoji reactions: who reacted with what. */
+  reactions: { emoji: string; user: Types.ObjectId }[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -23,6 +27,8 @@ const messageSchema = new Schema<IMessage>(
     text: { type: String, trim: true, maxlength: 2000, default: '' },
     isAnnouncement: { type: Boolean, default: false },
     removedAt: { type: Date, default: null },
+    replyTo: { type: Schema.Types.ObjectId, ref: 'Message', default: null },
+    reactions: { type: [{ emoji: String, user: { type: Schema.Types.ObjectId, ref: 'User' } }], default: [], _id: false },
   },
   { timestamps: true }
 );
