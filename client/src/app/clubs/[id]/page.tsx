@@ -7,6 +7,7 @@ import PublicHeader from '@/components/shell/PublicHeader';
 import { AmbientGlow } from '@/components/shell/AppShell';
 import EventCard from '@/components/events/EventCard';
 import FollowButton from '@/components/clubs/FollowButton';
+import { TIER_LABEL } from '@/components/organizer/Sponsors';
 import { useAuth } from '@/context/AuthContext';
 import { clubsApi, errorMessage, type ClubProfile, type SyncEvent } from '@/lib/api';
 import { Avatar, EmptyState, Kicker } from '@/components/ui/surface';
@@ -80,6 +81,26 @@ export default function ClubPage({ params }: { params: Promise<{ id: string }> }
                   <EventCard key={e.id} event={e} onChange={replace('upcoming')} />
                 ))}
               </div>
+            )}
+
+            {club.sponsors.length > 0 && (
+              <>
+                <h2 className="mb-4 mt-12 font-display text-2xl font-extrabold">Supported by</h2>
+                <ul className="flex flex-wrap gap-3">
+                  {club.sponsors.map((s) => (
+                    <li key={s.id} className="rounded-2xl border border-border bg-surface px-4 py-3">
+                      {s.url ? (
+                        <a href={s.url} target="_blank" rel="noopener noreferrer" className="font-semibold hover:underline">
+                          {s.name}
+                        </a>
+                      ) : (
+                        <span className="font-semibold">{s.name}</span>
+                      )}
+                      <span className="ml-2 text-xs text-muted">{TIER_LABEL[s.tier]}</span>
+                    </li>
+                  ))}
+                </ul>
+              </>
             )}
 
             {club.past.length > 0 && (

@@ -25,6 +25,8 @@ import EventChat from '@/components/chat/EventChat';
 import DoorScanner from '@/components/organizer/DoorScanner';
 import DoorMode from '@/components/organizer/DoorMode';
 import EventTeam from '@/components/organizer/EventTeam';
+import Shifts from '@/components/organizer/Shifts';
+import Budget from '@/components/organizer/Budget';
 import TeamsCard from '@/components/teams/TeamsCard';
 import { Button, ButtonLink } from '@/components/ui/button';
 import { Avatar, Badge, Card, EmptyState, StatCard } from '@/components/ui/surface';
@@ -242,6 +244,7 @@ export default function EventManagement({ eventId }: { eventId: string }) {
         {header}
         <DoorMode event={event} version={version} />
         {event.teamSize && <TeamsCard eventId={event.id} />}
+        <Shifts event={event} />
       </div>
     );
   }
@@ -380,6 +383,11 @@ export default function EventManagement({ eventId }: { eventId: string }) {
           </p>
           <DoorScanner event={event} onScanned={load} />
         </Card>
+      </div>
+
+      <div className="grid gap-6 xl:grid-cols-2">
+        <Shifts event={event} />
+        <Budget eventId={event.id} />
       </div>
     </div>
   );

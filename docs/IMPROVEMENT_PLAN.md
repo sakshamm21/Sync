@@ -86,7 +86,8 @@ Severity labels:
   - transactions (a replica set; Atlas has one, but the test database doesn't).
 - **Not started:**
   - E3: a contract test (#22) catches drift between the API's constants and the web app's types; a real shared package is still open because both Vercel projects only build their own folder;
-  - the rest of **Later**: paid tickets (a Razorpay account), several campuses per deployment (a data-model decision), a native app with wallet passes (Apple and Google developer accounts), other languages (translations), two-way Google Calendar (a Google OAuth app), and club operations (volunteer shifts, sponsors, budgets: product decisions).
+  - the rest of **Later**: paid tickets (a Razorpay account), several campuses per deployment (a data-model decision), a native app with wallet passes (Apple and Google developer accounts), other languages (translations), two-way Google Calendar (a Google OAuth app). Two-way Google Calendar is the only calendar piece left: the one-way subscription (with an "Add to Google Calendar" button) is in Settings.
+- **Club operations** (volunteer shifts, sponsors, budgets): API in #39, screens in the PR after it.
 
 ---
 

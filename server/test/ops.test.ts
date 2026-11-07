@@ -66,11 +66,19 @@ describe('club operations', () => {
       .set(club.auth)
       .send({ name: 'Acme Robotics', url: 'https://acme.example.com', tier: 'gold' })
       .expect(201);
+    await api().post('/api/ops/sponsors').set(club.auth).send({ name: 'Beta Labs' }).expect(201);
+    await api().post('/api/ops/sponsors').set(club.auth).send({ name: 'Zed Corp', tier: 'title' }).expect(201);
     await api().post('/api/ops/sponsors').set(stranger.auth).send({ name: 'Nope' }).expect(403);
+    // Title sponsors first, then gold, then partners; not alphabetical by tier name.
     const page = (await api().get(`/api/clubs/${club.user.id}`).expect(200)).body.data;
     assert.deepEqual(
       page.sponsors.map((s: { name: string }) => s.name),
-      ['Acme Robotics']
+      ['Zed Corp', 'Acme Robotics', 'Beta Labs']
+    );
+    const mine = (await api().get('/api/ops/sponsors/mine').set(club.auth).expect(200)).body.data;
+    assert.deepEqual(
+      mine.map((s: { name: string }) => s.name),
+      ['Zed Corp', 'Acme Robotics', 'Beta Labs']
     );
   });
 });

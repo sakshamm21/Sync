@@ -19,6 +19,7 @@ import {
 import { useEventsSync } from '@/context/EventContext';
 import { useAuth } from '@/context/AuthContext';
 import Committee from '@/components/organizer/Committee';
+import Sponsors from '@/components/organizer/Sponsors';
 import { errorMessage, eventsApi, organizerApi, type OrganizedEvent, type OrganizerOverview } from '@/lib/api';
 import { formatEventWhen, formatVenue } from '@/lib/format';
 import { useCreateEvent } from '@/components/events/CreateEventDialog';
@@ -302,7 +303,12 @@ export default function OrganizerConsole() {
       />
 
       {/* Club accounts (organisers and admins) manage their committee here. */}
-      {(user?.role === 'organizer' || user?.role === 'admin') && <Committee />}
+      {(user?.role === 'organizer' || user?.role === 'admin') && (
+        <>
+          <Committee />
+          <Sponsors />
+        </>
+      )}
     </>
   );
 }
