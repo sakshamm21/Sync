@@ -57,6 +57,7 @@ Severity labels:
 | #19 | Now #10, #11: sign-up windows, targeted announcements, preview as attendee, offline door scans |
 | #20 | Now #6: waitlist claim window, "take any seat automatically" |
 | #21 | Now #10: cover photo upload (Vercel Blob; off until a store is connected) |
+| #22 | E3: API contract test for shared types |
 
 **Still open, and why:**
 
@@ -68,7 +69,7 @@ Severity labels:
   - typo-tolerant search (an Atlas Search index);
   - transactions (a replica set; Atlas has one, but the test database doesn't).
 - **Not started:**
-  - E3 (shared types package);
+  - E3: a contract test (#22) catches drift between the API's constants and the web app's types; a real shared package is still open because both Vercel projects only build their own folder;
   - everything under **Next** and **Later**.
 
 ---
