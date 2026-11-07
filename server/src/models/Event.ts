@@ -51,6 +51,8 @@ export interface IEvent {
   questions: EventQuestion[];
   /** Each RSVP waits for the organiser to approve it. */
   requiresApproval: boolean;
+  /** Shared by every date of a repeating event (null for one-offs). */
+  seriesId: Types.ObjectId | null;
   attendeeCount: number;
   /** People who bookmarked it as "Interested" (a cache of Interest rows). */
   interestedCount: number;
@@ -127,6 +129,7 @@ const eventSchema = new Schema<IEvent, EventModel, EventMethods, {}, EventVirtua
       default: [],
     },
     requiresApproval: { type: Boolean, default: false },
+    seriesId: { type: Schema.Types.ObjectId, default: null, index: true },
     attendeeCount: { type: Number, min: 0, default: 0 },
     interestedCount: { type: Number, min: 0, default: 0 },
     ratingSum: { type: Number, min: 0, default: 0 },

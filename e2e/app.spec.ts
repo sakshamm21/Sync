@@ -346,3 +346,19 @@ test('attendees of a past event can leave feedback and print a certificate', asy
   await expect(page.getByText('Certificate of participation')).toBeVisible();
   await expect(page.getByText(/^Ref\. SYNC-/)).toBeVisible();
 });
+
+test('members can RSVP to every date of a weekly series at once', async ({ page }) => {
+  const organizer = await tokenFor('organizer@syncronify.dev');
+  const start = new Date(Date.now() + 3 * 864e5).toISOString();
+  const end = new Date(Date.now() + 3 * 864e5 + 2 * 36e5).toISOString();
+  const created = await page.request.post(`${API}/api/events`, {
+    headers: { Authorization: `Bearer ${organizer}` },
+    data: { title: 'Weekly Coding Club', category: 'meetup', startsAt: start, endsAt: end, repeat: { every: 'week', count: 3 } },
+  });
+  const { id } = (await created.json()).data;
+  await signInAs(page, 'tester2@syncronify.dev');
+  await page.goto(`/events/${id}`);
+  await expect(page.getByText('Repeats · 3 upcoming dates')).toBeVisible();
+  await page.getByRole('button', { name: 'RSVP to all dates' }).click();
+  await expect(page.getByText("You're down for 3 of 3 dates")).toBeVisible();
+});

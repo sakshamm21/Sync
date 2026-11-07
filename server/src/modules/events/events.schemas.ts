@@ -70,6 +70,8 @@ export const create = z
     waitlistClaimHours: fields.waitlistClaimHours.optional(),
     questions: fields.questions.optional(),
     requiresApproval: fields.requiresApproval.optional(),
+    /** Create more dates: the same event every week (or two) for `count` dates in all. */
+    repeat: z.object({ every: z.enum(['week', 'fortnight']), count: z.number().int().min(2).max(16) }).optional(),
   })
   .refine(endsAfterStart, endsAfterStartMessage)
   .refine(windowInOrder, windowMessage);

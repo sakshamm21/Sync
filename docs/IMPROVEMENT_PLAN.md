@@ -62,6 +62,7 @@ Severity labels:
 | #24 | Next #12 (export and delete account), #9 (admin audit log) |
 | #25 | Next #6 (chat moderation), #4 (organiser insights) |
 | #26 | Next #5: certificates, My events history, written feedback |
+| #27 | Next #3: recurring events |
 
 **Still open, and why:**
 

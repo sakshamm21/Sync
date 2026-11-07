@@ -81,6 +81,8 @@ interface FormState {
   /** Asked at RSVP time; choice options are typed comma-separated. */
   questions: { label: string; kind: 'text' | 'choice'; options: string; required: boolean }[];
   requiresApproval: boolean;
+  /** '' = one-off; otherwise "week:4" / "fortnight:6" (only when creating). */
+  repeat: string;
   isPublic: boolean;
 }
 
@@ -127,6 +129,7 @@ function initialState(event: SyncEvent | undefined, canPublish: boolean, date?: 
         required: q.required,
       })),
       requiresApproval: Boolean(event.requiresApproval),
+      repeat: '',
       isPublic: event.visibility === 'public',
     };
   }
@@ -150,6 +153,7 @@ function initialState(event: SyncEvent | undefined, canPublish: boolean, date?: 
     waitlistClaimHours: '',
     questions: [],
     requiresApproval: false,
+    repeat: '',
     isPublic: canPublish,
   };
 }
@@ -344,6 +348,10 @@ function EventForm({
       if (!isEdit || isDraft) body.status = asDraft ? 'draft' : 'published';
     }
     if (!isEdit) body.visibility = form.isPublic ? 'public' : 'private';
+    if (!isEdit && form.repeat) {
+      const [every, count] = form.repeat.split(':');
+      body.repeat = { every: every as 'week' | 'fortnight', count: Number(count) };
+    }
 
     setSaving(asDraft ? 'draft' : 'publish');
     setErrors({});
@@ -597,6 +605,27 @@ function EventForm({
                 )}
               </div>
             </Field>
+            {!isEdit && (
+              <Field
+                label="Repeats"
+                htmlFor="event-repeat"
+                hint="Each date becomes its own event, so each can be edited or cancelled."
+              >
+                <select
+                  id="event-repeat"
+                  value={form.repeat}
+                  onChange={(e) => set('repeat', e.target.value)}
+                  className="h-12 w-full rounded-2xl border border-border bg-surface-muted px-4 text-[15px] outline-none focus:border-primary focus:ring-4 focus:ring-ring/25"
+                >
+                  <option value="">Doesn&apos;t repeat</option>
+                  <option value="week:4">Weekly, 4 dates</option>
+                  <option value="week:8">Weekly, 8 dates</option>
+                  <option value="week:12">Weekly, 12 dates</option>
+                  <option value="fortnight:4">Every two weeks, 4 dates</option>
+                  <option value="fortnight:8">Every two weeks, 8 dates</option>
+                </select>
+              </Field>
+            )}
             <Field
               label="When a spot opens up"
               htmlFor="event-claim"

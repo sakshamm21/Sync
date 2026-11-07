@@ -292,8 +292,11 @@ export async function create(user: UserDocument, input: CreateEventInput) {
   }
 
   const isPublic = visibility === EVENT_VISIBILITY.PUBLIC;
+  const { repeat, ...details } = input;
+  const seriesId = repeat ? new Types.ObjectId() : null;
   const event = await Event.create({
-    ...input,
+    ...details,
+    seriesId,
     visibility,
     // Personal events have no registration, so drafts and capacity don't apply.
     status: isPublic ? (input.status ?? EVENT_STATUS.PUBLISHED) : EVENT_STATUS.PUBLISHED,
@@ -302,9 +305,43 @@ export async function create(user: UserDocument, input: CreateEventInput) {
     // The creator is always in `organizers` so co-ownership needs no special case.
     organizers: [user._id],
   });
+  // The rest of a repeating series: same details, moved on a week (or two) each time.
+  if (repeat) {
+    const step = (repeat.every === 'fortnight' ? 14 : 7) * 24 * 60 * 60 * 1000;
+    const base = event.toObject();
+    const shift = (d: Date | null | undefined, n: number) => (d ? new Date(d.getTime() + n * step) : d);
+    await Event.insertMany(
+      Array.from({ length: repeat.count - 1 }, (_, i) => {
+        const n = i + 1;
+        const { _id: _ignored, createdAt: _c, updatedAt: _u, ...copy } = base;
+        return {
+          ...copy,
+          startsAt: shift(base.startsAt, n),
+          endsAt: shift(base.endsAt, n),
+          registrationOpensAt: shift(base.registrationOpensAt, n),
+          registrationClosesAt: shift(base.registrationClosesAt, n),
+          attendeeCount: 0,
+          interestedCount: 0,
+          ratingSum: 0,
+          ratingCount: 0,
+        };
+      })
+    );
+  }
   await event.populate('owner', OWNER_FIELDS);
   if (isPublic && event.status === EVENT_STATUS.PUBLISHED) await clubs.announceNewEvent(event);
   return present(event, user);
+}
+
+/** The other upcoming dates of an event's series, soonest first. */
+export async function seriesFor(viewer: Viewer, id: string) {
+  const event = await findViewableEvent(viewer, id);
+  if (!event.seriesId) return [];
+  const dates = await Event.find({ seriesId: event.seriesId, endsAt: { $gte: new Date() }, status: { $ne: EVENT_STATUS.DRAFT } })
+    .sort({ startsAt: 1 })
+    .limit(20)
+    .populate('owner', OWNER_FIELDS);
+  return withViewerContext(dates, viewer);
 }
 
 const logisticsSnapshot = (event: EventDocument) => JSON.stringify([event.startsAt, event.endsAt, event.venue, event.onlineUrl]);
