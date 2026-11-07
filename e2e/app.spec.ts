@@ -313,3 +313,27 @@ test('admins can read the audit log', async ({ page }) => {
   await page.goto('/admin?tab=audit');
   await expect(page.getByText(`Suspended ${users[0].name}`).first()).toBeVisible();
 });
+
+test('chat messages can be removed by the sender and reported by others; organisers see insights', async ({ page, browser }) => {
+  const organizer = await tokenFor('organizer@syncronify.dev');
+  const member = await signInAs(page, 'member@syncronify.dev');
+  const going = (await apiGet<Ev[]>(member, '/api/me/registrations?upcoming=true')).find(
+    (e) => e.visibility === 'public' && e.viewer.registration === 'going'
+  )!;
+  await page.goto('/chat');
+  await page
+    .getByRole('button', { name: new RegExp(going.title) })
+    .first()
+    .click();
+  await page.getByLabel('Message').fill('Typo, ignore me');
+  await page.keyboard.press('Enter');
+  await expect(page.getByText('Typo, ignore me')).toBeVisible();
+  await page.getByRole('button', { name: 'Remove' }).last().click();
+  await expect(page.getByText('Message removed').last()).toBeVisible();
+
+  const org = await browser.newPage();
+  await org.addInitScript((t) => window.localStorage.setItem('sync.token', t), organizer);
+  await org.goto(`/organizer/events/${going.id}`);
+  await expect(org.getByRole('heading', { name: 'RSVPs over time' })).toBeVisible();
+  await org.close();
+});

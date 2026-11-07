@@ -24,6 +24,7 @@ import {
   errorMessage,
   type AuditEntry,
   type EventReport,
+  type MessageReport,
   type OrganizerApplication,
   type PageMeta,
   type PlatformStats,
@@ -534,6 +535,68 @@ function Reports() {
 }
 
 /** Every admin action, newest first: who did what to whom. */
+/** Chat messages members reported. Reviewing removes the message. */
+function MessageReports() {
+  const [items, setItems] = useState<MessageReport[] | null>(null);
+  const load = useCallback(() => {
+    adminApi
+      .messageReports('open')
+      .then(setItems)
+      .catch((err) => toast.error(errorMessage(err)));
+  }, []);
+  useEffect(load, [load]);
+
+  async function resolve(report: MessageReport, status: 'reviewed' | 'dismissed') {
+    try {
+      await adminApi.resolveMessageReport(report.id, status);
+      toast.success(status === 'reviewed' ? 'Message removed' : 'Report dismissed');
+      load();
+    } catch (err) {
+      toast.error(errorMessage(err));
+    }
+  }
+
+  return (
+    <Card className="mt-6 overflow-hidden">
+      <div className="border-b border-border p-4">
+        <h2 className="font-semibold">Reported messages</h2>
+        <p className="mt-0.5 text-xs text-muted">
+          Removing a message replaces it with &ldquo;Message removed&rdquo; in the chat.
+        </p>
+      </div>
+      {items === null ? (
+        <div className="m-4 h-16 animate-pulse rounded-xl bg-surface-muted" />
+      ) : items.length === 0 ? (
+        <p className="px-4 py-10 text-center text-sm text-muted">No reported messages. 🎉</p>
+      ) : (
+        <ul className="divide-y divide-border">
+          {items.map((r) => (
+            <li key={r.id} className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center">
+              <div className="min-w-0 flex-1">
+                <p className="text-sm">
+                  <span className="font-medium">{r.message?.sender ?? 'Someone'}</span> in {r.event?.title ?? 'a deleted event'}:{' '}
+                  <span className="italic">{r.message?.removed ? '(already removed)' : `“${r.message?.text ?? ''}”`}</span>
+                </p>
+                <p className="text-xs text-muted">
+                  Reported by {r.reporter?.name ?? 'a member'} · {r.reason} · {formatRelative(r.createdAt)}
+                </p>
+              </div>
+              <div className="flex shrink-0 gap-2">
+                <Button size="sm" variant="danger" onClick={() => resolve(r, 'reviewed')}>
+                  Remove message
+                </Button>
+                <Button size="sm" variant="ghost" onClick={() => resolve(r, 'dismissed')}>
+                  Dismiss
+                </Button>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Card>
+  );
+}
+
 function AuditLog() {
   const [entries, setEntries] = useState<AuditEntry[] | null>(null);
   const [page, setPage] = useState(1);
@@ -616,7 +679,12 @@ export default function AdminConsole() {
       {tab === 'overview' && <Overview onOpen={setTab} />}
       {tab === 'users' && <People />}
       {tab === 'applications' && <Applications />}
-      {tab === 'reports' && <Reports />}
+      {tab === 'reports' && (
+        <>
+          <Reports />
+          <MessageReports />
+        </>
+      )}
       {tab === 'audit' && <AuditLog />}
     </>
   );

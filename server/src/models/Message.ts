@@ -6,6 +6,8 @@ export interface IMessage {
   text: string;
   // Announcements are organiser broadcasts; attendees are also notified.
   isAnnouncement: boolean;
+  /** Set when an organiser, the sender or an admin removed it; the text is cleared. */
+  removedAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -17,8 +19,10 @@ const messageSchema = new Schema<IMessage>(
   {
     event: { type: Schema.Types.ObjectId, ref: 'Event', required: true },
     sender: { type: Schema.Types.ObjectId, ref: 'User', required: true },
-    text: { type: String, required: true, trim: true, maxlength: 2000 },
+    // Not required: a removed message keeps its place in the thread with no text.
+    text: { type: String, trim: true, maxlength: 2000, default: '' },
     isAnnouncement: { type: Boolean, default: false },
+    removedAt: { type: Date, default: null },
   },
   { timestamps: true }
 );

@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { authenticate, currentUser, optionalAuth } from '../../middleware/auth';
 import validate from '../../middleware/validate';
 import { z, idParams, objectId } from '../../lib/schemas';
-import { REGISTRATION_STATUS, MAX_RATING } from '../../constants';
+import { REGISTRATION_STATUS, MAX_RATING, REPORT_REASONS } from '../../constants';
 import * as schemas from './events.schemas';
 import * as events from './events.service';
 import * as registrations from './registrations.service';
@@ -232,6 +232,30 @@ router.get(
     const { items, hasMore } = await chat.listMessages(currentUser(req), req.params.id, req.query);
     res.json({ data: items, meta: { hasMore } });
   })
+);
+
+const messageParams = z.object({ id: objectId, messageId: objectId });
+
+router.delete(
+  '/:id/messages/:messageId',
+  authenticate,
+  validate({ params: messageParams }, async (req, res) => {
+    res.json({ data: await chat.removeMessage(currentUser(req), req.params.id, req.params.messageId) });
+  })
+);
+
+router.post(
+  '/:id/messages/:messageId/report',
+  authenticate,
+  validate(
+    {
+      params: messageParams,
+      body: z.object({ reason: z.enum(REPORT_REASONS), details: z.string().trim().max(1000).default('') }),
+    },
+    async (req, res) => {
+      res.status(201).json({ data: await chat.reportMessage(currentUser(req), req.params.id, req.params.messageId, req.body) });
+    }
+  )
 );
 
 router.post(

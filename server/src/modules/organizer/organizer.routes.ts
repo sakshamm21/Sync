@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { authenticate, currentUser } from '../../middleware/auth';
 import validate from '../../middleware/validate';
-import { z } from '../../lib/schemas';
+import { z, idParams } from '../../lib/schemas';
 import * as service from './organizer.service';
 
 const router = Router();
@@ -16,6 +16,13 @@ router.post(
   '/applications',
   validate({ body: applicationBody }, async (req, res) => {
     res.status(201).json({ data: await service.apply(currentUser(req), req.body) });
+  })
+);
+
+router.get(
+  '/events/:id/insights',
+  validate({ params: idParams }, async (req, res) => {
+    res.json({ data: await service.insights(currentUser(req), req.params.id) });
   })
 );
 
