@@ -90,7 +90,7 @@ describe('AI assistant', () => {
     assert.equal(first.body.model, 'test-model');
     assert.deepEqual(
       first.body.tools.map((t: any) => t.function.name),
-      ['search_events', 'get_my_schedule', 'get_event_details', 'get_recommendations']
+      ['search_events', 'get_my_schedule', 'get_event_details', 'get_recommendations', 'propose_action']
     );
     assert.match(first.body.messages[0].content, /Asia\/Kolkata/);
     assert.equal((first.headers as Record<string, string>).Authorization, 'Bearer test-key');
@@ -171,6 +171,48 @@ describe('AI assistant', () => {
     ]);
     const res = await ask(member.auth, 'details?').expect(200);
     assert.match(res.body.data.reply, /Event not found/);
+  });
+
+  it('offers actions as confirm buttons instead of doing them', async () => {
+    const organizer = await createUser({ role: 'organizer' });
+    const member = await createUser();
+    const event = (
+      await api()
+        .post('/api/events')
+        .set(organizer.auth)
+        .send(eventInput({ title: 'Rust Workshop' }))
+    ).body.data;
+
+    provider = fakeProvider([
+      () => toolCall('propose_action', { action: 'rsvp', event_id: event.id }),
+      (request) => {
+        assert.equal(lastToolResult(request).proposed, true);
+        return { content: `Tap the button to join [Rust Workshop](/events/${event.id}).` };
+      },
+    ]);
+    const res = await ask(member.auth, 'Sign me up for the Rust workshop').expect(200);
+    assert.deepEqual(
+      res.body.data.actions.map((a: any) => [a.type, a.eventId, a.title]),
+      [['rsvp', event.id, 'Rust Workshop']]
+    );
+    // Nothing happened yet: the user confirms through the normal API.
+    const view = (await api().get(`/api/events/${event.id}`).set(member.auth)).body.data;
+    assert.equal(view.viewer.registration, null);
+  });
+
+  it("won't offer an action that would fail", async () => {
+    const organizer = await createUser({ role: 'organizer' });
+    const member = await createUser();
+    const event = (await api().post('/api/events').set(organizer.auth).send(eventInput())).body.data;
+    provider = fakeProvider([
+      () => toolCall('propose_action', { action: 'cancel_rsvp', event_id: event.id }),
+      (request) => {
+        assert.match(lastToolResult(request).error, /not registered/);
+        return { content: "You aren't signed up for that one." };
+      },
+    ]);
+    const res = await ask(member.auth, 'Cancel my place').expect(200);
+    assert.deepEqual(res.body.data.actions, []);
   });
 
   it('validates the conversation', async () => {

@@ -2,6 +2,8 @@
  * The tools the AI assistant can call. Each one is a thin, read-only wrapper
  * over an existing service, so the assistant sees exactly what the user is
  * allowed to see (private events stay private) and never changes anything.
+ * The one exception, `propose_action`, still changes nothing: it puts a
+ * button in front of the user, who confirms it through the normal API.
  *
  * The zod schema of each tool is both the JSON Schema the model is shown and
  * the validator for the arguments it sends back.
@@ -16,11 +18,21 @@ import { calendarRange } from '../events/events.schemas';
 import type { PresentedEvent } from '../events/events.policy';
 import { CATEGORY_VALUES } from '../../constants';
 
+/** Something the assistant suggests doing; the user has to confirm it. */
+export interface ProposedAction {
+  type: 'rsvp' | 'cancel_rsvp' | 'interested';
+  eventId: string;
+  title: string;
+  when: string;
+}
+
 export interface ToolContext {
   user: UserDocument;
   timeZone: string;
   /** Every event a tool returned, so the reply can show cards for the ones it mentions. */
   seen: Map<string, PresentedEvent>;
+  /** Actions proposed during this reply, shown as confirm buttons. */
+  proposals?: ProposedAction[];
 }
 
 const isoDate = (what: string) =>
@@ -43,6 +55,12 @@ const schemas = {
     event_id: objectId.describe('The id of an event returned by another tool'),
   }),
   get_recommendations: z.object({}),
+  propose_action: z.object({
+    action: z
+      .enum(['rsvp', 'cancel_rsvp', 'interested'])
+      .describe('rsvp = "I\'m in"; cancel_rsvp = give up their place; interested = bookmark'),
+    event_id: objectId.describe('The id of an event returned by another tool'),
+  }),
 };
 
 type ToolName = keyof typeof schemas;
@@ -54,6 +72,8 @@ const descriptions: Record<ToolName, string> = {
     "The signed-in user's own calendar for a period: events they registered for, are waitlisted for, organise, or planned privately.",
   get_event_details: 'Full details of one event, including its description, venue, organiser and seats left.',
   get_recommendations: "Upcoming events picked for the user from their interests and what's popular, excluding ones they joined.",
+  propose_action:
+    'Offer to do something for the user: RSVP, cancel an RSVP, or mark an event as interested. It does NOT do it: the user sees a button and confirms. Use it when the user asks you to sign them up, cancel, or save an event.',
 };
 
 function toParameters(schema: z.ZodType): Record<string, unknown> {
@@ -138,6 +158,31 @@ const handlers: { [Name in ToolName]: (args: z.output<(typeof schemas)[Name]>, c
   async get_recommendations(_args, context) {
     const items = await events.recommendedFor(context.user);
     return { events: items.map((e) => summarize(e, context)) };
+  },
+
+  async propose_action({ action, event_id }, context) {
+    const event = await events.getForViewer(context.user, event_id);
+    const registered = event.viewer.registration;
+    // Only offer what would actually work, so the button never fails.
+    if (event.visibility !== 'public' || event.status !== 'published' || event.isPast) {
+      return { error: 'That event is not open for RSVPs.' };
+    }
+    if (event.viewer.isOrganizer) return { error: 'The user is organising this event.' };
+    if (action === 'rsvp' && registered) return { error: `They already have a place (${registered}).` };
+    if (action === 'cancel_rsvp' && !registered) return { error: 'They are not registered for it.' };
+    if (action === 'interested' && event.viewer.interested) return { error: 'It is already saved as interested.' };
+    summarize(event, context);
+    const proposal: ProposedAction = {
+      type: action,
+      eventId: event.id,
+      title: event.title,
+      when: formatWhen(new Date(event.startsAt), new Date(event.endsAt), context.timeZone),
+    };
+    context.proposals = [...(context.proposals ?? []).filter((p) => p.eventId !== event.id || p.type !== action), proposal];
+    return {
+      proposed: true,
+      note: 'A confirm button is shown under your reply. Tell the user to tap it; do not claim it is done.',
+    };
   },
 };
 
