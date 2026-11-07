@@ -70,15 +70,16 @@ export async function recountAttendees(now = new Date()): Promise<number> {
 }
 
 /**
- * Housekeeping for rows nothing will ever read again: delivered outbox
- * entries, notifications the user has seen, and past events' chats.
+ * Housekeeping for rows nothing will ever read again: delivered or abandoned
+ * outbox entries, and notifications the user has seen. Event chats are kept:
+ * they are part of the event's history.
  */
 export async function pruneOldData(now = new Date()): Promise<{ emails: number; notifications: number }> {
   const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
   const ninetyDaysAgo = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
 
   const [emails, notifications] = await Promise.all([
-    OutboxEmail.deleteMany({ sentAt: { $lt: thirtyDaysAgo } }),
+    OutboxEmail.deleteMany({ $or: [{ sentAt: { $lt: thirtyDaysAgo } }, { failedAt: { $lt: thirtyDaysAgo } }] }),
     // Unread notifications are kept; only ones already read are dropped.
       // `$exists: true` rather than `$ne: null`, because an unread notification
       // stores `readAt` as absent or null depending on how it was written.

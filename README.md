@@ -151,7 +151,7 @@ flowchart LR
 - **The last seat goes to one person.** Taking a seat is a single conditional update: "add one to the count if it is still below capacity". There is no gap between checking and taking, so two people tapping at the same instant cannot both get in. A unique index on (event, user) stops a double tap from creating two registrations.
 - **The waitlist runs itself.** When someone leaves a full event, or the organizer raises the capacity, the people waiting are moved up first come, first served, and each is notified in the app and by email.
 - **A counter that repairs itself.** The attendee count is a stored number, so an RSVP never has to count registrations. If a process dies between taking a seat and saving the registration the number would drift, so a maintenance job recounts from the registrations that exist and corrects it.
-- **Nobody waits on an email provider.** Emails are written to an outbox collection and the request returns at once. A background job delivers them in batches of 25, claims each row before sending so two workers never send the same email twice, retries up to five times, and picks up rows a crashed worker left behind.
+- **Nobody waits on an email provider.** Emails are written to an outbox collection and the request returns at once. Queuing an email also starts delivery in the background (Vercel's `waitUntil` on serverless), so it usually leaves within seconds. Each row is claimed before sending so two workers never send the same email twice; a failed send is retried up to five times with backoff (1 minute, 5, 30, 2 hours), a permanent rejection is not retried, and rows a crashed worker left behind are picked up again.
 - **One permission layer.** A single policy module answers "what can this person do with this event?" for every feature. Door staff can scan tickets but cannot open the attendee list, because it holds everyone's email. A hidden event returns "not found", never "forbidden". Private plans are visible to their owner only, not even to admins.
 - **An assistant that cannot change anything.** Ask Sync has four tools (`search_events`, `get_my_schedule`, `get_event_details`, `get_recommendations`), each a thin read-only wrapper over the same services the app uses, so it sees exactly what the signed-in user may see. The server formats every time in the user's time zone, so the model never does time-zone maths, and it gets at most five rounds of tool calls before it must answer.
 - **Entry codes carry no personal data.** A ticket is a signed token holding three ids, valid for 14 days and for one event only. The scan re-checks the live registration, so a waitlisted ticket is refused, and scanning twice says "already checked in" instead of failing. The QR encoder is written in the repository rather than pulled in as a dependency.
@@ -301,7 +301,7 @@ There are no automated tests for the web app yet; it is covered by the type-chec
 
 | Job | When | What it does |
 |---|---|---|
-| `/api/jobs/email-outbox` | Every 15 minutes | Delivers queued emails |
+| `/api/jobs/email-outbox` | Every 15 minutes | Delivers anything still queued (mail normally leaves straight after it is queued) |
 | `/api/jobs/event-reminders` | Every hour | Emails attendees 24 hours before an event starts |
 | `/api/jobs/maintenance` | Daily, 09:00 IST | Recounts attendees from the registrations that exist, and prunes old rows |
 | `/api/jobs/demo-reset` | Daily, 02:00 IST | Public demos only (`DEMO_MODE=true`): wipes the database and reloads fresh demo data |

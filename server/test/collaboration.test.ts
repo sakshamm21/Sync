@@ -104,7 +104,7 @@ describe('event reminders', () => {
 
     const reminder = await Notification.findOne({ user: attendee.user._id });
     assert.equal(reminder!.type, 'event_reminder');
-    assert.match(reminder!.body, /about 3 hours/);
+    assert.match(reminder!.body, /^Starts .+ IST\.$/);
     assert.equal(await Notification.countDocuments({ user: waitlisted.user._id }), 0);
     assert.equal((await Registration.findOne({ event: farAway.id }))!.reminderSentAt, null);
     assert.ok(await Event.findById(event.id));

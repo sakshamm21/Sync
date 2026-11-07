@@ -1,10 +1,24 @@
 import { Event, Registration } from '../models';
 import logger from '../lib/logger';
+import env from '../config/env';
 import * as notifications from '../modules/notifications/notifications.service';
 import { EVENT_VISIBILITY, EVENT_STATUS, REGISTRATION_STATUS, NOTIFICATION_TYPES } from '../constants';
 
 const REMIND_BEFORE_MS = 24 * 60 * 60 * 1000;
 const CHECK_EVERY_MS = 5 * 60 * 1000;
+
+/** "Saturday 8 November, 10:00 am IST" in the campus time zone. */
+export function formatCampusTime(date: Date, timeZone = env.campusTimeZone): string {
+  return new Intl.DateTimeFormat('en-IN', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    hour: 'numeric',
+    minute: '2-digit',
+    timeZone,
+    timeZoneName: 'short',
+  }).format(date);
+}
 
 /** Reminds each confirmed attendee once, within 24 hours of the event starting. */
 export async function sendDueReminders(now = new Date()): Promise<number> {
@@ -26,13 +40,13 @@ export async function sendDueReminders(now = new Date()): Promise<number> {
     // Mark first so a slow email provider can never cause duplicate reminders.
     await Registration.updateMany({ _id: { $in: due.map((r) => r._id) } }, { $set: { reminderSentAt: now } });
 
-    const hours = Math.max(Math.round((event.startsAt.getTime() - now.getTime()) / (60 * 60 * 1000)), 1);
     await notifications.notify(
       due.map((r) => r.user),
       {
         type: NOTIFICATION_TYPES.EVENT_REMINDER,
         title: `Reminder: ${event.title}`,
-        body: `Starts in about ${hours} hour${hours === 1 ? '' : 's'}.`,
+        // The real start time, not "in N hours": the email may be read much later.
+        body: `Starts ${formatCampusTime(event.startsAt)}.`,
         eventId: event._id,
       },
       { email: true }

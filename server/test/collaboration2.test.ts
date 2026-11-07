@@ -435,12 +435,11 @@ describe('email outbox', () => {
 
   it('marks a row claimed so two drains cannot both send it', async () => {
     await OutboxEmail.create({ to: 'a@b.com', subject: 'Queued', html: '<p>hi</p>' });
-    // With no mail provider configured the row cannot be delivered, so the
-    // drainer releases it rather than sending twice.
+    // With no mail provider configured the row waits, and no attempt is used up.
     await drainOutbox();
     const row = await OutboxEmail.findOne({ to: 'a@b.com' });
     assert.ok(row);
     assert.equal(row.sentAt, null);
-    assert.ok(row.attempts >= 1);
+    assert.equal(row.attempts, 0);
   });
 });
