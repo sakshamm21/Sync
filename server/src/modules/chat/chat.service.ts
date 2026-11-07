@@ -50,7 +50,11 @@ export async function listMessages(
   return { items: messages.reverse(), hasMore: messages.length === limit };
 }
 
-export async function postMessage(user: UserDocument, eventId: string, { text, announcement }: { text: string; announcement: boolean }) {
+export async function postMessage(
+  user: UserDocument,
+  eventId: string,
+  { text, announcement }: { text: string; announcement: boolean }
+) {
   const event = await findChatEvent(user, eventId);
   // Announcements notify and email everyone, so door staff may not send them.
   if (announcement && !accessFor(user, event, await staffRoleFor(user, event)).canManage) {

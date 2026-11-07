@@ -46,7 +46,11 @@ export default function ChatWorkspace() {
         emoji="💬"
         title="No conversations yet"
         description="Every event has a group chat with the organizer and everyone going. RSVP to an event to join its chat."
-        action={<ButtonLink href="/explore" variant="secondary">Find an event</ButtonLink>}
+        action={
+          <ButtonLink href="/explore" variant="secondary">
+            Find an event
+          </ButtonLink>
+        }
       />
     );
   }
@@ -68,7 +72,10 @@ export default function ChatWorkspace() {
                   setActiveId(channel.id);
                   setShowThread(true);
                 }}
-                className={cn('flex w-full items-center gap-3 rounded-2xl p-2 text-left transition', channel.id === activeId ? 'bg-primary text-primary-foreground' : 'hover:bg-surface-muted')}
+                className={cn(
+                  'flex w-full items-center gap-3 rounded-2xl p-2 text-left transition',
+                  channel.id === activeId ? 'bg-primary text-primary-foreground' : 'hover:bg-surface-muted'
+                )}
               >
                 <EventCover event={channel} stickers={false} className="size-12 shrink-0 rounded-2xl" />
                 <span className="min-w-0">
@@ -84,14 +91,23 @@ export default function ChatWorkspace() {
       {active && (
         <section className={cn('flex min-h-0 flex-col', !showThread && 'hidden md:flex')}>
           <header className="flex items-center gap-3 border-b border-border px-4 py-3">
-            <button onClick={() => setShowThread(false)} aria-label="Back to chats" className="rounded-lg p-1 text-muted hover:bg-surface-muted md:hidden">
+            <button
+              onClick={() => setShowThread(false)}
+              aria-label="Back to chats"
+              className="rounded-lg p-1 text-muted hover:bg-surface-muted md:hidden"
+            >
               <ArrowLeft className="size-5" />
             </button>
             <div className="min-w-0 flex-1">
               <p className="truncate font-display text-lg font-bold">{active.title}</p>
-              <p className="text-xs text-muted">{formatDay(active.startsAt)} · {active.attendeeCount} going</p>
+              <p className="text-xs text-muted">
+                {formatDay(active.startsAt)} · {active.attendeeCount} going
+              </p>
             </div>
-            <Link href={`/events/${active.id}`} className="flex items-center gap-1 text-xs font-medium text-muted hover:text-foreground">
+            <Link
+              href={`/events/${active.id}`}
+              className="flex items-center gap-1 text-xs font-medium text-muted hover:text-foreground"
+            >
               Event <ExternalLink className="size-3.5" />
             </Link>
           </header>

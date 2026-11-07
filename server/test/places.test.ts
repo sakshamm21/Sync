@@ -20,8 +20,17 @@ describe('venue directory', () => {
     await publish({ title: 'Draft', venue: lab, status: 'draft' });
 
     const res = await api().get('/api/events/venues').expect(200);
-    assert.deepEqual(res.body.data.map((v) => [v.name, v.events.length]), [['Innovation Lab', 2], ['Open Air Theatre', 1]]);
-    assert.deepEqual(res.body.data[0].events.map((e) => e.title), ['Hack night', 'Robotics demo']);
+    assert.deepEqual(
+      res.body.data.map((v) => [v.name, v.events.length]),
+      [
+        ['Innovation Lab', 2],
+        ['Open Air Theatre', 1],
+      ]
+    );
+    assert.deepEqual(
+      res.body.data[0].events.map((e) => e.title),
+      ['Hack night', 'Robotics demo']
+    );
   });
 });
 
@@ -37,7 +46,13 @@ describe('place search', () => {
       return {
         ok: true,
         json: async () => [
-          { place_id: 42, name: 'Main Auditorium', display_name: 'Main Auditorium, IIT Kanpur, India', lat: '26.5123', lon: '80.2329' },
+          {
+            place_id: 42,
+            name: 'Main Auditorium',
+            display_name: 'Main Auditorium, IIT Kanpur, India',
+            lat: '26.5123',
+            lon: '80.2329',
+          },
         ],
       } as Response;
     };

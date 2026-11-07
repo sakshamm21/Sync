@@ -1,3 +1,4 @@
+import crypto from 'node:crypto';
 import express, { type Express } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
@@ -29,6 +30,13 @@ export function createApp(): Express {
   app.use(
     pinoHttp({
       logger,
+      // Reuse Vercel's request id when there is one, and hand the id back in
+      // X-Request-Id so a user's bug report can be matched to the log line.
+      genReqId: (req, res) => {
+        const id = (req.headers['x-vercel-id'] as string | undefined) || crypto.randomUUID();
+        res.setHeader('X-Request-Id', id);
+        return id;
+      },
       autoLogging: { ignore: (req) => req.url === '/api/health' },
       customLogLevel: (_req, res, err) => (err || res.statusCode >= 500 ? 'error' : res.statusCode >= 400 ? 'warn' : 'info'),
     })
@@ -44,7 +52,9 @@ export function createApp(): Express {
 
   // Lets the web app adapt to the host: live sockets or polling, and whether the assistant is on.
   app.get('/api/meta', (_req, res) => {
-    res.json({ data: { realtime: env.realtime, emailDelivery: env.mail.enabled, assistant: env.ai.enabled, demo: env.demoMode } });
+    res.json({
+      data: { realtime: env.realtime, emailDelivery: env.mail.enabled, assistant: env.ai.enabled, demo: env.demoMode },
+    });
   });
 
   app.use('/api/jobs', jobsRoutes);

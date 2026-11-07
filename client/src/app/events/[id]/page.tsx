@@ -65,8 +65,7 @@ export async function generateMetadata({ params }: { params: Promise<{ id: strin
   const when = formatCampusDateTime(event.startsAt);
   const where = event.venue?.name || event.venue?.address;
   const description =
-    event.description?.trim() ||
-    `${event.title} on ${when}${where ? ` at ${where}` : ''}. Hosted by ${host} on Sync.`;
+    event.description?.trim() || `${event.title} on ${when}${where ? ` at ${where}` : ''}. Hosted by ${host} on Sync.`;
   const url = `${SITE_URL}/events/${event.id}`;
   // A cancelled event should not look like an invitation in a chat preview.
   const suffix = event.status === 'cancelled' ? ' · Cancelled' : '';

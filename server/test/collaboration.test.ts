@@ -25,7 +25,10 @@ describe('event discussion', () => {
     await api().post(`/api/events/${event.id}/messages`).set(organizer.auth).send({ text: 'Lot B is open.' }).expect(201);
 
     const res = await api().get(`/api/events/${event.id}/messages`).set(attendee.auth).expect(200);
-    assert.deepEqual(res.body.data.map((m) => m.text), ['Is there parking?', 'Lot B is open.']);
+    assert.deepEqual(
+      res.body.data.map((m) => m.text),
+      ['Is there parking?', 'Lot B is open.']
+    );
     assert.equal(res.body.data[1].sender.role, 'organizer');
 
     const denied = await api().get(`/api/events/${event.id}/messages`).set(outsider.auth).expect(403);
@@ -35,10 +38,16 @@ describe('event discussion', () => {
   it('paginates older messages with a cursor', async () => {
     const { attendee, event } = await eventWithAttendee();
     for (let i = 1; i <= 5; i += 1) {
-      await api().post(`/api/events/${event.id}/messages`).set(attendee.auth).send({ text: `m${i}` });
+      await api()
+        .post(`/api/events/${event.id}/messages`)
+        .set(attendee.auth)
+        .send({ text: `m${i}` });
     }
     const latest = await api().get(`/api/events/${event.id}/messages?limit=2`).set(attendee.auth).expect(200);
-    assert.deepEqual(latest.body.data.map((m) => m.text), ['m4', 'm5']);
+    assert.deepEqual(
+      latest.body.data.map((m) => m.text),
+      ['m4', 'm5']
+    );
     assert.equal(latest.body.meta.hasMore, true);
 
     const older = await api()
@@ -46,7 +55,10 @@ describe('event discussion', () => {
       .query({ limit: 10, before: latest.body.data[0].createdAt })
       .set(attendee.auth)
       .expect(200);
-    assert.deepEqual(older.body.data.map((m) => m.text), ['m1', 'm2', 'm3']);
+    assert.deepEqual(
+      older.body.data.map((m) => m.text),
+      ['m1', 'm2', 'm3']
+    );
   });
 
   it('lets only the organiser post announcements, which notify attendees', async () => {

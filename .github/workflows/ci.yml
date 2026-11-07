@@ -67,6 +67,20 @@ jobs:
           NEXT_PUBLIC_API_URL: ${{ env.API_URL }}
           NEXT_PUBLIC_SITE_URL: ${{ env.WEB_URL }}
 
+  lint:
+    name: Lint and format
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+      - run: npm run format:check
+      - run: npm run lint
+
   verify-deploy:
     name: Verify production deploy
     if: github.event_name == 'push' && github.ref == 'refs/heads/master'
@@ -86,6 +100,12 @@ jobs:
             done)
             echo "attempt $attempt:" $states
             if echo "$states" | grep -qE '^(failure|error)$'; then
+              # Merging twice in a row makes Vercel cancel the older deployment
+              # in favour of the newer one; that isn't a failure of this commit.
+              latest=$(gh api "repos/$GITHUB_REPOSITORY/commits/master" --jq .sha)
+              if [ "$latest" != "$GITHUB_SHA" ]; then
+                echo "::notice::A newer commit ($latest) superseded this deployment; it is verified there."; exit 0
+              fi
               echo "::error::A Vercel deployment failed"; exit 1
             fi
             if [ "$(echo "$states" | grep -c '^success$')" -ge 2 ]; then exit 0; fi
@@ -95,6 +115,8 @@ jobs:
 
       - name: Smoke test
         run: |
+          # The API is up and can reach its database.
+          curl --fail --silent --show-error --retry 5 --retry-delay 5 --retry-all-errors "$API_URL/api/health" | jq -e '.data.database == "up"'
           curl --fail --silent --show-error --retry 5 --retry-delay 5 --retry-all-errors -o /dev/null "$API_URL/api/meta"
           curl --fail --silent --show-error --retry 5 --retry-delay 5 --retry-all-errors -o /dev/null "$WEB_URL"
           # The live web app must be allowed to call the live API.

@@ -3,15 +3,7 @@
 export type Role = 'member' | 'organizer' | 'admin';
 export type UserStatus = 'active' | 'suspended';
 
-export type CategoryValue =
-  | 'tech'
-  | 'workshop'
-  | 'cultural'
-  | 'sports'
-  | 'meetup'
-  | 'conference'
-  | 'social'
-  | 'other';
+export type CategoryValue = 'tech' | 'workshop' | 'cultural' | 'sports' | 'meetup' | 'conference' | 'social' | 'other';
 
 export interface Category {
   value: CategoryValue;

@@ -136,7 +136,10 @@ describe('login', () => {
     await api().get('/api/me').expect(401);
     await api().get('/api/me').set('Authorization', 'Bearer not-a-jwt').expect(401);
     const { token } = await createUser();
-    await api().get('/api/me').set('Authorization', `Bearer ${token.slice(0, -2)}xx`).expect(401);
+    await api()
+      .get('/api/me')
+      .set('Authorization', `Bearer ${token.slice(0, -2)}xx`)
+      .expect(401);
   });
 });
 

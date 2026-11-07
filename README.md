@@ -7,7 +7,7 @@
 
 <p align="center">
   <a href="https://github.com/sakshamm21/Sync/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/sakshamm21/Sync/ci.yml?branch=master&style=flat-square&label=build&color=6a3dff" alt="Build status"></a>
-  <img src="https://img.shields.io/badge/tests-123%20passing-0b0b10?style=flat-square" alt="123 API tests">
+  <a href="https://github.com/sakshamm21/Sync/actions/workflows/ci.yml"><img src="https://github.com/sakshamm21/Sync/actions/workflows/ci.yml/badge.svg?branch=master" alt="CI status"></a>
   <img src="https://img.shields.io/badge/made%20with-Next.js%20%2B%20Express-0b0b10?style=flat-square" alt="Made with Next.js and Express">
   <img src="https://img.shields.io/badge/license-ISC-0b0b10?style=flat-square" alt="License: ISC">
 </p>
@@ -268,9 +268,12 @@ Every variable is documented in `server/.env.example` and `client/.env.example`.
 |---|---|
 | `npm run dev:memory` | Run the API and the web app with a local database and the demo data |
 | `npm run dev` | Run both against the MongoDB in `DB_URI` |
-| `npm test` | API tests (123 tests) |
+| `npm test` | API tests (against an in-memory MongoDB) |
 | `npm --prefix server run typecheck` | Type-check the API and its tests |
 | `npm run build` | Build, and type-check, the web app |
+| `npm run lint` | ESLint for the API and the web app |
+| `npm run format` / `npm run format:check` | Prettier |
+| `npm --prefix client test` | Web app unit tests (time zones, date filters, redirects) |
 | `npm --prefix server run seed` | Load the demo data; add `-- --reset` to wipe everything first (refuses to run in production unless `DEMO_MODE=true`) |
 | `npm --prefix server run create-admin -- --email you@example.com` | Create the first admin, or promote an existing account |
 

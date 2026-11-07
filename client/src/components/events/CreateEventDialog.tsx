@@ -111,9 +111,26 @@ function initialState(event: SyncEvent | undefined, canPublish: boolean, date?: 
 }
 
 const parseTags = (value: string) =>
-  [...new Set(value.split(',').map((t) => t.trim().replace(/^#/, '').toLowerCase()).filter(Boolean))].slice(0, 10);
+  [
+    ...new Set(
+      value
+        .split(',')
+        .map((t) => t.trim().replace(/^#/, '').toLowerCase())
+        .filter(Boolean)
+    ),
+  ].slice(0, 10);
 
-function CreateEventDialog({ open, event, date, onClose }: { open: boolean; event?: SyncEvent; date?: Date; onClose: () => void }) {
+function CreateEventDialog({
+  open,
+  event,
+  date,
+  onClose,
+}: {
+  open: boolean;
+  event?: SyncEvent;
+  date?: Date;
+  onClose: () => void;
+}) {
   // Closing by Escape, the backdrop or the X asks first if anything was typed.
   const dirty = useRef(false);
   const [confirmDiscard, setConfirmDiscard] = useState(false);
@@ -124,37 +141,51 @@ function CreateEventDialog({ open, event, date, onClose }: { open: boolean; even
 
   return (
     <>
-    <ConfirmDialog
-      open={confirmDiscard}
-      onClose={() => setConfirmDiscard(false)}
-      onConfirm={() => {
-        dirty.current = false;
-        onClose();
-      }}
-      title={event ? 'Discard your changes?' : 'Discard this event?'}
-      description="What you've typed will be lost."
-      confirmLabel="Discard"
-    />
-    <Dialog
-      open={open}
-      onClose={requestClose}
-      size="lg"
-      title={event ? <>Edit <em>event</em></> : <>Drop an <em>event</em></>}
-      description={event ? 'Attendees are notified if the time or place changes.' : 'Share it with campus, or keep it on your own calendar.'}
-    >
-      {/* Remounting resets the form every time the dialog opens. */}
-      {open && (
-        <EventForm
-          key={`${event?.id ?? 'new'}-${date?.getTime() ?? ''}`}
-          event={event}
-          date={date}
-          onDirtyChange={(d) => {
-            dirty.current = d;
-          }}
-          onDone={onClose}
-        />
-      )}
-    </Dialog>
+      <ConfirmDialog
+        open={confirmDiscard}
+        onClose={() => setConfirmDiscard(false)}
+        onConfirm={() => {
+          dirty.current = false;
+          onClose();
+        }}
+        title={event ? 'Discard your changes?' : 'Discard this event?'}
+        description="What you've typed will be lost."
+        confirmLabel="Discard"
+      />
+      <Dialog
+        open={open}
+        onClose={requestClose}
+        size="lg"
+        title={
+          event ? (
+            <>
+              Edit <em>event</em>
+            </>
+          ) : (
+            <>
+              Drop an <em>event</em>
+            </>
+          )
+        }
+        description={
+          event
+            ? 'Attendees are notified if the time or place changes.'
+            : 'Share it with campus, or keep it on your own calendar.'
+        }
+      >
+        {/* Remounting resets the form every time the dialog opens. */}
+        {open && (
+          <EventForm
+            key={`${event?.id ?? 'new'}-${date?.getTime() ?? ''}`}
+            event={event}
+            date={date}
+            onDirtyChange={(d) => {
+              dirty.current = d;
+            }}
+            onDone={onClose}
+          />
+        )}
+      </Dialog>
     </>
   );
 }
@@ -196,7 +227,13 @@ function EventForm({
   }
 
   function applyLocation(location: PickedLocation) {
-    setForm((prev) => ({ ...prev, venueName: location.name, venueAddress: location.address, latitude: location.latitude, longitude: location.longitude }));
+    setForm((prev) => ({
+      ...prev,
+      venueName: location.name,
+      venueAddress: location.address,
+      latitude: location.latitude,
+      longitude: location.longitude,
+    }));
     setVenueQuery('');
     places.clear();
     setMapOpen(false);
@@ -237,7 +274,9 @@ function EventForm({
     try {
       if (isEdit) await eventsApi.update(event!.id, body);
       else await eventsApi.create(body);
-      toast.success(isEdit ? 'Event updated' : asDraft ? 'Draft saved' : form.isPublic ? 'Event published' : 'Added to your calendar');
+      toast.success(
+        isEdit ? 'Event updated' : asDraft ? 'Draft saved' : form.isPublic ? 'Event published' : 'Added to your calendar'
+      );
       eventsChanged();
       onDone();
     } catch (err) {
@@ -275,7 +314,9 @@ function EventForm({
                 onClick={() => set('isPublic', option.value)}
                 className={cn(
                   'flex items-start gap-3 rounded-3xl border p-4 text-left transition',
-                  form.isPublic === option.value ? 'border-primary bg-primary-soft ring-4 ring-ring/15' : 'border-border hover:border-border-strong'
+                  form.isPublic === option.value
+                    ? 'border-primary bg-primary-soft ring-4 ring-ring/15'
+                    : 'border-border hover:border-border-strong'
                 )}
               >
                 <option.icon className={cn('mt-0.5 size-4', form.isPublic === option.value ? 'text-primary' : 'text-muted')} />
@@ -289,7 +330,14 @@ function EventForm({
         )}
 
         <Field label="Title" htmlFor="event-title" error={errors.title}>
-          <Input id="event-title" required autoFocus placeholder="e.g. Design Hackathon 2026" value={form.title} onChange={(e) => set('title', e.target.value)} />
+          <Input
+            id="event-title"
+            required
+            autoFocus
+            placeholder="e.g. Design Hackathon 2026"
+            value={form.title}
+            onChange={(e) => set('title', e.target.value)}
+          />
         </Field>
 
         <div>
@@ -303,7 +351,9 @@ function EventForm({
                 aria-pressed={form.category === cat}
                 className={cn(
                   'rounded-full border px-3.5 py-1.5 text-sm font-medium transition',
-                  form.category === cat ? 'border-transparent bg-foreground text-background' : 'border-border text-muted hover:border-border-strong hover:text-foreground'
+                  form.category === cat
+                    ? 'border-transparent bg-foreground text-background'
+                    : 'border-border text-muted hover:border-border-strong hover:text-foreground'
                 )}
               >
                 {CATEGORY_EMOJI[cat]} {CATEGORY_LABELS[cat]}
@@ -313,20 +363,44 @@ function EventForm({
         </div>
 
         <Field label="Description" htmlFor="event-description">
-          <Textarea id="event-description" rows={3} placeholder="What will people do, learn or experience?" value={form.description} onChange={(e) => set('description', e.target.value)} />
+          <Textarea
+            id="event-description"
+            rows={3}
+            placeholder="What will people do, learn or experience?"
+            value={form.description}
+            onChange={(e) => set('description', e.target.value)}
+          />
         </Field>
 
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Starts" htmlFor="event-starts">
-            <Input id="event-starts" type="datetime-local" value={form.startsAt} onChange={(e) => changeStart(e.target.value)} required />
+            <Input
+              id="event-starts"
+              type="datetime-local"
+              value={form.startsAt}
+              onChange={(e) => changeStart(e.target.value)}
+              required
+            />
           </Field>
           <Field label="Ends" htmlFor="event-ends" error={errors.endsAt}>
-            <Input id="event-ends" type="datetime-local" min={form.startsAt} value={form.endsAt} onChange={(e) => set('endsAt', e.target.value)} required />
+            <Input
+              id="event-ends"
+              type="datetime-local"
+              min={form.startsAt}
+              value={form.endsAt}
+              onChange={(e) => set('endsAt', e.target.value)}
+              required
+            />
           </Field>
         </div>
 
         <div>
-          <label htmlFor="event-venue" className="mb-2 block font-mono text-[11px] font-medium uppercase tracking-[0.14em] text-muted">Venue</label>
+          <label
+            htmlFor="event-venue"
+            className="mb-2 block font-mono text-[11px] font-medium uppercase tracking-[0.14em] text-muted"
+          >
+            Venue
+          </label>
           <div className="flex gap-2">
             <div className="relative flex-1">
               <MapPin className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-subtle" />
@@ -343,7 +417,11 @@ function EventForm({
                   {places.searching && <li className="px-3 py-2 text-sm text-muted">Searching…</li>}
                   {places.results.map((p) => (
                     <li key={p.id}>
-                      <button type="button" onClick={() => applyLocation(p)} className="w-full rounded-lg px-3 py-2 text-left transition hover:bg-surface-muted">
+                      <button
+                        type="button"
+                        onClick={() => applyLocation(p)}
+                        className="w-full rounded-lg px-3 py-2 text-left transition hover:bg-surface-muted"
+                      >
                         <span className="block text-sm font-medium">{p.name}</span>
                         <span className="block truncate text-xs text-muted">{p.address}</span>
                       </button>
@@ -358,27 +436,55 @@ function EventForm({
           </div>
           {pinned && (
             <p className="mt-2 inline-flex items-center gap-1.5 rounded-full bg-success-soft px-2.5 py-1 text-xs font-medium text-success">
-              <Check className="size-3.5" /> Pinned on the map{form.venueAddress ? ` · ${form.venueAddress.split(',').slice(0, 2).join(',')}` : ''}
+              <Check className="size-3.5" /> Pinned on the map
+              {form.venueAddress ? ` · ${form.venueAddress.split(',').slice(0, 2).join(',')}` : ''}
             </p>
           )}
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Online link" htmlFor="event-online" hint="For online or hybrid events." error={errors.onlineUrl}>
-            <Input id="event-online" placeholder="https://meet.google.com/…" value={form.onlineUrl} onChange={(e) => set('onlineUrl', e.target.value)} />
+            <Input
+              id="event-online"
+              placeholder="https://meet.google.com/…"
+              value={form.onlineUrl}
+              onChange={(e) => set('onlineUrl', e.target.value)}
+            />
           </Field>
           <Field label="Tags" htmlFor="event-tags" hint="Comma-separated. Helps people find it." error={errors.tags}>
-            <Input id="event-tags" placeholder="ai, beginner-friendly, free food" value={form.tags} onChange={(e) => set('tags', e.target.value)} />
+            <Input
+              id="event-tags"
+              placeholder="ai, beginner-friendly, free food"
+              value={form.tags}
+              onChange={(e) => set('tags', e.target.value)}
+            />
           </Field>
         </div>
 
         {form.isPublic && (
           <div className="grid gap-4 sm:grid-cols-2">
-            <Field label="Capacity" htmlFor="event-capacity" hint="When it fills up, new RSVPs join a waitlist." error={errors.capacity}>
-              <Input id="event-capacity" type="number" min={1} placeholder="Unlimited" value={form.capacity} onChange={(e) => set('capacity', e.target.value)} />
+            <Field
+              label="Capacity"
+              htmlFor="event-capacity"
+              hint="When it fills up, new RSVPs join a waitlist."
+              error={errors.capacity}
+            >
+              <Input
+                id="event-capacity"
+                type="number"
+                min={1}
+                placeholder="Unlimited"
+                value={form.capacity}
+                onChange={(e) => set('capacity', e.target.value)}
+              />
             </Field>
             <Field label="Cover image URL" htmlFor="event-cover" hint="A wide photo looks best." error={errors.coverImageUrl}>
-              <Input id="event-cover" placeholder="https://…" value={form.coverImageUrl} onChange={(e) => set('coverImageUrl', e.target.value)} />
+              <Input
+                id="event-cover"
+                placeholder="https://…"
+                value={form.coverImageUrl}
+                onChange={(e) => set('coverImageUrl', e.target.value)}
+              />
             </Field>
           </div>
         )}
@@ -398,7 +504,13 @@ function EventForm({
         </Button>
       </div>
 
-      <Dialog open={mapOpen} onClose={() => setMapOpen(false)} size="xl" title="Pick a venue" description="Choose a venue already in use, or search any place.">
+      <Dialog
+        open={mapOpen}
+        onClose={() => setMapOpen(false)}
+        size="xl"
+        title="Pick a venue"
+        description="Choose a venue already in use, or search any place."
+      >
         <div className="p-4 sm:p-6">
           <VenueMap onPick={applyLocation} />
         </div>

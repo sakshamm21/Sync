@@ -98,7 +98,8 @@ async function sendOne(row: OutboxEmailDocument): Promise<boolean> {
       },
     }
   );
-  if (giveUp) logger.warn({ to: row.to, subject: row.subject, attempts: row.attempts, error: result.error }, 'Gave up on an email');
+  if (giveUp)
+    logger.warn({ to: row.to, subject: row.subject, attempts: row.attempts, error: result.error }, 'Gave up on an email');
   return false;
 }
 

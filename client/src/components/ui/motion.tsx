@@ -9,12 +9,26 @@ export const motionEase = ease;
 
 /** Fades and slides content in on mount. */
 export function FadeIn({ delay = 0, y = 16, ...props }: HTMLMotionProps<'div'> & { delay?: number; y?: number }) {
-  return <motion.div initial={{ opacity: 0, y }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.55, ease, delay }} {...props} />;
+  return (
+    <motion.div
+      initial={{ opacity: 0, y }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.55, ease, delay }}
+      {...props}
+    />
+  );
 }
 
 /** Children (use <StaggerItem>) animate in one after another. */
 export function Stagger({ gap = 0.06, ...props }: HTMLMotionProps<'div'> & { gap?: number }) {
-  return <motion.div initial="hidden" animate="show" variants={{ hidden: {}, show: { transition: { staggerChildren: gap } } }} {...props} />;
+  return (
+    <motion.div
+      initial="hidden"
+      animate="show"
+      variants={{ hidden: {}, show: { transition: { staggerChildren: gap } } }}
+      {...props}
+    />
+  );
 }
 
 export function StaggerItem(props: HTMLMotionProps<'div'>) {
@@ -43,9 +57,24 @@ export function Reveal({ delay = 0, ...props }: HTMLMotionProps<'div'> & { delay
 }
 
 /** Endless horizontal ticker. Content is duplicated so the loop is seamless. */
-export function Marquee({ children, duration = 30, reverse, className }: { children: React.ReactNode; duration?: number; reverse?: boolean; className?: string }) {
+export function Marquee({
+  children,
+  duration = 30,
+  reverse,
+  className,
+}: {
+  children: React.ReactNode;
+  duration?: number;
+  reverse?: boolean;
+  className?: string;
+}) {
   return (
-    <div className={cn('group flex overflow-hidden [mask-image:linear-gradient(90deg,transparent,#000_8%,#000_92%,transparent)]', className)}>
+    <div
+      className={cn(
+        'group flex overflow-hidden [mask-image:linear-gradient(90deg,transparent,#000_8%,#000_92%,transparent)]',
+        className
+      )}
+    >
       <div
         className="flex w-max shrink-0 animate-marquee items-center group-hover:[animation-play-state:paused]"
         style={{ ['--marquee-duration' as string]: `${duration}s`, animationDirection: reverse ? 'reverse' : 'normal' }}
@@ -92,7 +121,12 @@ export function Tilt({ children, className, max = 7 }: { children: React.ReactNo
       <motion.div
         aria-hidden="true"
         className="pointer-events-none absolute inset-0 rounded-[inherit] opacity-0 mix-blend-soft-light transition-opacity duration-300 [.group:hover_&]:opacity-100"
-        style={{ background: useTransform([spotX, spotY], ([x, y]) => `radial-gradient(420px circle at ${x} ${y}, rgba(255,255,255,0.35), transparent 45%)`) }}
+        style={{
+          background: useTransform(
+            [spotX, spotY],
+            ([x, y]) => `radial-gradient(420px circle at ${x} ${y}, rgba(255,255,255,0.35), transparent 45%)`
+          ),
+        }}
       />
     </motion.div>
   );

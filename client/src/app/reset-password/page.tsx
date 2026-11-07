@@ -53,10 +53,26 @@ function ResetPasswordForm() {
     <AuthCard title="Choose a new password" subtitle="Other devices will be signed out.">
       <form onSubmit={handleSubmit} className="space-y-4">
         <Field label="New password" htmlFor="new-password" hint="Use 8 or more characters.">
-          <Input id="new-password" type="password" autoComplete="new-password" minLength={8} value={password} onChange={(e) => setPassword(e.target.value)} required autoFocus />
+          <Input
+            id="new-password"
+            type="password"
+            autoComplete="new-password"
+            minLength={8}
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+            autoFocus
+          />
         </Field>
         <Field label="Confirm password" htmlFor="confirm-password">
-          <Input id="confirm-password" type="password" autoComplete="new-password" value={confirm} onChange={(e) => setConfirm(e.target.value)} required />
+          <Input
+            id="confirm-password"
+            type="password"
+            autoComplete="new-password"
+            value={confirm}
+            onChange={(e) => setConfirm(e.target.value)}
+            required
+          />
         </Field>
         <FormAlert message={error} />
         <Button type="submit" size="lg" loading={loading} className="w-full">

@@ -36,14 +36,20 @@ router.get('/', async (req, res) => {
   res.json({ data: { ...user.toJSON(), isEventStaff } });
 });
 
-router.patch('/', validate({ body: profileBody }, async (req, res) => {
-  res.json({ data: await service.updateProfile(currentUser(req), req.body) });
-}));
+router.patch(
+  '/',
+  validate({ body: profileBody }, async (req, res) => {
+    res.json({ data: await service.updateProfile(currentUser(req), req.body) });
+  })
+);
 
-router.post('/password', validate({ body: passwordBody }, async (req, res) => {
-  assertNotDemoAccount(currentUser(req).email);
-  res.json({ data: await service.changePassword(currentUser(req), req.body) });
-}));
+router.post(
+  '/password',
+  validate({ body: passwordBody }, async (req, res) => {
+    assertNotDemoAccount(currentUser(req).email);
+    res.json({ data: await service.changePassword(currentUser(req), req.body) });
+  })
+);
 
 /** Signs out every device, this one included, by refusing all tokens issued so far. */
 router.post('/sign-out-everywhere', async (req, res) => {
@@ -55,14 +61,20 @@ router.post('/sign-out-everywhere', async (req, res) => {
   res.json({ data: { ok: true } });
 });
 
-router.get('/calendar', validate({ query: eventSchemas.calendarRange }, async (req, res) => {
-  res.json({ data: await events.calendarFor(currentUser(req), req.query) });
-}));
+router.get(
+  '/calendar',
+  validate({ query: eventSchemas.calendarRange }, async (req, res) => {
+    res.json({ data: await events.calendarFor(currentUser(req), req.query) });
+  })
+);
 
 const registrationsQuery = z.object({ upcoming: queryBoolean.default(true) });
 
-router.get('/registrations', validate({ query: registrationsQuery }, async (req, res) => {
-  res.json({ data: await registrations.listForUser(currentUser(req), { upcomingOnly: req.query.upcoming }) });
-}));
+router.get(
+  '/registrations',
+  validate({ query: registrationsQuery }, async (req, res) => {
+    res.json({ data: await registrations.listForUser(currentUser(req), { upcomingOnly: req.query.upcoming }) });
+  })
+);
 
 export default router;

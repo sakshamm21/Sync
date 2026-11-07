@@ -37,22 +37,34 @@ const listQuery = z.object({
   ...pagination,
 });
 
-router.get('/', validate({ query: listQuery }, async (req, res) => {
-  const { items, meta } = await service.list(currentUser(req), req.query);
-  res.json({ data: items, meta });
-}));
+router.get(
+  '/',
+  validate({ query: listQuery }, async (req, res) => {
+    const { items, meta } = await service.list(currentUser(req), req.query);
+    res.json({ data: items, meta });
+  })
+);
 
-router.post('/', validate({ body: createBody }, async (req, res) => {
-  res.status(201).json({ data: await service.create(currentUser(req), req.body) });
-}));
+router.post(
+  '/',
+  validate({ body: createBody }, async (req, res) => {
+    res.status(201).json({ data: await service.create(currentUser(req), req.body) });
+  })
+);
 
-router.patch('/:id', validate({ params: idParams, body: updateBody }, async (req, res) => {
-  res.json({ data: await service.update(currentUser(req), req.params.id, req.body) });
-}));
+router.patch(
+  '/:id',
+  validate({ params: idParams, body: updateBody }, async (req, res) => {
+    res.json({ data: await service.update(currentUser(req), req.params.id, req.body) });
+  })
+);
 
-router.delete('/:id', validate({ params: idParams }, async (req, res) => {
-  await service.remove(currentUser(req), req.params.id);
-  res.status(204).end();
-}));
+router.delete(
+  '/:id',
+  validate({ params: idParams }, async (req, res) => {
+    await service.remove(currentUser(req), req.params.id);
+    res.status(204).end();
+  })
+);
 
 export default router;

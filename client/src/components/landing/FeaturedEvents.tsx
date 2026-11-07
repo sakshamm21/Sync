@@ -30,7 +30,11 @@ export default function FeaturedEvents() {
   if (events.length === 0) return null;
 
   return (
-    <div className="relative mx-auto flex h-[440px] w-full max-w-lg items-center justify-center" onMouseEnter={() => setSpread(true)} onMouseLeave={() => setSpread(false)}>
+    <div
+      className="relative mx-auto flex h-[440px] w-full max-w-lg items-center justify-center"
+      onMouseEnter={() => setSpread(true)}
+      onMouseLeave={() => setSpread(false)}
+    >
       {events.map((event, i) => {
         const pose = FAN[i] ?? FAN[1];
         const factor = spread ? 1.6 : 1;

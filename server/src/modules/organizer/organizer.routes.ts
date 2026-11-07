@@ -12,9 +12,12 @@ const applicationBody = z.object({
   reason: z.string().trim().max(1000).default(''),
 });
 
-router.post('/applications', validate({ body: applicationBody }, async (req, res) => {
-  res.status(201).json({ data: await service.apply(currentUser(req), req.body) });
-}));
+router.post(
+  '/applications',
+  validate({ body: applicationBody }, async (req, res) => {
+    res.status(201).json({ data: await service.apply(currentUser(req), req.body) });
+  })
+);
 
 router.get('/applications/latest', async (req, res) => {
   res.json({ data: await service.latestApplication(currentUser(req)) });

@@ -21,7 +21,8 @@ async function setUp(overrides = {}) {
   return { owner, member, event, token };
 }
 
-const scan = (eventId: string, who: Actor, token: string) => api().post(`/api/events/${eventId}/scan`).set(who.auth).send({ token });
+const scan = (eventId: string, who: Actor, token: string) =>
+  api().post(`/api/events/${eventId}/scan`).set(who.auth).send({ token });
 
 describe('B1: tickets are short enough to scan', () => {
   it('fits in a small QR code', async () => {
@@ -40,7 +41,11 @@ describe('B1: tickets are short enough to scan', () => {
   it('door staff can scan; strangers get 403', async () => {
     const { owner, event, token } = await setUp();
     const door = await createUser();
-    await api().post(`/api/event-staff/${event.id}/staff`).set(owner.auth).send({ email: door.user.email, role: 'checkin' }).expect(201);
+    await api()
+      .post(`/api/event-staff/${event.id}/staff`)
+      .set(owner.auth)
+      .send({ email: door.user.email, role: 'checkin' })
+      .expect(201);
     const res = await scan(event.id, door, token).expect(200);
     assert.equal(res.body.data.alreadyCheckedIn, false);
     await scan(event.id, await createUser(), token).expect(403);
@@ -56,9 +61,15 @@ describe('B29: scans are refused when the event is off or long over', () => {
 
   it('refuses more than six hours after the end, allows late check-in before that', async () => {
     const { owner, event, token } = await setUp();
-    await Event.updateOne({ _id: event.id }, { $set: { startsAt: new Date(hoursFromNow(-4)), endsAt: new Date(hoursFromNow(-2)) } });
+    await Event.updateOne(
+      { _id: event.id },
+      { $set: { startsAt: new Date(hoursFromNow(-4)), endsAt: new Date(hoursFromNow(-2)) } }
+    );
     await scan(event.id, owner, token).expect(200);
-    await Event.updateOne({ _id: event.id }, { $set: { startsAt: new Date(hoursFromNow(-9)), endsAt: new Date(hoursFromNow(-7)) } });
+    await Event.updateOne(
+      { _id: event.id },
+      { $set: { startsAt: new Date(hoursFromNow(-9)), endsAt: new Date(hoursFromNow(-7)) } }
+    );
     assert.equal((await scan(event.id, owner, token).expect(400)).body.error.code, 'EVENT_ENDED');
   });
 });
@@ -67,18 +78,27 @@ describe('B42: session tokens', () => {
   it('rejects an unsigned token', async () => {
     const { user } = await createUser();
     const none = jwt.sign({ sub: String(user._id), role: 'admin' }, '', { algorithm: 'none' });
-    await api().get('/api/me').set({ Authorization: `Bearer ${none}` }).expect(401);
+    await api()
+      .get('/api/me')
+      .set({ Authorization: `Bearer ${none}` })
+      .expect(401);
   });
 
   it('rejects a token made for another purpose', async () => {
     const { user } = await createUser();
     const other = jwt.sign({ sub: String(user._id), role: 'member' }, env.jwtSecret, { audience: 'ticket' });
-    await api().get('/api/me').set({ Authorization: `Bearer ${other}` }).expect(401);
+    await api()
+      .get('/api/me')
+      .set({ Authorization: `Bearer ${other}` })
+      .expect(401);
   });
 
   it('still accepts sessions signed before audiences existed', async () => {
     const { user } = await createUser();
     const legacy = jwt.sign({ sub: String(user._id), role: 'member' }, env.jwtSecret);
-    await api().get('/api/me').set({ Authorization: `Bearer ${legacy}` }).expect(200);
+    await api()
+      .get('/api/me')
+      .set({ Authorization: `Bearer ${legacy}` })
+      .expect(200);
   });
 });

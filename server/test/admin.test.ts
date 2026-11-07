@@ -19,7 +19,11 @@ describe('becoming an organiser', () => {
       .expect(201);
     assert.equal(applied.body.data.status, 'pending');
 
-    const duplicate = await api().post('/api/organizer/applications').set(member.auth).send({ organization: 'Again' }).expect(409);
+    const duplicate = await api()
+      .post('/api/organizer/applications')
+      .set(member.auth)
+      .send({ organization: 'Again' })
+      .expect(409);
     assert.equal(duplicate.body.error.code, 'APPLICATION_PENDING');
 
     const pending = await api().get('/api/admin/organizer-applications?status=pending').set(admin.auth).expect(200);
@@ -39,7 +43,11 @@ describe('becoming an organiser', () => {
     assert.equal((await Notification.findOne({ user: member.user._id }))!.type, 'organizer_approved');
 
     // The existing token keeps working and now carries organiser permissions.
-    await api().post('/api/events').set(member.auth).send(eventInput({ visibility: 'public' })).expect(201);
+    await api()
+      .post('/api/events')
+      .set(member.auth)
+      .send(eventInput({ visibility: 'public' }))
+      .expect(201);
 
     await api().post(`/api/admin/organizer-applications/${applied.body.data.id}/reject`).set(admin.auth).send({}).expect(409);
   });
@@ -68,20 +76,20 @@ describe('becoming an organiser', () => {
   });
 
   it('keeps the organiser dashboard for organisers', async () => {
-      const organizer = await createUser({ role: 'organizer' });
-      const overview = await api().get('/api/organizer/overview').set(organizer.auth).expect(200);
-      assert.ok(overview.body.data);
-      assert.deepEqual(overview.body.data.events, []);
-    });
+    const organizer = await createUser({ role: 'organizer' });
+    const overview = await api().get('/api/organizer/overview').set(organizer.auth).expect(200);
+    assert.ok(overview.body.data);
+    assert.deepEqual(overview.body.data.events, []);
+  });
 
-    it('shows a member an empty console rather than hiding the page', async () => {
-      // A member who has been invited to help run one event still needs to
-      // reach the console, so the endpoint is open; the service returns only
-      // what that person is allowed to see.
-      const member = await createUser();
-      const overview = await api().get('/api/organizer/overview').set(member.auth).expect(200);
-      assert.deepEqual(overview.body.data.events, []);
-    });
+  it('shows a member an empty console rather than hiding the page', async () => {
+    // A member who has been invited to help run one event still needs to
+    // reach the console, so the endpoint is open; the service returns only
+    // what that person is allowed to see.
+    const member = await createUser();
+    const overview = await api().get('/api/organizer/overview').set(member.auth).expect(200);
+    assert.deepEqual(overview.body.data.events, []);
+  });
 });
 
 describe('platform administration', () => {
@@ -108,7 +116,10 @@ describe('platform administration', () => {
     await createUser({ name: 'Rahul Verma' });
 
     const search = await api().get('/api/admin/users?q=priya').set(admin.auth).expect(200);
-    assert.deepEqual(search.body.data.map((u) => u.name), ['Priya Sharma']);
+    assert.deepEqual(
+      search.body.data.map((u) => u.name),
+      ['Priya Sharma']
+    );
     assert.equal(search.body.data[0].passwordHash, undefined);
 
     const organizers = await api().get('/api/admin/users?role=organizer').set(admin.auth).expect(200);

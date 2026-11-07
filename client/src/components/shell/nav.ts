@@ -1,4 +1,14 @@
-import { CalendarDays, Compass, Home, Map, Megaphone, MessagesSquare, ShieldCheck, StickyNote, type LucideIcon } from 'lucide-react';
+import {
+  CalendarDays,
+  Compass,
+  Home,
+  Map,
+  Megaphone,
+  MessagesSquare,
+  ShieldCheck,
+  StickyNote,
+  type LucideIcon,
+} from 'lucide-react';
 import type { Role, User } from '@/lib/api';
 
 export interface NavItem {
@@ -30,8 +40,6 @@ export const SECONDARY_NAV: NavItem[] = [
 ];
 
 export const visibleFor = (items: NavItem[], user: Pick<User, 'role' | 'isEventStaff'> | null | undefined) =>
-  items.filter(
-    (item) => !item.roles || (user && (item.roles.includes(user.role) || (item.orEventStaff && user.isEventStaff)))
-  );
+  items.filter((item) => !item.roles || (user && (item.roles.includes(user.role) || (item.orEventStaff && user.isEventStaff))));
 
 export const isActive = (pathname: string, href: string) => pathname === href || pathname.startsWith(`${href}/`);

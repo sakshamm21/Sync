@@ -42,7 +42,13 @@ export default function UserMenu() {
             </div>
           </div>
           <div className="my-1 h-px bg-border" />
-          <MenuItem icon={<Settings />} onClick={() => { close(); router.push('/settings'); }}>
+          <MenuItem
+            icon={<Settings />}
+            onClick={() => {
+              close();
+              router.push('/settings');
+            }}
+          >
             Settings
           </MenuItem>
           <MenuItem

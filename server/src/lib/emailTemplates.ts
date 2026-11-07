@@ -5,11 +5,7 @@ export interface EmailContent {
 }
 
 const escapeHtml = (value: unknown) =>
-  String(value)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
+  String(value).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
 function layout(title: string, bodyHtml: string): string {
   return `<!doctype html>
@@ -30,7 +26,15 @@ function layout(title: string, bodyHtml: string): string {
 const button = (href: string, label: string) =>
   `<p style="margin:24px 0"><a href="${escapeHtml(href)}" style="display:inline-block;background:#5b4be8;color:#ffffff;padding:12px 20px;border-radius:12px;text-decoration:none;font-weight:600">${escapeHtml(label)}</a></p>`;
 
-export function verificationCode({ name, otp, expiresInMinutes }: { name: string; otp: string; expiresInMinutes: number }): EmailContent {
+export function verificationCode({
+  name,
+  otp,
+  expiresInMinutes,
+}: {
+  name: string;
+  otp: string;
+  expiresInMinutes: number;
+}): EmailContent {
   const subject = `${otp} is your Sync verification code`;
   const text = `Hi ${name},\n\nYour verification code is ${otp}. It expires in ${expiresInMinutes} minutes.\n\nIf you didn't create a Sync account, you can ignore this email.`;
   const html = layout(
@@ -43,7 +47,15 @@ export function verificationCode({ name, otp, expiresInMinutes }: { name: string
   return { subject, text, html };
 }
 
-export function passwordReset({ name, resetUrl, expiresInMinutes }: { name: string; resetUrl: string; expiresInMinutes: number }): EmailContent {
+export function passwordReset({
+  name,
+  resetUrl,
+  expiresInMinutes,
+}: {
+  name: string;
+  resetUrl: string;
+  expiresInMinutes: number;
+}): EmailContent {
   const subject = 'Reset your Sync password';
   const text = `Hi ${name},\n\nReset your password here: ${resetUrl}\nThe link expires in ${expiresInMinutes} minutes.\n\nIf you didn't request this, you can ignore this email.`;
   const html = layout(
@@ -57,7 +69,17 @@ export function passwordReset({ name, resetUrl, expiresInMinutes }: { name: stri
 }
 
 /** Generic notification email (reminders, event changes, approvals). */
-export function notification({ name, title, body, url }: { name: string; title: string; body: string; url?: string }): EmailContent {
+export function notification({
+  name,
+  title,
+  body,
+  url,
+}: {
+  name: string;
+  title: string;
+  body: string;
+  url?: string;
+}): EmailContent {
   const text = `Hi ${name},\n\n${body}${url ? `\n\n${url}` : ''}`;
   const html = layout(
     title,

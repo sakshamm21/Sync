@@ -6,7 +6,7 @@
  */
 import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
-import { ShieldCheck, Trash2, UserPlus, Users } from 'lucide-react';
+import { ShieldCheck, Trash2, UserPlus } from 'lucide-react';
 import { errorMessage, staffApi, type StaffMember, type StaffRole } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Avatar, Badge, Card, Kicker } from '@/components/ui/surface';
@@ -131,9 +131,7 @@ export default function EventTeam({ eventId }: { eventId: string }) {
               )}
             </li>
           ))}
-          {team.length === 0 && (
-            <li className="py-6 text-center text-sm text-muted">Just you so far.</li>
-          )}
+          {team.length === 0 && <li className="py-6 text-center text-sm text-muted">Just you so far.</li>}
         </ul>
       )}
 

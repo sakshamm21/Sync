@@ -4,7 +4,18 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import { motion } from 'motion/react';
-import { ArrowLeft, CalendarCheck, CheckCircle2, Circle, Download, ExternalLink, Hourglass, Pencil, Search, Users } from 'lucide-react';
+import {
+  ArrowLeft,
+  CalendarCheck,
+  CheckCircle2,
+  Circle,
+  Download,
+  ExternalLink,
+  Hourglass,
+  Pencil,
+  Search,
+  Users,
+} from 'lucide-react';
 import { errorMessage, eventsApi, type Attendee, type AttendeeList, type SyncEvent } from '@/lib/api';
 import { formatDateTime, formatEventWhen, formatVenue } from '@/lib/format';
 import { useCreateEvent } from '@/components/events/CreateEventDialog';
@@ -77,11 +88,14 @@ export default function EventManagement({ eventId }: { eventId: string }) {
     if (!attendee.user) return;
     const checkedIn = !attendee.checkedInAt;
     // Optimistic: check-in at the door should feel instant.
-    setList((prev) =>
-      prev && {
-        items: prev.items.map((a) => (a.id === attendee.id ? { ...a, checkedInAt: checkedIn ? new Date().toISOString() : null } : a)),
-        counts: { ...prev.counts, checkedIn: prev.counts.checkedIn + (checkedIn ? 1 : -1) },
-      }
+    setList(
+      (prev) =>
+        prev && {
+          items: prev.items.map((a) =>
+            a.id === attendee.id ? { ...a, checkedInAt: checkedIn ? new Date().toISOString() : null } : a
+          ),
+          counts: { ...prev.counts, checkedIn: prev.counts.checkedIn + (checkedIn ? 1 : -1) },
+        }
     );
     try {
       await eventsApi.setCheckIn(eventId, attendee.user.id, checkedIn);
@@ -92,7 +106,18 @@ export default function EventManagement({ eventId }: { eventId: string }) {
   }
 
   if (error) {
-    return <EmptyState emoji="🫠" title="Event not available" description={error} action={<ButtonLink href="/organizer" variant="secondary">Back to organizer</ButtonLink>} />;
+    return (
+      <EmptyState
+        emoji="🫠"
+        title="Event not available"
+        description={error}
+        action={
+          <ButtonLink href="/organizer" variant="secondary">
+            Back to organizer
+          </ButtonLink>
+        }
+      />
+    );
   }
   if (!event) return <div className="h-96 animate-pulse rounded-3xl bg-surface-muted" />;
 
@@ -105,7 +130,11 @@ export default function EventManagement({ eventId }: { eventId: string }) {
       <Card className="flex flex-col gap-5 p-4 sm:flex-row sm:items-center sm:p-5">
         <EventCover event={event} stickers={false} className="aspect-[16/10] w-full shrink-0 rounded-3xl sm:w-56" />
         <div className="min-w-0 flex-1">
-          {event.status === 'cancelled' && <Badge tone="danger" className="mb-2">Cancelled</Badge>}
+          {event.status === 'cancelled' && (
+            <Badge tone="danger" className="mb-2">
+              Cancelled
+            </Badge>
+          )}
           {!event.viewer.canManage && <Badge className="mb-2">Door staff</Badge>}
           <h1 className="text-2xl font-semibold">{event.title}</h1>
           <p className="mt-1 text-sm text-muted">
@@ -150,7 +179,12 @@ export default function EventManagement({ eventId }: { eventId: string }) {
         <Card className="overflow-hidden">
           <div className="flex flex-col gap-3 border-b border-border p-4 sm:flex-row sm:items-center sm:justify-between">
             <h2 className="font-semibold">Attendees</h2>
-            <Button variant="secondary" size="sm" onClick={() => downloadCsv(event, list.items)} disabled={list.items.length === 0}>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => downloadCsv(event, list.items)}
+              disabled={list.items.length === 0}
+            >
               <Download /> Export CSV
             </Button>
           </div>
@@ -195,13 +229,17 @@ export default function EventManagement({ eventId }: { eventId: string }) {
                     </p>
                   </div>
                   {a.status === 'waitlisted' ? (
-                    <Badge tone="warning"><Hourglass /> Waitlisted</Badge>
+                    <Badge tone="warning">
+                      <Hourglass /> Waitlisted
+                    </Badge>
                   ) : (
                     <button
                       onClick={() => toggleCheckIn(a)}
                       className={cn(
                         'inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition',
-                        a.checkedInAt ? 'border-transparent bg-success-soft text-success' : 'border-border text-muted hover:border-border-strong hover:text-foreground'
+                        a.checkedInAt
+                          ? 'border-transparent bg-success-soft text-success'
+                          : 'border-border text-muted hover:border-border-strong hover:text-foreground'
                       )}
                     >
                       {a.checkedInAt ? <CheckCircle2 className="size-4" /> : <Circle className="size-4" />}
@@ -231,7 +269,9 @@ export default function EventManagement({ eventId }: { eventId: string }) {
         <EventTeam eventId={event.id} />
         <Card className="p-5">
           <h2 className="font-semibold">Door check-in</h2>
-          <p className="mb-4 mt-0.5 text-xs text-muted">Attendees show the code on their event page. Scanning one checks them in.</p>
+          <p className="mb-4 mt-0.5 text-xs text-muted">
+            Attendees show the code on their event page. Scanning one checks them in.
+          </p>
           <DoorScanner event={event} onScanned={load} />
         </Card>
       </div>

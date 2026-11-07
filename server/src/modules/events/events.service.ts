@@ -1,5 +1,17 @@
 import { Types, type FilterQuery, type SortOrder } from 'mongoose';
-import { Event, Registration, Message, Note, Notification, EventStaff, Report, Rating, type EventDocument, type IEvent, type UserDocument } from '../../models';
+import {
+  Event,
+  Registration,
+  Message,
+  Note,
+  Notification,
+  EventStaff,
+  Report,
+  Rating,
+  type EventDocument,
+  type IEvent,
+  type UserDocument,
+} from '../../models';
 import env from '../../config/env';
 import { forbidden, badRequest } from '../../lib/errors';
 import { paginationMeta, escapeRegex } from '../../lib/schemas';
@@ -20,7 +32,10 @@ import { ROLES, EVENT_VISIBILITY, EVENT_STATUS, NOTIFICATION_TYPES, type Categor
 
 const publicListing = (): FilterQuery<IEvent> => ({ visibility: EVENT_VISIBILITY.PUBLIC, status: EVENT_STATUS.PUBLISHED });
 
-async function notifyAttendees(event: EventDocument, { type, title, body }: { type: NotificationType; title: string; body: string }) {
+async function notifyAttendees(
+  event: EventDocument,
+  { type, title, body }: { type: NotificationType; title: string; body: string }
+) {
   const attendees = await Registration.find({ event: event._id }).distinct('user');
   await notifications.notify(attendees, { type, title, body, eventId: event._id }, { email: true });
 }
@@ -29,7 +44,10 @@ async function notifyAttendees(event: EventDocument, { type, title, body }: { ty
 // Queries
 // ---------------------------------------------------------------------------
 
-export async function listPublic(viewer: Viewer, { q, category, organizer, from, to, sort, includePast, page, limit }: ListEventsQuery) {
+export async function listPublic(
+  viewer: Viewer,
+  { q, category, organizer, from, to, sort, includePast, page, limit }: ListEventsQuery
+) {
   const filter = publicListing();
   if (!includePast) filter.endsAt = { $gte: new Date() };
   if (category) filter.category = category;
@@ -48,7 +66,11 @@ export async function listPublic(viewer: Viewer, { q, category, organizer, from,
   };
 
   const [events, total] = await Promise.all([
-    Event.find(filter).sort(orders[sort]).skip((page - 1) * limit).limit(limit).populate('owner', OWNER_FIELDS),
+    Event.find(filter)
+      .sort(orders[sort])
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .populate('owner', OWNER_FIELDS),
     Event.countDocuments(filter),
   ]);
   return { items: await withViewerContext(events, viewer), meta: paginationMeta({ page, limit }, total) };
@@ -135,7 +157,13 @@ export async function venueDirectory(): Promise<VenueListing[]> {
       venue = { name: name || address || 'Unnamed venue', address: address || '', latitude, longitude, events: [] };
       venues.set(key, venue);
     }
-    venue.events.push({ id: event.id, title: event.title, category: event.category, startsAt: event.startsAt, endsAt: event.endsAt });
+    venue.events.push({
+      id: event.id,
+      title: event.title,
+      category: event.category,
+      startsAt: event.startsAt,
+      endsAt: event.endsAt,
+    });
   }
   return [...venues.values()].sort((a, b) => b.events.length - a.events.length || a.name.localeCompare(b.name));
 }
@@ -173,7 +201,10 @@ export async function calendarFor(user: UserDocument, { from, to }: CalendarRang
 export async function create(user: UserDocument, input: CreateEventInput) {
   const visibility = input.visibility ?? (canPublishPublicEvents(user) ? EVENT_VISIBILITY.PUBLIC : EVENT_VISIBILITY.PRIVATE);
   if (visibility === EVENT_VISIBILITY.PUBLIC && !canPublishPublicEvents(user)) {
-    throw forbidden('Only organisers can publish public events. Apply to become an organiser from your profile.', 'ORGANIZER_ONLY');
+    throw forbidden(
+      'Only organisers can publish public events. Apply to become an organiser from your profile.',
+      'ORGANIZER_ONLY'
+    );
   }
 
   const isPublic = visibility === EVENT_VISIBILITY.PUBLIC;
@@ -181,8 +212,8 @@ export async function create(user: UserDocument, input: CreateEventInput) {
     ...input,
     visibility,
     // Personal events have no registration, so drafts and capacity don't apply.
-    status: isPublic ? input.status ?? EVENT_STATUS.PUBLISHED : EVENT_STATUS.PUBLISHED,
-    capacity: isPublic ? input.capacity ?? null : null,
+    status: isPublic ? (input.status ?? EVENT_STATUS.PUBLISHED) : EVENT_STATUS.PUBLISHED,
+    capacity: isPublic ? (input.capacity ?? null) : null,
     owner: user._id,
     // The creator is always in `organizers` so co-ownership needs no special case.
     organizers: [user._id],
@@ -191,8 +222,7 @@ export async function create(user: UserDocument, input: CreateEventInput) {
   return present(event, user);
 }
 
-const logisticsSnapshot = (event: EventDocument) =>
-  JSON.stringify([event.startsAt, event.endsAt, event.venue, event.onlineUrl]);
+const logisticsSnapshot = (event: EventDocument) => JSON.stringify([event.startsAt, event.endsAt, event.venue, event.onlineUrl]);
 
 export async function update(user: UserDocument, id: string, changes: UpdateEventInput) {
   const { event, access } = await loadEvent(user, id);
@@ -212,7 +242,10 @@ export async function update(user: UserDocument, id: string, changes: UpdateEven
     if (event.visibility !== EVENT_VISIBILITY.PUBLIC) throw badRequest('Personal events cannot be drafts');
     // Unpublishing would hide the event from people holding a ticket, without telling them.
     if (await Registration.exists({ event: event._id })) {
-      throw badRequest('People have already registered, so this event cannot go back to draft. Cancel it instead.', 'HAS_REGISTRATIONS');
+      throw badRequest(
+        'People have already registered, so this event cannot go back to draft. Cancel it instead.',
+        'HAS_REGISTRATIONS'
+      );
     }
   }
   const isPublicAfter = (changes.visibility ?? event.visibility) === EVENT_VISIBILITY.PUBLIC;
@@ -244,8 +277,7 @@ export async function update(user: UserDocument, id: string, changes: UpdateEven
     });
   }
 
-  const capacityGrew =
-    previousCapacity !== null && (event.capacity === null || event.capacity > previousCapacity);
+  const capacityGrew = previousCapacity !== null && (event.capacity === null || event.capacity > previousCapacity);
   if (capacityGrew) await fillFromWaitlist(event);
 
   return getForViewer(user, id);
@@ -315,7 +347,11 @@ export async function remove(user: UserDocument, id: string): Promise<void> {
 export async function toCalendarFile(viewer: Viewer, id: string) {
   const event = await findViewableEvent(viewer, id);
   const location = [event.venue?.name, event.venue?.address].filter(Boolean).join(', ') || event.onlineUrl;
-  const slug = event.title.replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '').toLowerCase() || 'event';
+  const slug =
+    event.title
+      .replace(/[^a-z0-9]+/gi, '-')
+      .replace(/^-|-$/g, '')
+      .toLowerCase() || 'event';
   return {
     filename: `${slug}.ics`,
     content: buildEventCalendar({

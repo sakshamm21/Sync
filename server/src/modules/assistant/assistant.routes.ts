@@ -38,8 +38,11 @@ const chatBody = z.object({
   timeZone,
 });
 
-router.post('/chat', validate({ body: chatBody }, async (req, res) => {
-  res.json({ data: await service.chat(currentUser(req), req.body) });
-}));
+router.post(
+  '/chat',
+  validate({ body: chatBody }, async (req, res) => {
+    res.json({ data: await service.chat(currentUser(req), req.body) });
+  })
+);
 
 export default router;

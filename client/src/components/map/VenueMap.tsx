@@ -35,7 +35,12 @@ function osmEmbedUrl(lat: number, lng: number) {
   return `https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&layer=mapnik&marker=${lat}%2C${lng}`;
 }
 
-const toLocation = (v: VenueSummary): PickedLocation => ({ name: v.name, address: v.address, latitude: v.latitude, longitude: v.longitude });
+const toLocation = (v: VenueSummary): PickedLocation => ({
+  name: v.name,
+  address: v.address,
+  latitude: v.latitude,
+  longitude: v.longitude,
+});
 
 /** Map of venues used by upcoming events, plus place search (OpenStreetMap). */
 export default function VenueMap({ onPick, className }: VenueMapProps) {
@@ -71,7 +76,11 @@ export default function VenueMap({ onPick, className }: VenueMapProps) {
   return (
     <div className={cn('grid gap-4 lg:grid-cols-[1fr_20rem]', className)}>
       <div className="relative min-h-[420px] overflow-hidden rounded-[32px] border border-border bg-surface-muted">
-        <iframe title="Map" src={osmEmbedUrl(center.latitude, center.longitude)} className="map-frame absolute inset-0 size-full border-0" />
+        <iframe
+          title="Map"
+          src={osmEmbedUrl(center.latitude, center.longitude)}
+          className="map-frame absolute inset-0 size-full border-0"
+        />
 
         <div className="absolute inset-x-3 top-3 z-10">
           <div className="relative">
@@ -91,7 +100,11 @@ export default function VenueMap({ onPick, className }: VenueMapProps) {
               {!searching && error && <li className="px-3 py-2 text-sm text-muted">{error}</li>}
               {results.map((place) => (
                 <li key={place.id}>
-                  <button type="button" onClick={() => choose(place)} className="flex w-full items-start gap-2.5 rounded-lg px-3 py-2 text-left transition hover:bg-surface-muted">
+                  <button
+                    type="button"
+                    onClick={() => choose(place)}
+                    className="flex w-full items-start gap-2.5 rounded-lg px-3 py-2 text-left transition hover:bg-surface-muted"
+                  >
                     <MapPin className="mt-0.5 size-4 shrink-0 text-primary" />
                     <span className="min-w-0">
                       <span className="block text-sm font-medium">{place.name}</span>
@@ -150,7 +163,12 @@ export default function VenueMap({ onPick, className }: VenueMapProps) {
                     active ? 'border-transparent bg-primary text-primary-foreground' : 'border-transparent hover:bg-surface-muted'
                   )}
                 >
-                  <span className={cn('flex size-8 shrink-0 items-center justify-center rounded-lg', active ? 'bg-black/15' : 'bg-surface-muted text-muted')}>
+                  <span
+                    className={cn(
+                      'flex size-8 shrink-0 items-center justify-center rounded-lg',
+                      active ? 'bg-black/15' : 'bg-surface-muted text-muted'
+                    )}
+                  >
                     <MapPin className="size-4" />
                   </span>
                   <span className="min-w-0">

@@ -7,11 +7,12 @@ const control =
   'hover:border-border-strong focus:border-primary focus:bg-surface focus:ring-4 focus:ring-ring/25 ' +
   'aria-[invalid=true]:border-danger disabled:opacity-55';
 
-export const Input = React.forwardRef<HTMLInputElement, React.InputHTMLAttributes<HTMLInputElement>>(
-  function Input({ className, ...props }, ref) {
-    return <input ref={ref} className={cn(control, 'h-12', className)} {...props} />;
-  }
-);
+export const Input = React.forwardRef<HTMLInputElement, React.InputHTMLAttributes<HTMLInputElement>>(function Input(
+  { className, ...props },
+  ref
+) {
+  return <input ref={ref} className={cn(control, 'h-12', className)} {...props} />;
+});
 
 export const Textarea = React.forwardRef<HTMLTextAreaElement, React.TextareaHTMLAttributes<HTMLTextAreaElement>>(
   function Textarea({ className, ...props }, ref) {
@@ -19,14 +20,20 @@ export const Textarea = React.forwardRef<HTMLTextAreaElement, React.TextareaHTML
   }
 );
 
-export const Select = React.forwardRef<HTMLSelectElement, React.SelectHTMLAttributes<HTMLSelectElement>>(
-  function Select({ className, ...props }, ref) {
-    return <select ref={ref} className={cn(control, 'h-12 cursor-pointer pr-9', className)} {...props} />;
-  }
-);
+export const Select = React.forwardRef<HTMLSelectElement, React.SelectHTMLAttributes<HTMLSelectElement>>(function Select(
+  { className, ...props },
+  ref
+) {
+  return <select ref={ref} className={cn(control, 'h-12 cursor-pointer pr-9', className)} {...props} />;
+});
 
 function Label({ className, ...props }: React.LabelHTMLAttributes<HTMLLabelElement>) {
-  return <label className={cn('mb-2 block font-mono text-[11px] font-medium uppercase tracking-[0.14em] text-muted', className)} {...props} />;
+  return (
+    <label
+      className={cn('mb-2 block font-mono text-[11px] font-medium uppercase tracking-[0.14em] text-muted', className)}
+      {...props}
+    />
+  );
 }
 
 interface FieldProps {
@@ -44,7 +51,11 @@ export function Field({ label, htmlFor, hint, error, className, children }: Fiel
     <div className={className}>
       {label && <Label htmlFor={htmlFor}>{label}</Label>}
       {children}
-      {error ? <p className="mt-1.5 text-xs font-medium text-danger">{error}</p> : hint && <p className="mt-1.5 text-xs text-subtle">{hint}</p>}
+      {error ? (
+        <p className="mt-1.5 text-xs font-medium text-danger">{error}</p>
+      ) : (
+        hint && <p className="mt-1.5 text-xs text-subtle">{hint}</p>
+      )}
     </div>
   );
 }

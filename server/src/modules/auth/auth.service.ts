@@ -34,7 +34,8 @@ export function createSession(user: UserDocument): Session {
  * Without working email the code cannot reach an inbox, so it is returned to
  * the client instead. Never in production unless EXPOSE_VERIFICATION_CODES is set.
  */
-const devOnly = <T>(delivered: boolean, value: T): T | undefined => (!delivered && env.exposeVerificationCodes ? value : undefined);
+const devOnly = <T>(delivered: boolean, value: T): T | undefined =>
+  !delivered && env.exposeVerificationCodes ? value : undefined;
 
 function safeEqual(a: string, b: string): boolean {
   const left = Buffer.from(a);
@@ -112,7 +113,9 @@ export async function verifyEmail({ email, code }: { email: string; code: string
     await user.save();
     const left = CODE_MAX_ATTEMPTS - pending.attempts;
     throw badRequest(
-      left > 0 ? `That code is not valid. ${left} attempt${left === 1 ? '' : 's'} left.` : 'Too many incorrect attempts. Request a new code.',
+      left > 0
+        ? `That code is not valid. ${left} attempt${left === 1 ? '' : 's'} left.`
+        : 'Too many incorrect attempts. Request a new code.',
       'INVALID_CODE'
     );
   }

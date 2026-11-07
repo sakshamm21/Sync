@@ -31,7 +31,14 @@ export default function ForgotPassword({ initialEmail = '', onBack }: { initialE
 
   if (sent) {
     return (
-      <AuthCard title={<>link <em>sent</em>.</>} subtitle={`If an account exists for ${email}, a reset link is on its way. It expires in 30 minutes.`}>
+      <AuthCard
+        title={
+          <>
+            link <em>sent</em>.
+          </>
+        }
+        subtitle={`If an account exists for ${email}, a reset link is on its way. It expires in 30 minutes.`}
+      >
         <div className="space-y-3">
           <div className="flex justify-center py-4 text-primary">
             <MailCheck className="size-12" strokeWidth={1.5} />
@@ -50,10 +57,25 @@ export default function ForgotPassword({ initialEmail = '', onBack }: { initialE
   }
 
   return (
-    <AuthCard title={<>forgot it? <em>happens</em>.</>} subtitle="Enter your email and we'll send you a link to choose a new one.">
+    <AuthCard
+      title={
+        <>
+          forgot it? <em>happens</em>.
+        </>
+      }
+      subtitle="Enter your email and we'll send you a link to choose a new one."
+    >
       <form onSubmit={handleSubmit} className="space-y-4">
         <Field label="Email" htmlFor="reset-email">
-          <Input id="reset-email" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} required autoFocus />
+          <Input
+            id="reset-email"
+            type="email"
+            autoComplete="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            required
+            autoFocus
+          />
         </Field>
         <FormAlert message={error} />
         <Button type="submit" size="lg" loading={loading} className="w-full">

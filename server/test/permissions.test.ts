@@ -16,7 +16,9 @@ async function publish(organizer: Actor, overrides = {}) {
 }
 
 async function addToTeam(owner: Actor, eventId: string, member: Actor, role: 'manager' | 'checkin') {
-  const team = (await api().post(`/api/event-staff/${eventId}/staff`).set(owner.auth).send({ email: member.user.email, role }).expect(201)).body.data;
+  const team = (
+    await api().post(`/api/event-staff/${eventId}/staff`).set(owner.auth).send({ email: member.user.email, role }).expect(201)
+  ).body.data;
   return team as { id: string; role: string; user: { id: string } }[];
 }
 
@@ -29,7 +31,11 @@ describe('B4: the event owner keeps their event', () => {
     const ownerRow = team.find((m) => m.role === 'owner')!;
     const managerRow = team.find((m) => m.role === 'manager')!;
 
-    const demote = await api().patch(`/api/event-staff/${event.id}/staff/${ownerRow.id}`).set(manager.auth).send({ role: 'checkin' }).expect(400);
+    const demote = await api()
+      .patch(`/api/event-staff/${event.id}/staff/${ownerRow.id}`)
+      .set(manager.auth)
+      .send({ role: 'checkin' })
+      .expect(400);
     assert.equal(demote.body.error.code, 'OWNER_PROTECTED');
     await api().delete(`/api/event-staff/${event.id}/staff/${ownerRow.id}`).set(manager.auth).expect(400);
     // Even the owner can't remove themselves by accident.
@@ -50,11 +56,21 @@ describe('B4: the event owner keeps their event', () => {
     const event = await publish(owner);
     await addToTeam(owner, event.id, manager, 'manager');
 
-    const invite = await api().post(`/api/event-staff/${event.id}/staff`).set(manager.auth).send({ email: other.user.email, role: 'manager' }).expect(403);
+    const invite = await api()
+      .post(`/api/event-staff/${event.id}/staff`)
+      .set(manager.auth)
+      .send({ email: other.user.email, role: 'manager' })
+      .expect(403);
     assert.equal(invite.body.error.code, 'OWNER_ONLY');
 
     // Door staff are a co-organiser's call.
-    const team = (await api().post(`/api/event-staff/${event.id}/staff`).set(manager.auth).send({ email: door.user.email, role: 'checkin' }).expect(201)).body.data;
+    const team = (
+      await api()
+        .post(`/api/event-staff/${event.id}/staff`)
+        .set(manager.auth)
+        .send({ email: door.user.email, role: 'checkin' })
+        .expect(201)
+    ).body.data;
     const doorRow = team.find((m: { user: { id: string } }) => m.user.id === door.user.id);
     await api().patch(`/api/event-staff/${event.id}/staff/${doorRow.id}`).set(manager.auth).send({ role: 'manager' }).expect(403);
     await api().delete(`/api/event-staff/${event.id}/staff/${doorRow.id}`).set(manager.auth).expect(200);
@@ -82,7 +98,11 @@ describe('B5: door staff work the door only', () => {
     await addToTeam(owner, event.id, door, 'checkin');
     await api().post(`/api/events/${event.id}/registration`).set(attendee.auth).expect(200);
 
-    await api().post(`/api/events/${event.id}/messages`).set(door.auth).send({ text: 'Free pizza!', announcement: true }).expect(403);
+    await api()
+      .post(`/api/events/${event.id}/messages`)
+      .set(door.auth)
+      .send({ text: 'Free pizza!', announcement: true })
+      .expect(403);
     assert.equal(await Notification.exists({ user: attendee.user._id, type: 'announcement' }), null);
     await api().post(`/api/events/${event.id}/messages`).set(door.auth).send({ text: 'Doors open at 6' }).expect(201);
   });
@@ -114,7 +134,11 @@ describe('B3: the door list', () => {
     assert.equal(res.body.data.items[0].user.name, 'Zara Khan');
     assert.ok(!JSON.stringify(res.body.data).includes(attendee.user.email), 'no email addresses');
 
-    await api().put(`/api/events/${event.id}/attendees/${attendee.user.id}/check-in`).set(door.auth).send({ checkedIn: true }).expect(200);
+    await api()
+      .put(`/api/events/${event.id}/attendees/${attendee.user.id}/check-in`)
+      .set(door.auth)
+      .send({ checkedIn: true })
+      .expect(200);
     const after = await api().get(`/api/events/${event.id}/door-list`).set(door.auth).expect(200);
     assert.equal(after.body.data.counts.checkedIn, 1);
 
@@ -180,10 +204,22 @@ describe('B11: publishing and unpublishing', () => {
 describe('B16: links must be web addresses', () => {
   it('refuses javascript: and data: URLs', async () => {
     const owner = await createUser({ role: 'organizer' });
-    await api().post('/api/events').set(owner.auth).send(eventInput({ onlineUrl: 'javascript:alert(1)' })).expect(400);
-    await api().post('/api/events').set(owner.auth).send(eventInput({ coverImageUrl: 'data:image/svg+xml,<svg/>' })).expect(400);
+    await api()
+      .post('/api/events')
+      .set(owner.auth)
+      .send(eventInput({ onlineUrl: 'javascript:alert(1)' }))
+      .expect(400);
+    await api()
+      .post('/api/events')
+      .set(owner.auth)
+      .send(eventInput({ coverImageUrl: 'data:image/svg+xml,<svg/>' }))
+      .expect(400);
     await api().patch('/api/me').set(owner.auth).send({ avatarUrl: 'javascript:alert(1)' }).expect(400);
-    await api().post('/api/events').set(owner.auth).send(eventInput({ onlineUrl: 'https://meet.example.com/abc' })).expect(201);
+    await api()
+      .post('/api/events')
+      .set(owner.auth)
+      .send(eventInput({ onlineUrl: 'https://meet.example.com/abc' }))
+      .expect(201);
   });
 });
 

@@ -8,7 +8,10 @@ export const register = z.object({
 
 export const verifyEmail = z.object({
   email,
-  code: z.string().trim().regex(/^\d{6}$/, 'Enter the 6-digit code'),
+  code: z
+    .string()
+    .trim()
+    .regex(/^\d{6}$/, 'Enter the 6-digit code'),
 });
 
 export const emailOnly = z.object({ email });

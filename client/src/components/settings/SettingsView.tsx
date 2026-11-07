@@ -61,7 +61,13 @@ function ProfileSection() {
           <div className="flex items-center gap-4">
             <Avatar name={name || user?.name || '?'} src={avatarUrl.trim() || undefined} size={64} />
             <Field label="Profile picture URL" htmlFor="profile-avatar" className="flex-1">
-              <Input id="profile-avatar" type="url" placeholder="https://…" value={avatarUrl} onChange={(e) => setAvatarUrl(e.target.value)} />
+              <Input
+                id="profile-avatar"
+                type="url"
+                placeholder="https://…"
+                value={avatarUrl}
+                onChange={(e) => setAvatarUrl(e.target.value)}
+              />
             </Field>
           </div>
           <div className="grid gap-4 sm:grid-cols-2">
@@ -73,7 +79,14 @@ function ProfileSection() {
             </Field>
           </div>
           <Field label="About you" htmlFor="profile-bio">
-            <Textarea id="profile-bio" rows={2} maxLength={500} value={bio} onChange={(e) => setBio(e.target.value)} placeholder="A line about you" />
+            <Textarea
+              id="profile-bio"
+              rows={2}
+              maxLength={500}
+              value={bio}
+              onChange={(e) => setBio(e.target.value)}
+              placeholder="A line about you"
+            />
           </Field>
         </div>
       </Section>
@@ -90,7 +103,9 @@ function ProfileSection() {
                 onClick={() => toggleInterest(c)}
                 className={cn(
                   'inline-flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-sm font-medium transition',
-                  on ? 'border-transparent bg-primary text-primary-foreground' : 'border-border text-muted hover:border-border-strong hover:text-foreground'
+                  on
+                    ? 'border-transparent bg-primary text-primary-foreground'
+                    : 'border-border text-muted hover:border-border-strong hover:text-foreground'
                 )}
               >
                 {on ? <Check className="size-3.5" /> : <span aria-hidden="true">{CATEGORY_EMOJI[c]}</span>}
@@ -105,22 +120,34 @@ function ProfileSection() {
         <label className="flex cursor-pointer items-start justify-between gap-4 rounded-xl border border-border p-4">
           <span>
             <span className="block text-sm font-medium">Email me too</span>
-            <span className="block text-sm text-muted">Reminders, changes and announcements for events you&apos;re attending.</span>
+            <span className="block text-sm text-muted">
+              Reminders, changes and announcements for events you&apos;re attending.
+            </span>
           </span>
           <button
             type="button"
             role="switch"
             aria-checked={emailNotifications}
             onClick={() => setEmailNotifications((v) => !v)}
-            className={cn('relative h-6 w-11 shrink-0 rounded-full transition', emailNotifications ? 'bg-primary' : 'bg-border-strong')}
+            className={cn(
+              'relative h-6 w-11 shrink-0 rounded-full transition',
+              emailNotifications ? 'bg-primary' : 'bg-border-strong'
+            )}
           >
-            <span className={cn('absolute top-0.5 size-5 rounded-full bg-white shadow transition-all', emailNotifications ? 'left-[22px]' : 'left-0.5')} />
+            <span
+              className={cn(
+                'absolute top-0.5 size-5 rounded-full bg-white shadow transition-all',
+                emailNotifications ? 'left-[22px]' : 'left-0.5'
+              )}
+            />
           </button>
         </label>
       </Section>
 
       <div className="flex justify-end">
-        <Button type="submit" loading={saving}>Save changes</Button>
+        <Button type="submit" loading={saving}>
+          Save changes
+        </Button>
       </div>
     </form>
   );
@@ -137,9 +164,30 @@ function AppearanceSection() {
           value={(theme as 'system' | 'light' | 'dark') ?? 'system'}
           onChange={setTheme}
           options={[
-            { value: 'system', label: <><Monitor className="size-4" /> System</> },
-            { value: 'light', label: <><Sun className="size-4" /> Light</> },
-            { value: 'dark', label: <><Moon className="size-4" /> Dark</> },
+            {
+              value: 'system',
+              label: (
+                <>
+                  <Monitor className="size-4" /> System
+                </>
+              ),
+            },
+            {
+              value: 'light',
+              label: (
+                <>
+                  <Sun className="size-4" /> Light
+                </>
+              ),
+            },
+            {
+              value: 'dark',
+              label: (
+                <>
+                  <Moon className="size-4" /> Dark
+                </>
+              ),
+            },
           ]}
         />
       )}
@@ -156,7 +204,10 @@ function OrganizerSection() {
 
   useEffect(() => {
     if (user?.role !== 'member') return;
-    organizerApi.latestApplication().then(setApplication).catch(() => setApplication(null));
+    organizerApi
+      .latestApplication()
+      .then(setApplication)
+      .catch(() => setApplication(null));
   }, [user?.role]);
 
   if (!user) return null;
@@ -167,9 +218,13 @@ function OrganizerSection() {
         <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-border p-4">
           <div>
             <Badge tone="primary">{ROLE_LABELS[user.role]}</Badge>
-            <p className="mt-2 text-sm text-muted">You can publish public events{user.organization ? ` for ${user.organization}` : ''}.</p>
+            <p className="mt-2 text-sm text-muted">
+              You can publish public events{user.organization ? ` for ${user.organization}` : ''}.
+            </p>
           </div>
-          <ButtonLink href="/organizer" variant="secondary"><Megaphone /> Organizer console</ButtonLink>
+          <ButtonLink href="/organizer" variant="secondary">
+            <Megaphone /> Organizer console
+          </ButtonLink>
         </div>
       </Section>
     );
@@ -191,7 +246,10 @@ function OrganizerSection() {
   const pending = application?.status === 'pending';
 
   return (
-    <Section title="Host your own events" description="Organizers publish public events, manage RSVPs and waitlists, check people in and send announcements.">
+    <Section
+      title="Host your own events"
+      description="Organizers publish public events, manage RSVPs and waitlists, check people in and send announcements."
+    >
       <div className="space-y-4">
         {application && (
           <div
@@ -202,9 +260,16 @@ function OrganizerSection() {
               application.status === 'rejected' && 'border-border bg-surface-muted'
             )}
           >
-            {application.status === 'pending' ? <Clock className="mt-0.5 size-4 shrink-0 text-warning" /> : application.status === 'approved' ? <Check className="mt-0.5 size-4 shrink-0 text-success" /> : <XCircle className="mt-0.5 size-4 shrink-0 text-muted" />}
+            {application.status === 'pending' ? (
+              <Clock className="mt-0.5 size-4 shrink-0 text-warning" />
+            ) : application.status === 'approved' ? (
+              <Check className="mt-0.5 size-4 shrink-0 text-success" />
+            ) : (
+              <XCircle className="mt-0.5 size-4 shrink-0 text-muted" />
+            )}
             <p>
-              {application.status === 'pending' && `Your application for ${application.organization} (sent ${formatDay(application.createdAt)}) is being reviewed.`}
+              {application.status === 'pending' &&
+                `Your application for ${application.organization} (sent ${formatDay(application.createdAt)}) is being reviewed.`}
               {application.status === 'approved' && 'Approved! Organizer tools are now in the sidebar.'}
               {application.status === 'rejected' &&
                 `Your application for ${application.organization} wasn't approved.${application.reviewNote ? ` Reviewer's note: “${application.reviewNote}”` : ''} You can apply again.`}
@@ -214,12 +279,21 @@ function OrganizerSection() {
         {!pending && application !== undefined && (
           <form onSubmit={apply} className="space-y-4">
             <Field label="Club or organization" htmlFor="org-name">
-              <Input id="org-name" value={organization} onChange={(e) => setOrganization(e.target.value)} required minLength={2} placeholder="e.g. Robotics Club" />
+              <Input
+                id="org-name"
+                value={organization}
+                onChange={(e) => setOrganization(e.target.value)}
+                required
+                minLength={2}
+                placeholder="e.g. Robotics Club"
+              />
             </Field>
             <Field label="What will you host?" htmlFor="org-reason" hint="Optional, but it helps the review.">
               <Textarea id="org-reason" rows={2} value={reason} onChange={(e) => setReason(e.target.value)} />
             </Field>
-            <Button type="submit" loading={submitting}>Apply to be an organizer</Button>
+            <Button type="submit" loading={submitting}>
+              Apply to be an organizer
+            </Button>
           </form>
         )}
       </div>
@@ -253,13 +327,30 @@ function PasswordSection() {
       <form onSubmit={save} className="space-y-4">
         <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Current password" htmlFor="current-password">
-            <Input id="current-password" type="password" autoComplete="current-password" value={currentPassword} onChange={(e) => setCurrentPassword(e.target.value)} required />
+            <Input
+              id="current-password"
+              type="password"
+              autoComplete="current-password"
+              value={currentPassword}
+              onChange={(e) => setCurrentPassword(e.target.value)}
+              required
+            />
           </Field>
           <Field label="New password" htmlFor="new-password" hint="8 or more characters.">
-            <Input id="new-password" type="password" autoComplete="new-password" minLength={8} value={newPassword} onChange={(e) => setNewPassword(e.target.value)} required />
+            <Input
+              id="new-password"
+              type="password"
+              autoComplete="new-password"
+              minLength={8}
+              value={newPassword}
+              onChange={(e) => setNewPassword(e.target.value)}
+              required
+            />
           </Field>
         </div>
-        <Button type="submit" variant="secondary" loading={saving}>Update password</Button>
+        <Button type="submit" variant="secondary" loading={saving}>
+          Update password
+        </Button>
       </form>
     </Section>
   );
@@ -297,7 +388,14 @@ function SessionsSection() {
 export default function SettingsView() {
   return (
     <>
-      <PageHeader kicker="Profile, vibes & account" title={<>Your <em>settings</em></>} />
+      <PageHeader
+        kicker="Profile, vibes & account"
+        title={
+          <>
+            Your <em>settings</em>
+          </>
+        }
+      />
       <div className="space-y-6">
         <ProfileSection />
         <AppearanceSection />

@@ -153,7 +153,10 @@ export async function seed(): Promise<SeedResult> {
   );
 
   for (const application of data.applications) {
-    const created = await organizer.apply(user(application.user), { organization: application.organization, reason: application.reason });
+    const created = await organizer.apply(user(application.user), {
+      organization: application.organization,
+      reason: application.reason,
+    });
     if (application.review) {
       const { by, approve, note } = application.review;
       await admin.reviewApplication(user(by), created.id, { approve, note });
@@ -200,7 +203,9 @@ async function acquireResetLock(): Promise<boolean> {
 }
 
 async function releaseResetLock(): Promise<void> {
-  await database().collection<{ _id: string; until: Date }>(LOCKS_COLLECTION).updateOne({ _id: RESET_LOCK_ID }, { $set: { until: new Date(0) } });
+  await database()
+    .collection<{ _id: string; until: Date }>(LOCKS_COLLECTION)
+    .updateOne({ _id: RESET_LOCK_ID }, { $set: { until: new Date(0) } });
 }
 
 /**

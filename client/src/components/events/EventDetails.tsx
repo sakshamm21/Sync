@@ -9,9 +9,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import {
-  ArrowLeft, CalendarPlus, Flag, Hourglass, Link2, MapPin, Navigation, Share2, Star, Users,
-} from 'lucide-react';
+import { ArrowLeft, CalendarPlus, Flag, Hourglass, Link2, MapPin, Navigation, Share2, Star, Users } from 'lucide-react';
 import RsvpButton from './RsvpButton';
 import EventCover, { statusOf } from './EventCover';
 import { CapacityBar, DateStamp } from './EventCard';
@@ -54,7 +52,17 @@ function mapEmbed(event: SyncEvent): string | null {
   return `https://www.openstreetmap.org/export/embed.html?bbox=${lng - d}%2C${lat - d}%2C${lng + d}%2C${lat + d}&layer=mapnik&marker=${lat}%2C${lng}`;
 }
 
-function RoundAction({ label, onClick, href, children }: { label: string; onClick?: () => void; href?: string | null; children: React.ReactNode }) {
+function RoundAction({
+  label,
+  onClick,
+  href,
+  children,
+}: {
+  label: string;
+  onClick?: () => void;
+  href?: string | null;
+  children: React.ReactNode;
+}) {
   const className =
     'flex flex-col items-center gap-1.5 text-xs font-semibold text-muted transition hover:text-foreground disabled:opacity-40 [&>span:first-child]:flex [&>span:first-child]:size-12 [&>span:first-child]:items-center [&>span:first-child]:justify-center [&>span:first-child]:rounded-full [&>span:first-child]:border [&>span:first-child]:border-border [&>span:first-child]:bg-surface-muted [&>span:first-child]:transition hover:[&>span:first-child]:border-primary hover:[&>span:first-child]:text-primary [&_svg]:size-5';
   if (href) {
@@ -79,7 +87,10 @@ function RatingPanel({ event, onRated }: { event: SyncEvent; onRated: (r: EventR
   const [pending, setPending] = useState(false);
 
   useEffect(() => {
-    eventsApi.ratings(event.id).then(setRating).catch(() => setRating(null));
+    eventsApi
+      .ratings(event.id)
+      .then(setRating)
+      .catch(() => setRating(null));
   }, [event.id]);
 
   if (!rating) return null;
@@ -171,7 +182,10 @@ function ReportButton({ event }: { event: SyncEvent }) {
 
   if (!open) {
     return (
-      <button onClick={() => setOpen(true)} className="text-xs text-muted underline-offset-2 hover:text-foreground hover:underline">
+      <button
+        onClick={() => setOpen(true)}
+        className="text-xs text-muted underline-offset-2 hover:text-foreground hover:underline"
+      >
         Report this event
       </button>
     );
@@ -189,8 +203,12 @@ function ReportButton({ event }: { event: SyncEvent }) {
         ))}
       </div>
       <div className="mt-3 flex gap-2">
-        <Button size="sm" onClick={submit} loading={pending}>Send</Button>
-        <Button size="sm" variant="ghost" onClick={() => setOpen(false)}>Cancel</Button>
+        <Button size="sm" onClick={submit} loading={pending}>
+          Send
+        </Button>
+        <Button size="sm" variant="ghost" onClick={() => setOpen(false)}>
+          Cancel
+        </Button>
       </div>
     </div>
   );
@@ -211,18 +229,28 @@ export default function EventDetails({
   // Start from the server's copy so the page is readable before any fetch,
   // then replace it with the authenticated view once that arrives.
   const [missing, setMissing] = useState(false);
-  const [event, setEvent] = useState<SyncEvent | null>(() => initialEvent && ({
-    ...(initialEvent as unknown as SyncEvent),
-    tags: [],
-    onlineUrl: '',
-    viewer: { isOwner: false, isOrganizer: false, canManage: false, canCheckIn: false, canChat: false, staffRole: null, registration: null },
-    spotsLeft:
-      initialEvent.capacity === null ? null : Math.max(initialEvent.capacity - initialEvent.attendeeCount, 0),
-    isPast: new Date(initialEvent.endsAt) < new Date(),
-    averageRating: null,
-    createdAt: initialEvent.startsAt,
-    updatedAt: initialEvent.startsAt,
-  }));
+  const [event, setEvent] = useState<SyncEvent | null>(
+    () =>
+      initialEvent && {
+        ...(initialEvent as unknown as SyncEvent),
+        tags: [],
+        onlineUrl: '',
+        viewer: {
+          isOwner: false,
+          isOrganizer: false,
+          canManage: false,
+          canCheckIn: false,
+          canChat: false,
+          staffRole: null,
+          registration: null,
+        },
+        spotsLeft: initialEvent.capacity === null ? null : Math.max(initialEvent.capacity - initialEvent.attendeeCount, 0),
+        isPast: new Date(initialEvent.endsAt) < new Date(),
+        averageRating: null,
+        createdAt: initialEvent.startsAt,
+        updatedAt: initialEvent.startsAt,
+      }
+  );
 
   useEffect(() => {
     if (status === 'loading') return;
@@ -270,7 +298,11 @@ export default function EventDetails({
         <EmptyState
           emoji="🔍"
           title="Event not found"
-          description={user ? 'This event may have been deleted, or it is private.' : 'If this is your private plan or draft, sign in to see it.'}
+          description={
+            user
+              ? 'This event may have been deleted, or it is private.'
+              : 'If this is your private plan or draft, sign in to see it.'
+          }
           action={
             user ? (
               <ButtonLink href="/explore">See what&apos;s on</ButtonLink>
@@ -315,7 +347,9 @@ export default function EventDetails({
                   )}
                 </div>
                 <Kicker className="text-foreground/80">{formatEventWhen(event)}</Kicker>
-                <h1 className="mt-3 max-w-4xl text-[clamp(2.4rem,6vw,5.5rem)] font-extrabold leading-[0.92] tracking-[-0.04em]">{event.title}</h1>
+                <h1 className="mt-3 max-w-4xl text-[clamp(2.4rem,6vw,5.5rem)] font-extrabold leading-[0.92] tracking-[-0.04em]">
+                  {event.title}
+                </h1>
                 {event.visibility === 'public' && host && (
                   <div className="mt-5 flex items-center gap-2.5 text-sm">
                     <Avatar name={host} src={event.owner?.avatarUrl} size={30} />
@@ -360,7 +394,9 @@ export default function EventDetails({
                 </section>
               )}
 
-              {event.visibility === 'public' && <RatingPanel event={event} onRated={(r) => setEvent({ ...event, averageRating: r.average })} />}
+              {event.visibility === 'public' && (
+                <RatingPanel event={event} onRated={(r) => setEvent({ ...event, averageRating: r.average })} />
+              )}
 
               {event.visibility === 'public' && (
                 <section>
@@ -373,7 +409,9 @@ export default function EventDetails({
                     <Card className="p-8 text-center">
                       <p className="text-3xl">💬</p>
                       <p className="mt-2 font-display text-lg font-bold">The chat is for people who are going</p>
-                      <p className="mt-1 text-sm text-muted">{user ? 'Tap I’m in to join the conversation.' : 'Sign in and tap I’m in to join.'}</p>
+                      <p className="mt-1 text-sm text-muted">
+                        {user ? 'Tap I’m in to join the conversation.' : 'Sign in and tap I’m in to join.'}
+                      </p>
                     </Card>
                   )}
                 </section>
@@ -402,7 +440,12 @@ export default function EventDetails({
                         <span className="truncate">{formatVenue(event)}</span>
                       </p>
                       {event.onlineUrl && (
-                        <a href={event.onlineUrl} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 font-semibold text-primary hover:underline">
+                        <a
+                          href={event.onlineUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="flex items-center gap-1.5 font-semibold text-primary hover:underline"
+                        >
                           <Link2 className="size-4" /> Join online
                         </a>
                       )}

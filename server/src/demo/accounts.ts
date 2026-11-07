@@ -17,9 +17,6 @@ export function isDemoAccount(email: string | undefined | null): boolean {
 /** Refuses changes that would affect everyone sharing a demo account. */
 export function assertNotDemoAccount(email: string | undefined | null): void {
   if (isDemoAccount(email)) {
-    throw forbidden(
-      "Demo accounts are shared, so this can't be changed. Create your own account to try it.",
-      'DEMO_ACCOUNT'
-    );
+    throw forbidden("Demo accounts are shared, so this can't be changed. Create your own account to try it.", 'DEMO_ACCOUNT');
   }
 }

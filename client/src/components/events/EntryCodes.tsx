@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { QrCode } from 'lucide-react';
-import { eventsApi, type SyncEvent } from '@/lib/api';
+import { type SyncEvent } from '@/lib/api';
 import { formatDay, formatTime } from '@/lib/format';
 import { TicketQr } from '@/components/events/QrTicket';
 import { Kicker } from '@/components/ui/surface';
@@ -33,9 +33,7 @@ export default function EntryCodes({ events }: { events: SyncEvent[] }) {
           <p className="mt-1 text-sm text-muted">
             {formatDay(upcoming.startsAt)} · {formatTime(upcoming.startsAt)}
           </p>
-          <p className="mt-3 text-sm text-muted">
-            Show this at the door. It only works for this event.
-          </p>
+          <p className="mt-3 text-sm text-muted">Show this at the door. It only works for this event.</p>
         </div>
       </div>
     </section>

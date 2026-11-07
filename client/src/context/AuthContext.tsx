@@ -62,7 +62,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUser(session.user);
     setStatus('authenticated');
     // The full profile also says whether they help run anyone's event (for the nav).
-    void meApi.get().then(setUser).catch(() => {});
+    void meApi
+      .get()
+      .then(setUser)
+      .catch(() => {});
     return session.user;
   }, []);
 

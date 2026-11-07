@@ -71,7 +71,11 @@ export async function listReports({ status, page, limit }: Page & { status?: Rep
  * since that is the action a report almost always ends in. Attendees are told
  * as for any cancellation, and the organiser is told why.
  */
-export async function resolve(admin: UserDocument, id: string, { status, reason = '' }: { status: ReportStatus; reason?: string }) {
+export async function resolve(
+  admin: UserDocument,
+  id: string,
+  { status, reason = '' }: { status: ReportStatus; reason?: string }
+) {
   const report = await Report.findById(id);
   if (!report) throw notFound('Report not found');
 

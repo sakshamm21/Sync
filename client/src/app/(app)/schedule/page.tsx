@@ -17,14 +17,21 @@ export default function SchedulePage() {
 
   // Refetch after any RSVP elsewhere, so the entry code matches what you're going to.
   useEffect(() => {
-    meApi.registrations(true).then(setMine).catch(() => setMine([]));
+    meApi
+      .registrations(true)
+      .then(setMine)
+      .catch(() => setMine([]));
   }, [version]);
 
   return (
     <>
       <PageHeader
         kicker="Your month at a glance"
-        title={<>My <em>schedule</em></>}
+        title={
+          <>
+            My <em>schedule</em>
+          </>
+        }
         description="Everything you're going to, running, or planning. Tap a day to add something."
         actions={
           <Button onClick={() => openCreateEvent()}>

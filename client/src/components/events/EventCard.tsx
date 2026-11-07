@@ -35,7 +35,10 @@ export function CapacityBar({ event }: { event: SyncEvent }) {
       </div>
       <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-surface-muted">
         <div
-          className={cn('h-full rounded-full transition-all duration-700', ratio >= 1 ? 'bg-pink' : ratio > 0.75 ? 'bg-orange' : 'bg-primary')}
+          className={cn(
+            'h-full rounded-full transition-all duration-700',
+            ratio >= 1 ? 'bg-pink' : ratio > 0.75 ? 'bg-orange' : 'bg-primary'
+          )}
           style={{ width: `${Math.max(ratio * 100, 4)}%` }}
         />
       </div>
@@ -44,7 +47,15 @@ export function CapacityBar({ event }: { event: SyncEvent }) {
 }
 
 /** An event as a ticket: cover on top, perforated stub with the date below. */
-export default function EventCard({ event, onChange, className }: { event: SyncEvent; onChange: (event: SyncEvent) => void; className?: string }) {
+export default function EventCard({
+  event,
+  onChange,
+  className,
+}: {
+  event: SyncEvent;
+  onChange: (event: SyncEvent) => void;
+  className?: string;
+}) {
   const host = event.owner.organization || event.owner.name;
   return (
     <Tilt className={cn('group h-full rounded-[28px] [filter:drop-shadow(0_20px_30px_rgb(0_0_0/0.25))]', className)}>
@@ -57,7 +68,10 @@ export default function EventCard({ event, onChange, className }: { event: SyncE
           <div className="flex gap-4">
             <DateStamp iso={event.startsAt} />
             <div className="min-w-0 flex-1 border-l border-border pl-4">
-              <Link href={`/events/${event.id}`} className="line-clamp-2 font-display text-lg font-bold leading-tight transition-colors hover:text-primary">
+              <Link
+                href={`/events/${event.id}`}
+                className="line-clamp-2 font-display text-lg font-bold leading-tight transition-colors hover:text-primary"
+              >
                 {event.title}
               </Link>
               <p className="mt-1.5 truncate font-mono text-[11px] uppercase tracking-wider text-muted">

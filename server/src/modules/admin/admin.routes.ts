@@ -45,28 +45,43 @@ router.get('/stats', async (_req, res) => {
   res.json({ data: await service.stats() });
 });
 
-router.get('/reports', validate({ query: reportsQuery }, async (req, res) => {
-  const { items, meta } = await reports.listReports(req.query);
-  res.json({ data: items, meta });
-}));
+router.get(
+  '/reports',
+  validate({ query: reportsQuery }, async (req, res) => {
+    const { items, meta } = await reports.listReports(req.query);
+    res.json({ data: items, meta });
+  })
+);
 
-router.patch('/reports/:id', validate({ params: idParams, body: resolveBody }, async (req, res) => {
-  res.json({ data: await reports.resolve(currentUser(req), req.params.id, req.body) });
-}));
+router.patch(
+  '/reports/:id',
+  validate({ params: idParams, body: resolveBody }, async (req, res) => {
+    res.json({ data: await reports.resolve(currentUser(req), req.params.id, req.body) });
+  })
+);
 
-router.get('/users', validate({ query: usersQuery }, async (req, res) => {
-  const { items, meta } = await service.listUsers(req.query);
-  res.json({ data: items, meta });
-}));
+router.get(
+  '/users',
+  validate({ query: usersQuery }, async (req, res) => {
+    const { items, meta } = await service.listUsers(req.query);
+    res.json({ data: items, meta });
+  })
+);
 
-router.patch('/users/:id', validate({ params: idParams, body: userUpdateBody }, async (req, res) => {
-  res.json({ data: await service.updateUser(currentUser(req), req.params.id, req.body) });
-}));
+router.patch(
+  '/users/:id',
+  validate({ params: idParams, body: userUpdateBody }, async (req, res) => {
+    res.json({ data: await service.updateUser(currentUser(req), req.params.id, req.body) });
+  })
+);
 
-router.get('/organizer-applications', validate({ query: applicationsQuery }, async (req, res) => {
-  const { items, meta } = await service.listApplications(req.query);
-  res.json({ data: items, meta });
-}));
+router.get(
+  '/organizer-applications',
+  validate({ query: applicationsQuery }, async (req, res) => {
+    const { items, meta } = await service.listApplications(req.query);
+    res.json({ data: items, meta });
+  })
+);
 
 router.post(
   '/organizer-applications/:id/approve',

@@ -58,7 +58,9 @@ export function TicketQr({ event }: { event: SyncEvent }) {
       <div className="rounded-2xl bg-white p-2 shadow-inner">
         <QrSvg text={token} className="size-56" />
       </div>
-      <p className="max-w-[16rem] text-center text-xs text-muted">Show this at the door. Turn your screen brightness up if it won&apos;t scan.</p>
+      <p className="max-w-[16rem] text-center text-xs text-muted">
+        Show this at the door. Turn your screen brightness up if it won&apos;t scan.
+      </p>
     </div>
   );
 }
