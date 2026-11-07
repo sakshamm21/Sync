@@ -91,6 +91,9 @@ interface FormState {
   requiresApproval: boolean;
   /** '' = one-off; otherwise "week:4" / "fortnight:6" (only when creating). */
   repeat: string;
+  /** Team event sizes as typed; both empty = individual sign-up. */
+  teamMin: string;
+  teamMax: string;
   isPublic: boolean;
 }
 
@@ -138,6 +141,8 @@ function initialState(event: SyncEvent | undefined, canPublish: boolean, date?: 
       })),
       requiresApproval: Boolean(event.requiresApproval),
       repeat: '',
+      teamMin: event.teamSize ? String(event.teamSize.min) : '',
+      teamMax: event.teamSize ? String(event.teamSize.max) : '',
       isPublic: event.visibility === 'public',
     };
   }
@@ -162,6 +167,8 @@ function initialState(event: SyncEvent | undefined, canPublish: boolean, date?: 
     questions: [],
     requiresApproval: false,
     repeat: '',
+    teamMin: '',
+    teamMax: '',
     isPublic: canPublish,
   };
 }
@@ -337,6 +344,8 @@ function EventForm({
       body.registrationOpensAt = form.registrationOpensAt ? fromDateTimeInput(form.registrationOpensAt).toISOString() : null;
       body.waitlistClaimHours = form.waitlistClaimHours ? Number(form.waitlistClaimHours) : null;
       body.requiresApproval = form.requiresApproval;
+      body.teamSize =
+        form.teamMax || form.teamMin ? { min: Number(form.teamMin || 1), max: Number(form.teamMax || form.teamMin || 1) } : null;
       body.questions = form.questions
         .filter((q) => q.label.trim())
         .map((q) => ({
@@ -712,6 +721,29 @@ function EventForm({
                   )}
                 />
               </button>
+            </div>
+
+            <div className="grid gap-3 pt-2 sm:grid-cols-2">
+              <Field label="Smallest team" htmlFor="team-min" hint="Leave both empty for individual sign-up.">
+                <Input
+                  id="team-min"
+                  type="number"
+                  min={1}
+                  max={20}
+                  value={form.teamMin}
+                  onChange={(e) => set('teamMin', e.target.value)}
+                />
+              </Field>
+              <Field label="Largest team" htmlFor="team-max">
+                <Input
+                  id="team-max"
+                  type="number"
+                  min={1}
+                  max={20}
+                  value={form.teamMax}
+                  onChange={(e) => set('teamMax', e.target.value)}
+                />
+              </Field>
             </div>
 
             <p className="pt-2 text-sm font-medium">Questions at RSVP</p>

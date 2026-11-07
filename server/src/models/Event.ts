@@ -53,6 +53,8 @@ export interface IEvent {
   requiresApproval: boolean;
   /** Shared by every date of a repeating event (null for one-offs). */
   seriesId: Types.ObjectId | null;
+  /** For team events: how many people a team may have. Null = individual sign-up. */
+  teamSize: { min: number; max: number } | null;
   attendeeCount: number;
   /** People who bookmarked it as "Interested" (a cache of Interest rows). */
   interestedCount: number;
@@ -130,6 +132,11 @@ const eventSchema = new Schema<IEvent, EventModel, EventMethods, {}, EventVirtua
     },
     requiresApproval: { type: Boolean, default: false },
     seriesId: { type: Schema.Types.ObjectId, default: null, index: true },
+    teamSize: {
+      type: { min: { type: Number, min: 1, max: 20 }, max: { type: Number, min: 1, max: 20 } },
+      default: null,
+      _id: false,
+    },
     attendeeCount: { type: Number, min: 0, default: 0 },
     interestedCount: { type: Number, min: 0, default: 0 },
     ratingSum: { type: Number, min: 0, default: 0 },

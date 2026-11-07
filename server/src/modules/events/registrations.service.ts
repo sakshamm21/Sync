@@ -1,5 +1,5 @@
 import type { FilterQuery, Types } from 'mongoose';
-import { Event, Registration, type EventDocument, type IEvent, type UserDocument } from '../../models';
+import { Event, Registration, Team, type EventDocument, type IEvent, type UserDocument } from '../../models';
 import * as notifications from '../notifications/notifications.service';
 import type { RegisterBody } from './events.schemas';
 import { badRequest, forbidden, notFound } from '../../lib/errors';
@@ -150,6 +150,11 @@ export async function unregister(user: UserDocument, eventId: string) {
     throw badRequest('This event has already started, so you can no longer leave it', 'EVENT_STARTED');
   }
   const registration = await Registration.findOneAndDelete({ event: event._id, user: user.id });
+  // Leaving the event also leaves its team (an empty team goes away).
+  if (registration) {
+    await Team.updateMany({ event: event._id, members: user._id }, { $pull: { members: user._id } });
+    await Team.deleteMany({ event: event._id, members: { $size: 0 } });
+  }
   if (!registration) throw notFound('You are not registered for this event', 'NOT_REGISTERED');
 
   // A held offer also holds a seat, so declining one passes it on too.
