@@ -345,6 +345,15 @@ export interface AssistantReply {
   reply: string;
   /** The events the reply links to, for showing as cards. */
   events: SyncEvent[];
+  /** Things the assistant offered to do; each needs the user's tap. */
+  actions?: AssistantAction[];
+}
+
+export interface AssistantAction {
+  type: 'rsvp' | 'cancel_rsvp' | 'interested';
+  eventId: string;
+  title: string;
+  when: string;
 }
 
 export const assistantApi = {

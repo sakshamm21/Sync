@@ -459,3 +459,38 @@ test('team events: create a team, a teammate joins with the code, the organiser 
   await expect(org.getByRole('button', { name: 'All checked in' })).toBeVisible();
   await org.close();
 });
+
+test('the assistant offers an RSVP button that goes through only when tapped', async ({ page }) => {
+  const member = await signInAs(page, 'tester1@syncronify.dev');
+  const events = (await (await page.request.get(`${API}/api/events?limit=20`)).json()).data as (Ev & {
+    spotsLeft: number | null;
+  })[];
+  const target = events.find((e) => e.viewer.registration === null && e.spotsLeft !== 0)!;
+  // No AI key in tests: stand in for the model, keep everything else real.
+  await page.route(`${API}/api/meta`, async (route) => {
+    const res = await route.fetch();
+    const body = await res.json();
+    await route.fulfill({ json: { data: { ...body.data, assistant: true } } });
+  });
+  await page.route(`${API}/api/assistant/chat`, (route) =>
+    route.fulfill({
+      json: {
+        data: {
+          reply: `Tap below to join [${target.title}](/events/${target.id}).`,
+          events: [],
+          actions: [{ type: 'rsvp', eventId: target.id, title: target.title, when: 'Soon' }],
+        },
+      },
+    })
+  );
+  await page.goto('/dashboard');
+  await page.getByRole('button', { name: 'Ask Sync, the AI assistant' }).click();
+  await page.getByRole('textbox', { name: 'Message Sync' }).fill(`Sign me up for ${target.title}`);
+  await page.keyboard.press('Enter');
+  const confirm = page.getByRole('dialog', { name: 'Ask Sync' }).getByRole('button', { name: "I'm in" });
+  await expect(confirm).toBeVisible();
+  expect((await apiGet<Ev>(member, `/api/events/${target.id}`)).viewer.registration).toBeNull();
+  await confirm.click();
+  await expect(page.getByRole('dialog', { name: 'Ask Sync' }).getByRole('button', { name: "You're in" })).toBeVisible();
+  expect((await apiGet<Ev>(member, `/api/events/${target.id}`)).viewer.registration).not.toBeNull();
+});

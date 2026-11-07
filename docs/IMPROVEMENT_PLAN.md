@@ -69,6 +69,7 @@ Severity labels:
 | #31 | Next #7: friends and "friends going" |
 | #32 | Next #6 (rest): replies, reactions, unread badges |
 | #33 | Next #2: team registration |
+| #34 | Next #11: assistant actions with confirmation |
 
 **Still open, and why:**
 

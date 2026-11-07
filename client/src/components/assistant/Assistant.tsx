@@ -6,7 +6,10 @@ import Link from 'next/link';
 import { AnimatePresence, motion } from 'motion/react';
 import { ArrowUp, RotateCcw, Sparkles, X } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
-import { assistantApi, errorMessage, type AssistantMessage, type SyncEvent } from '@/lib/api';
+import { assistantApi, errorMessage, eventsApi, type AssistantAction, type AssistantMessage, type SyncEvent } from '@/lib/api';
+import { toast } from 'sonner';
+import { useEventsSync } from '@/context/EventContext';
+import { Button } from '@/components/ui/button';
 import { CATEGORY_EMOJI, CATEGORY_GRADIENTS, formatEventWhen, formatVenue } from '@/lib/format';
 import { cn } from '@/lib/cn';
 import Markdown from './Markdown';
@@ -14,6 +17,7 @@ import Markdown from './Markdown';
 /** A turn in the panel: what the API sees, plus the event cards and any error shown under it. */
 interface Turn extends AssistantMessage {
   events?: SyncEvent[];
+  actions?: AssistantAction[];
   failed?: boolean;
 }
 
@@ -94,6 +98,57 @@ export function AssistantButton() {
       <Sparkles className="size-4 text-primary transition-transform group-hover:rotate-12 group-hover:scale-110" />
       <span className="hidden lg:inline">Ask Sync</span>
     </button>
+  );
+}
+
+const ACTION_LABELS: Record<AssistantAction['type'], [string, string]> = {
+  rsvp: ["I'm in", "You're in"],
+  cancel_rsvp: ['Cancel my place', 'Place cancelled'],
+  interested: ['Save as interested', 'Saved'],
+};
+
+/**
+ * Something the assistant offered to do. Nothing happens until the user taps
+ * it, and then it goes through the normal API like any other tap.
+ */
+function ActionButton({ action }: { action: AssistantAction }) {
+  const { eventsChanged } = useEventsSync();
+  const [state, setState] = useState<'idle' | 'busy' | 'done'>('idle');
+  const [label, doneLabel] = ACTION_LABELS[action.type];
+
+  async function confirm() {
+    setState('busy');
+    try {
+      if (action.type === 'rsvp') {
+        const result = await eventsApi.register(action.eventId);
+        if (result.viewer.registration === 'waitlisted') toast("You're on the waitlist");
+        else if (result.viewer.registration === 'pending') toast('Request sent to the organiser');
+      } else if (action.type === 'cancel_rsvp') await eventsApi.unregister(action.eventId);
+      else await eventsApi.setInterested(action.eventId, true);
+      eventsChanged();
+      setState('done');
+    } catch (err) {
+      toast.error(errorMessage(err));
+      setState('idle');
+    }
+  }
+
+  return (
+    <div className="mt-2 flex items-center justify-between gap-3 rounded-2xl border border-border bg-surface p-3">
+      <span className="min-w-0 text-sm">
+        <span className="block truncate font-medium">{action.title}</span>
+        <span className="block text-xs text-muted">{action.when}</span>
+      </span>
+      <Button
+        size="sm"
+        variant={action.type === 'cancel_rsvp' ? 'danger' : 'primary'}
+        loading={state === 'busy'}
+        disabled={state === 'done'}
+        onClick={confirm}
+      >
+        {state === 'done' ? doneLabel : label}
+      </Button>
+    </div>
   );
 }
 
@@ -206,10 +261,10 @@ function AssistantPanel({ open, onClose }: { open: boolean; onClose: () => void 
     setDraft('');
     setBusy(true);
     try {
-      const { reply, events } = await assistantApi.chat(
+      const { reply, events, actions } = await assistantApi.chat(
         history.slice(-HISTORY_LIMIT).map(({ role, content }) => ({ role, content }))
       );
-      setTurns((current) => [...current, { role: 'assistant', content: reply, events }]);
+      setTurns((current) => [...current, { role: 'assistant', content: reply, events, actions }]);
     } catch (err) {
       setTurns((current) => [...current, { role: 'assistant', content: errorMessage(err), failed: true }]);
     } finally {
@@ -331,6 +386,9 @@ function AssistantPanel({ open, onClose }: { open: boolean; onClose: () => void 
                     </div>
                     {turn.events?.map((event) => (
                       <EventChip key={event.id} event={event} onNavigate={closeOnSmallScreens} />
+                    ))}
+                    {turn.actions?.map((action) => (
+                      <ActionButton key={`${action.type}-${action.eventId}`} action={action} />
                     ))}
                   </div>
                 )
