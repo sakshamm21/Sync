@@ -509,3 +509,29 @@ test('a club adds a committee member, who can then manage its events', async ({ 
   await expect(other.getByRole('link', { name: 'Attendees' }).first()).toBeVisible();
   await other.close();
 });
+
+test('reminders and pins: set "remind me 1 hour before", and an organiser pins a message', async ({ page, browser }) => {
+  const member = await signInAs(page, 'member@syncronify.dev');
+  const going = (await apiGet<Ev[]>(member, '/api/me/registrations?upcoming=true')).find(
+    (e) => e.visibility === 'public' && e.viewer.registration === 'going'
+  )!;
+  await page.goto(`/events/${going.id}`);
+  await page.getByRole('button', { name: "You're in" }).first().click();
+  await page.getByLabel('Remind me').selectOption('60');
+  await expect(page.getByText("We'll remind you")).toBeVisible();
+  expect((await apiGet<{ minutesBefore: number }>(member, `/api/events/${going.id}/reminder`)).minutesBefore).toBe(60);
+
+  const organizer = await tokenFor('organizer@syncronify.dev');
+  const posted = await page.request.post(`${API}/api/events/${going.id}/messages`, {
+    headers: { Authorization: `Bearer ${organizer}` },
+    data: { text: 'Doors open at 5:30' },
+  });
+  const { id: messageId } = (await posted.json()).data;
+  const org = await browser.newPage();
+  await org.addInitScript((t) => window.localStorage.setItem('sync.token', t), organizer);
+  await org.goto(`/organizer/events/${going.id}`);
+  await org.getByRole('button', { name: 'Pin' }).last().click();
+  await expect(org.getByText(/📌 .*:Doors open at 5:30/)).toBeVisible();
+  await org.close();
+  expect(messageId).toBeTruthy();
+});

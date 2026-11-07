@@ -1,19 +1,125 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import confetti from 'canvas-confetti';
 import { CalendarPlus, Check, Hourglass, Settings2, Plus, ScanLine, X } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useEventsSync } from '@/context/EventContext';
-import { errorMessage, eventsApi, type SyncEvent } from '@/lib/api';
+import { errorMessage, eventsApi, friendsApi, type SyncEvent } from '@/lib/api';
 import { Button, ButtonLink } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/overlay';
 import { cn } from '@/lib/cn';
 import { TicketQr } from '@/components/events/QrTicket';
 import { SITE_URL, googleCalendarUrl } from '@/lib/calendarLinks';
 import { formatDay, formatTime } from '@/lib/format';
+
+/** "Remind me before": a personal nudge at the time you choose. */
+function ReminderPicker({ eventId }: { eventId: string }) {
+  const [value, setValue] = useState<number | null | undefined>(undefined);
+  useEffect(() => {
+    eventsApi
+      .reminder(eventId)
+      .then((r) => setValue(r.minutesBefore))
+      .catch(() => setValue(null));
+  }, [eventId]);
+  if (value === undefined) return null;
+  return (
+    <label className="flex items-center justify-between gap-3 text-sm">
+      <span>Remind me</span>
+      <select
+        value={value ?? ''}
+        onChange={async (e) => {
+          const next = e.target.value ? Number(e.target.value) : null;
+          try {
+            const r = await eventsApi.setReminder(eventId, next);
+            setValue(r.minutesBefore);
+            if (next) toast.success("We'll remind you");
+          } catch (err) {
+            toast.error(errorMessage(err));
+          }
+        }}
+        className="rounded-lg border border-border bg-surface-muted px-2 py-1.5 text-sm outline-none focus:border-primary"
+      >
+        <option value="">Only the day before</option>
+        <option value="15">15 minutes before</option>
+        <option value="60">1 hour before</option>
+        <option value="180">3 hours before</option>
+        <option value="1440">1 day before</option>
+      </select>
+    </label>
+  );
+}
+
+/** "Come with me": send friends a nudge about this event. */
+function InviteFriends({ eventId }: { eventId: string }) {
+  const [friends, setFriends] = useState<{ id: string; name: string }[] | null>(null);
+  const [picked, setPicked] = useState<Set<string>>(new Set());
+  const [open, setOpen] = useState(false);
+  useEffect(() => {
+    if (!open || friends) return;
+    friendsApi
+      .list()
+      .then((l) => setFriends(l.friends.flatMap((f) => (f.user ? [{ id: f.user.id, name: f.user.name }] : []))))
+      .catch(() => setFriends([]));
+  }, [open, friends]);
+
+  if (!open) {
+    return (
+      <button
+        type="button"
+        className="text-sm font-medium text-primary-soft-foreground underline-offset-2 hover:underline"
+        onClick={() => setOpen(true)}
+      >
+        Invite friends
+      </button>
+    );
+  }
+  if (!friends) return <div className="h-10 animate-pulse rounded-xl bg-surface-muted" />;
+  if (!friends.length) return <p className="text-sm text-muted">Add friends on the Friends page to invite them.</p>;
+  return (
+    <div className="space-y-2 rounded-2xl border border-border p-3">
+      <ul className="max-h-40 space-y-1 overflow-y-auto">
+        {friends.map((f) => (
+          <li key={f.id}>
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={picked.has(f.id)}
+                onChange={(e) =>
+                  setPicked((prev) => {
+                    const next = new Set(prev);
+                    if (e.target.checked) next.add(f.id);
+                    else next.delete(f.id);
+                    return next;
+                  })
+                }
+              />
+              {f.name}
+            </label>
+          </li>
+        ))}
+      </ul>
+      <Button
+        size="sm"
+        disabled={!picked.size}
+        onClick={async () => {
+          try {
+            const r = await eventsApi.invite(eventId, [...picked]);
+            toast.success(r.invited ? `Invited ${r.invited} friend${r.invited === 1 ? '' : 's'}` : 'They were already going');
+            setOpen(false);
+            setPicked(new Set());
+          } catch (err) {
+            toast.error(errorMessage(err));
+          }
+        }}
+      >
+        Send invites
+      </Button>
+    </div>
+  );
+}
 
 interface RsvpButtonProps {
   event: SyncEvent;
@@ -222,6 +328,8 @@ export default function RsvpButton({ event, onChange, size = 'sm', className }: 
                 If a spot opens you&apos;ll be moved in automatically and notified.
               </p>
             )}
+            <ReminderPicker eventId={event.id} />
+            <InviteFriends eventId={event.id} />
             <div className="grid grid-cols-2 gap-2">
               <Button variant="secondary" className="w-full" onClick={addToCalendar}>
                 <CalendarPlus /> Download .ics

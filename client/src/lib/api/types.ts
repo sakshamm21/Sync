@@ -126,6 +126,8 @@ export interface SyncEvent {
   seriesId?: string | null;
   /** Team events: allowed team size. */
   teamSize?: { min: number; max: number } | null;
+  /** Photo album link, added after the event. */
+  albumUrl?: string;
   /** Only on create/update responses: other events booked at the same venue and time. */
   venueClashes?: { id: string; title: string; startsAt: string; endsAt: string }[];
   /** People who bookmarked it as "Interested". */
@@ -171,6 +173,7 @@ export interface EventInput {
   /** RSVPs wait for the organiser's approval. */
   requiresApproval?: boolean;
   teamSize?: { min: number; max: number } | null;
+  albumUrl?: string;
   /** Only when creating: make it a series. */
   repeat?: { every: 'week' | 'fortnight'; count: number };
 }
@@ -220,6 +223,8 @@ export interface ChatMessage {
   replyTo?: { id: string; text: string; removedAt?: string | null; sender: { name: string } | null } | null;
   /** Emoji reactions: who reacted with what. */
   reactions?: { emoji: string; user: string }[];
+  /** Pinned to the top by an organiser. */
+  pinnedAt?: string | null;
   sender: { id: string; name: string; avatarUrl: string; role: Role };
   createdAt: string;
 }
@@ -236,7 +241,9 @@ export type NotificationType =
   | 'club_new_event'
   | 'waitlist_offer'
   | 'registration_decision'
-  | 'friend_request';
+  | 'friend_request'
+  | 'mention'
+  | 'event_invite';
 
 export interface AppNotification {
   id: string;

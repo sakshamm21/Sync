@@ -9,6 +9,7 @@ import * as registrations from './registrations.service';
 import * as ratings from './ratings.service';
 import * as checkin from './checkin.service';
 import * as interest from './interest.service';
+import * as social from './social.service';
 import * as chat from '../chat/chat.service';
 
 const router = Router();
@@ -46,6 +47,44 @@ router.get(
   validate({ params: idParams }, async (req, res) => {
     const { filename, content } = await events.toCalendarFile(req.user, req.params.id);
     res.type('text/calendar').attachment(filename).send(content);
+  })
+);
+
+/** Tell friends about an event. */
+router.post(
+  '/:id/invite',
+  authenticate,
+  validate({ params: idParams, body: z.object({ friends: z.array(objectId).min(1).max(20) }) }, async (req, res) => {
+    res.json({ data: await social.inviteFriends(currentUser(req), req.params.id, req.body.friends) });
+  })
+);
+
+/** Your own reminder for an event ("remind me an hour before"). */
+router.get(
+  '/:id/reminder',
+  authenticate,
+  validate({ params: idParams }, async (req, res) => {
+    res.json({ data: await social.reminderFor(currentUser(req), req.params.id) });
+  })
+);
+router.put(
+  '/:id/reminder',
+  authenticate,
+  validate(
+    {
+      params: idParams,
+      body: z.object({ minutesBefore: z.union([z.literal(15), z.literal(60), z.literal(180), z.literal(1440)]) }),
+    },
+    async (req, res) => {
+      res.json({ data: await social.setReminder(currentUser(req), req.params.id, req.body.minutesBefore) });
+    }
+  )
+);
+router.delete(
+  '/:id/reminder',
+  authenticate,
+  validate({ params: idParams }, async (req, res) => {
+    res.json({ data: await social.clearReminder(currentUser(req), req.params.id) });
   })
 );
 
@@ -288,6 +327,22 @@ router.put(
   authenticate,
   validate({ params: messageParams, body: z.object({ emoji: z.enum(chat.REACTIONS) }) }, async (req, res) => {
     res.json({ data: await chat.toggleReaction(currentUser(req), req.params.id, req.params.messageId, req.body.emoji) });
+  })
+);
+
+router.get(
+  '/:id/messages/pinned',
+  authenticate,
+  validate({ params: idParams }, async (req, res) => {
+    res.json({ data: await chat.pinned(currentUser(req), req.params.id) });
+  })
+);
+
+router.put(
+  '/:id/messages/:messageId/pin',
+  authenticate,
+  validate({ params: messageParams, body: z.object({ pinned: z.boolean() }) }, async (req, res) => {
+    res.json({ data: await chat.setPinned(currentUser(req), req.params.id, req.params.messageId, req.body.pinned) });
   })
 );
 

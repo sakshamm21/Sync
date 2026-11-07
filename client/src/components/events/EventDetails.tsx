@@ -170,6 +170,16 @@ function RatingPanel({ event, onRated }: { event: SyncEvent; onRated: (r: EventR
           rating.average === null && <p className="text-sm text-muted">No ratings yet.</p>
         )}
         {canRate && rating.mine && <FeedbackBox initial={rating.myComment ?? ''} onSave={(c) => give(rating.mine!, c)} />}
+        {event.albumUrl && (
+          <a
+            href={event.albumUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-4 mr-2 inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-sm font-medium hover:border-border-strong"
+          >
+            📸 See the photos
+          </a>
+        )}
         {canRate && (
           <ButtonLink href={`/certificates/${event.id}`} variant="secondary" size="sm" className="mt-4">
             Get your certificate

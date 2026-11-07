@@ -7,6 +7,7 @@ import { drainOutbox } from '../../jobs/outbox';
 import { recountAttendees, pruneOldData } from '../../jobs/maintenance';
 import { resetDemoData } from '../../demo/seed';
 import { expireOffers } from '../events/waitlist.service';
+import { sendPersonalReminders } from '../events/social.service';
 import logger from '../../lib/logger';
 
 const router = Router();
@@ -31,9 +32,11 @@ router.get('/event-reminders', requireCronSecret, async (_req, res) => {
 
 /** Delivers anything queued by the email outbox. */
 router.get('/email-outbox', requireCronSecret, async (_req, res) => {
+  // Personal "remind me" nudges need 15-minute precision, so they ride on this schedule.
+  const reminders = await sendPersonalReminders();
   const sent = await drainOutbox();
-  logger.info({ job: 'email-outbox', sent }, 'Job finished');
-  res.json({ data: { sent } });
+  logger.info({ job: 'email-outbox', sent, reminders }, 'Job finished');
+  res.json({ data: { sent, reminders } });
 });
 
 /** Reconciles attendee counts and prunes rows nothing will read again. */

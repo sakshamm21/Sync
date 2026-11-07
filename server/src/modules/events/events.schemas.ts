@@ -18,6 +18,7 @@ const fields = {
   endsAt: z.coerce.date({ error: 'Enter a valid end date' }),
   venue,
   onlineUrl: optionalUrl,
+  albumUrl: optionalUrl,
   visibility: z.enum(EVENT_VISIBILITY),
   // Cancelling has its own endpoint so attendees are always notified.
   status: z.enum([EVENT_STATUS.DRAFT, EVENT_STATUS.PUBLISHED]),

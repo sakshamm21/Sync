@@ -1,5 +1,6 @@
-import { ChatRead, Message, MessageReport, Registration, type UserDocument } from '../../models';
+import { ChatRead, Message, MessageReport, Registration, User, type UserDocument } from '../../models';
 import { audit } from '../../lib/audit';
+import { escapeRegex } from '../../lib/schemas';
 import { badRequest, forbidden, notFound } from '../../lib/errors';
 import { emitToEvent } from '../../lib/realtime';
 import * as notifications from '../notifications/notifications.service';
@@ -86,6 +87,7 @@ export async function postMessage(
   await message.populate('sender', SENDER_FIELDS);
   await message.populate(REPLY_POPULATE);
   await markRead(user, event._id);
+  await notifyMentions(user, event, message);
   const json = message.toJSON();
   emitToEvent(event._id, 'message:new', json);
 
@@ -239,4 +241,68 @@ export async function unreadCounts(user: UserDocument, eventIds: string[]) {
     })
   );
   return Object.fromEntries(counts);
+}
+
+/**
+ * @mentions: "@Aanya" or "@Aanya Sharma" tags people who can see the chat
+ * (organisers and people registered). Each is notified once, in the app.
+ */
+async function notifyMentions(
+  user: UserDocument,
+  event: { _id: unknown; title: string; organizers?: unknown[] },
+  message: { text: string; mentions: unknown[]; save: () => Promise<unknown>; event: unknown }
+) {
+  if (!message.text.includes('@')) return;
+  const regs = await Registration.find({ event: event._id }).distinct('user');
+  const people = await User.find({ _id: { $in: [...regs, ...((event.organizers as unknown[]) ?? [])], $ne: user._id } }).select(
+    'name'
+  );
+  const text = message.text.toLowerCase();
+  // Longest names first, so "@Aanya Sharma" isn't also read as "@Aanya" for someone else.
+  const mentioned = people
+    .sort((a, b) => b.name.length - a.name.length)
+    .filter((p) => {
+      const full = `@${p.name.toLowerCase()}`;
+      const first = `@${p.name.split(' ')[0].toLowerCase()}`;
+      // A name followed by a letter or digit isn't a mention ("@Ann" in "@Anna").
+      const hit = (needle: string) => new RegExp(`${escapeRegex(needle)}(?![\\p{L}\\p{N}])`, 'u').test(text);
+      return hit(full) || hit(first);
+    })
+    .slice(0, 10);
+  if (!mentioned.length) return;
+  message.mentions = mentioned.map((p) => p._id);
+  await message.save();
+  await notifications.notify(
+    mentioned.map((p) => p._id),
+    {
+      type: NOTIFICATION_TYPES.MENTION,
+      title: `${user.name} mentioned you in ${event.title}`,
+      body: message.text.slice(0, 200),
+      eventId: event._id as never,
+    }
+  );
+}
+
+/** Organisers pin a message to the top of the chat (or unpin it). Up to three at a time. */
+export async function setPinned(user: UserDocument, eventId: string, messageId: string, pinned: boolean) {
+  const event = await findViewableEvent(user, eventId);
+  if (!accessFor(user, event, await staffRoleFor(user, event)).canManage) throw forbidden('Only the organiser can pin messages');
+  const message = await Message.findOne({ _id: messageId, event: event._id, removedAt: null });
+  if (!message) throw notFound('Message not found');
+  if (pinned && !message.pinnedAt && (await Message.countDocuments({ event: event._id, pinnedAt: { $ne: null } })) >= 3) {
+    throw badRequest('Unpin a message first: three is the most at once', 'TOO_MANY_PINS');
+  }
+  message.pinnedAt = pinned ? new Date() : null;
+  await message.save();
+  emitToEvent(event._id, 'message:pinned', { id: message.id, event: String(event._id), pinnedAt: message.pinnedAt });
+  return { id: message.id as string, pinnedAt: message.pinnedAt };
+}
+
+/** The chat's pinned messages, newest pin first. */
+export async function pinned(user: UserDocument, eventId: string) {
+  const event = await findChatEvent(user, eventId);
+  return Message.find({ event: event._id, pinnedAt: { $ne: null }, removedAt: null })
+    .sort({ pinnedAt: -1 })
+    .limit(3)
+    .populate('sender', SENDER_FIELDS);
 }

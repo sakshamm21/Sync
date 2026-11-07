@@ -209,6 +209,19 @@ export const eventsApi = {
     data<{ id: string; reactions: { emoji: string; user: string }[] }>(
       http.put(`/events/${id}/messages/${messageId}/reactions`, { emoji })
     ),
+  /** Organisers pin a message to the top of the chat. */
+  pin: (id: string, messageId: string, pinned: boolean) =>
+    data<{ id: string; pinnedAt: string | null }>(http.put(`/events/${id}/messages/${messageId}/pin`, { pinned })),
+  pinned: (id: string) => data<ChatMessage[]>(http.get(`/events/${id}/messages/pinned`)),
+  /** Tell friends about an event. */
+  invite: (id: string, friends: string[]) =>
+    data<{ invited: number; alreadyGoing: number }>(http.post(`/events/${id}/invite`, { friends })),
+  /** Your own "remind me" for an event. */
+  reminder: (id: string) => data<{ minutesBefore: number | null }>(http.get(`/events/${id}/reminder`)),
+  setReminder: (id: string, minutesBefore: number | null) =>
+    data<{ minutesBefore: number | null }>(
+      minutesBefore ? http.put(`/events/${id}/reminder`, { minutesBefore }) : http.delete(`/events/${id}/reminder`)
+    ),
   /** Clears this chat's unread badge. */
   markChatRead: (id: string) => data<{ ok: true }>(http.post(`/events/${id}/messages/read`)),
   sendMessage: (
