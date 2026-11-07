@@ -249,7 +249,19 @@ export const notesApi = {
 
 // --- Notifications --------------------------------------------------------------
 
+export interface CommitteeMember {
+  id: string;
+  role: 'core' | 'volunteer';
+  user: { id: string; name: string; email: string; avatarUrl: string } | null;
+}
+
 export const clubsApi = {
+  committee: () => data<CommitteeMember[]>(http.get('/clubs/me/members')),
+  addMember: (email: string, role: CommitteeMember['role']) =>
+    data<CommitteeMember[]>(http.post('/clubs/me/members', { email, role })),
+  setMemberRole: (id: string, role: CommitteeMember['role']) =>
+    data<CommitteeMember[]>(http.patch(`/clubs/me/members/${id}`, { role })),
+  removeMember: (id: string) => data<CommitteeMember[]>(http.delete(`/clubs/me/members/${id}`)),
   get: (id: string) => data<ClubProfile>(http.get(`/clubs/${id}`)),
   setFollowing: (id: string, follow: boolean) =>
     data<{ following: boolean; followers: number }>(

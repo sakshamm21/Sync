@@ -17,6 +17,8 @@ import {
   Users,
 } from 'lucide-react';
 import { useEventsSync } from '@/context/EventContext';
+import { useAuth } from '@/context/AuthContext';
+import Committee from '@/components/organizer/Committee';
 import { errorMessage, eventsApi, organizerApi, type OrganizedEvent, type OrganizerOverview } from '@/lib/api';
 import { formatEventWhen, formatVenue } from '@/lib/format';
 import { useCreateEvent } from '@/components/events/CreateEventDialog';
@@ -46,6 +48,7 @@ function StatusBadge({ event }: { event: OrganizedEvent }) {
 
 export default function OrganizerConsole() {
   const { version, eventsChanged } = useEventsSync();
+  const { user } = useAuth();
   const { openCreateEvent } = useCreateEvent();
   const [overview, setOverview] = useState<OrganizerOverview | null>(null);
   const [filter, setFilter] = useState<Filter>('upcoming');
@@ -297,6 +300,9 @@ export default function OrganizerConsole() {
         description="This removes the event, its registrations and chat history. It can't be undone."
         confirmLabel="Delete permanently"
       />
+
+      {/* Club accounts (organisers and admins) manage their committee here. */}
+      {(user?.role === 'organizer' || user?.role === 'admin') && <Committee />}
     </>
   );
 }

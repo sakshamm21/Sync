@@ -103,3 +103,50 @@ describe('clubs', () => {
     assert.deepEqual(names, []);
   });
 });
+
+describe('club committees', () => {
+  it('gives core members and volunteers access to every club event, new ones too', async () => {
+    const club = await createUser({ role: 'organizer', organization: 'Robotics Club' });
+    const core = await createUser({ email: 'core@example.com' });
+    const volunteer = await createUser({ email: 'vol@example.com' });
+    const existing = (
+      await api()
+        .post('/api/events')
+        .set(club.auth)
+        .send(eventInput({ title: 'Bot Wars' }))
+        .expect(201)
+    ).body.data;
+
+    await api().post('/api/clubs/me/members').set(club.auth).send({ email: 'core@example.com', role: 'core' }).expect(201);
+    const roster = (
+      await api().post('/api/clubs/me/members').set(club.auth).send({ email: 'vol@example.com', role: 'volunteer' }).expect(201)
+    ).body.data;
+    assert.equal(roster.length, 2);
+
+    // Existing event: core can edit, the volunteer can only work the door.
+    await api().patch(`/api/events/${existing.id}`).set(core.auth).send({ title: 'Bot Wars II' }).expect(200);
+    await api().patch(`/api/events/${existing.id}`).set(volunteer.auth).send({ title: 'Nope' }).expect(403);
+    await api().get(`/api/events/${existing.id}/door-list`).set(volunteer.auth).expect(200);
+
+    // A new event picks the committee up automatically.
+    const fresh = (
+      await api()
+        .post('/api/events')
+        .set(club.auth)
+        .send(eventInput({ title: 'Sumo Bots' }))
+        .expect(201)
+    ).body.data;
+    await api().get(`/api/events/${fresh.id}/attendees`).set(core.auth).expect(200);
+    assert.equal((await api().get('/api/me').set(volunteer.auth)).body.data.isEventStaff, true);
+
+    // Removing someone takes their access away.
+    const coreRow = roster.find((r: { role: string }) => r.role === 'core');
+    await api().delete(`/api/clubs/me/members/${coreRow.id}`).set(club.auth).expect(200);
+    await api().patch(`/api/events/${fresh.id}`).set(core.auth).send({ title: 'Taken over' }).expect(403);
+  });
+
+  it('is only for club accounts', async () => {
+    const member = await createUser();
+    await api().get('/api/clubs/me/members').set(member.auth).expect(403);
+  });
+});

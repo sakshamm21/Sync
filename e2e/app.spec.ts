@@ -494,3 +494,18 @@ test('the assistant offers an RSVP button that goes through only when tapped', a
   await expect(page.getByRole('dialog', { name: 'Ask Sync' }).getByRole('button', { name: "You're in" })).toBeVisible();
   expect((await apiGet<Ev>(member, `/api/events/${target.id}`)).viewer.registration).not.toBeNull();
 });
+
+test('a club adds a committee member, who can then manage its events', async ({ page, browser }) => {
+  await signInAs(page, 'cultural@syncronify.dev');
+  await page.goto('/organizer');
+  await page.getByLabel('Committee member email').fill('tester2@syncronify.dev');
+  await page.getByRole('button', { name: 'Add' }).click();
+  await expect(page.getByText('tester2@syncronify.dev')).toBeVisible();
+
+  const helper = await tokenFor('tester2@syncronify.dev');
+  const other = await browser.newPage();
+  await other.addInitScript((t) => window.localStorage.setItem('sync.token', t), helper);
+  await other.goto('/organizer');
+  await expect(other.getByRole('link', { name: 'Attendees' }).first()).toBeVisible();
+  await other.close();
+});
