@@ -21,21 +21,37 @@ export default function ChatWorkspace() {
   const [activeId, setActiveId] = useState<string | null>(null);
   // On small screens show either the list or the thread.
   const [showThread, setShowThread] = useState(false);
+  const [unread, setUnread] = useState<Record<string, number>>({});
 
   useEffect(() => {
-    const isOrganizer = user?.role === 'organizer' || user?.role === 'admin';
-    Promise.all([
-      meApi.registrations(true),
-      isOrganizer ? organizerApi.overview().then((o) => o.events.filter((e) => !e.isPast)) : Promise.resolve([]),
-    ])
+    // Events you're going to, plus every event you help run (owners and
+    // invited team members alike), past ones included.
+    const runsEvents = user?.role === 'organizer' || user?.role === 'admin' || user?.isEventStaff;
+    Promise.all([meApi.registrations(false), runsEvents ? organizerApi.overview().then((o) => o.events) : Promise.resolve([])])
       .then(([joined, organized]) => {
         const all = [...organized, ...joined].filter((e) => e.viewer.canChat);
-        const unique = all.filter((e, i) => all.findIndex((x) => x.id === e.id) === i).sort((a, b) => a.startsAt.localeCompare(b.startsAt));
-        setChannels(unique);
-        setActiveId((current) => current ?? unique[0]?.id ?? null);
+        const unique = all.filter((e, i) => all.findIndex((x) => x.id === e.id) === i);
+        const upcoming = unique.filter((e) => !e.isPast).sort((a, b) => a.startsAt.localeCompare(b.startsAt));
+        const past = unique.filter((e) => e.isPast).sort((a, b) => b.startsAt.localeCompare(a.startsAt));
+        setChannels([...upcoming, ...past]);
+        setActiveId((current) => current ?? upcoming[0]?.id ?? past[0]?.id ?? null);
       })
       .catch(() => setChannels([]));
-  }, [user?.role, version]);
+  }, [user?.role, user?.isEventStaff, version]);
+
+  // Unread badges, refreshed every 30 s; the open chat is cleared as it's read.
+  const channelKey = channels?.map((c) => c.id).join(',') ?? '';
+  useEffect(() => {
+    if (!channelKey) return;
+    const load = () =>
+      meApi
+        .chatUnread(channelKey.split(','))
+        .then(setUnread)
+        .catch(() => {});
+    void load();
+    const timer = window.setInterval(load, 30_000);
+    return () => window.clearInterval(timer);
+  }, [channelKey]);
 
   if (channels === null) return <div className="h-[70vh] animate-pulse rounded-2xl bg-surface-muted" />;
 
@@ -45,7 +61,11 @@ export default function ChatWorkspace() {
         emoji="💬"
         title="No conversations yet"
         description="Every event has a group chat with the organizer and everyone going. RSVP to an event to join its chat."
-        action={<ButtonLink href="/explore" variant="secondary">Find an event</ButtonLink>}
+        action={
+          <ButtonLink href="/explore" variant="secondary">
+            Find an event
+          </ButtonLink>
+        }
       />
     );
   }
@@ -57,20 +77,35 @@ export default function ChatWorkspace() {
       <nav className={cn('flex min-h-0 flex-col border-r border-border', showThread && 'hidden md:flex')}>
         <p className="border-b border-border px-5 py-4 font-display text-lg font-extrabold">Event chats</p>
         <ul className="flex-1 space-y-0.5 overflow-y-auto p-2">
-          {channels.map((channel) => (
+          {channels.map((channel, i) => (
             <li key={channel.id}>
+              {channel.isPast && !channels[i - 1]?.isPast && (
+                <p className="px-3 pb-1 pt-4 font-mono text-[10px] uppercase tracking-[0.16em] text-muted">Past</p>
+              )}
               <button
                 onClick={() => {
                   setActiveId(channel.id);
                   setShowThread(true);
+                  setUnread((u) => ({ ...u, [channel.id]: 0 }));
                 }}
-                className={cn('flex w-full items-center gap-3 rounded-2xl p-2 text-left transition', channel.id === activeId ? 'bg-primary text-primary-foreground' : 'hover:bg-surface-muted')}
+                className={cn(
+                  'flex w-full items-center gap-3 rounded-2xl p-2 text-left transition',
+                  channel.id === activeId ? 'bg-primary text-primary-foreground' : 'hover:bg-surface-muted'
+                )}
               >
                 <EventCover event={channel} stickers={false} className="size-12 shrink-0 rounded-2xl" />
                 <span className="min-w-0">
                   <span className="block truncate text-sm font-medium">{channel.title}</span>
-                  <span className="font-mono text-[10px] uppercase tracking-wider opacity-70">{formatDay(channel.startsAt)}</span>
+                  <span className="font-mono text-[10px] uppercase tracking-wider opacity-90">{formatDay(channel.startsAt)}</span>
                 </span>
+                {channel.id !== activeId && (unread[channel.id] ?? 0) > 0 && (
+                  <span
+                    className="ml-auto flex min-w-5 items-center justify-center rounded-full bg-pink px-1.5 text-[11px] font-bold text-[#09090d]"
+                    aria-label={`${unread[channel.id]} unread`}
+                  >
+                    {unread[channel.id] > 9 ? '9+' : unread[channel.id]}
+                  </span>
+                )}
               </button>
             </li>
           ))}
@@ -80,14 +115,23 @@ export default function ChatWorkspace() {
       {active && (
         <section className={cn('flex min-h-0 flex-col', !showThread && 'hidden md:flex')}>
           <header className="flex items-center gap-3 border-b border-border px-4 py-3">
-            <button onClick={() => setShowThread(false)} aria-label="Back to chats" className="rounded-lg p-1 text-muted hover:bg-surface-muted md:hidden">
+            <button
+              onClick={() => setShowThread(false)}
+              aria-label="Back to chats"
+              className="rounded-lg p-1 text-muted hover:bg-surface-muted md:hidden"
+            >
               <ArrowLeft className="size-5" />
             </button>
             <div className="min-w-0 flex-1">
               <p className="truncate font-display text-lg font-bold">{active.title}</p>
-              <p className="text-xs text-muted">{formatDay(active.startsAt)} · {active.attendeeCount} going</p>
+              <p className="text-xs text-muted">
+                {formatDay(active.startsAt)} · {active.attendeeCount} going
+              </p>
             </div>
-            <Link href={`/events/${active.id}`} className="flex items-center gap-1 text-xs font-medium text-muted hover:text-foreground">
+            <Link
+              href={`/events/${active.id}`}
+              className="flex items-center gap-1 text-xs font-medium text-muted hover:text-foreground"
+            >
               Event <ExternalLink className="size-3.5" />
             </Link>
           </header>

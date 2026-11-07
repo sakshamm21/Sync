@@ -5,6 +5,8 @@ export interface IRating {
   event: Types.ObjectId;
   user: Types.ObjectId;
   rating: number;
+  /** Optional written feedback, seen only by the organisers. */
+  comment: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -21,6 +23,7 @@ const ratingSchema = new Schema<IRating>(
     event: { type: Schema.Types.ObjectId, ref: 'Event', required: true, index: true },
     user: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
     rating: { type: Number, required: true, min: 1, max: MAX_RATING },
+    comment: { type: String, trim: true, maxlength: 1000, default: '' },
   },
   { timestamps: true }
 );

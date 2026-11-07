@@ -101,7 +101,8 @@ export const users: DemoUser[] = [
     organization: 'Tech & Computing Society',
     bio: 'We run hackathons, talks and build nights.',
     interests: ['tech', 'workshop'],
-    purpose: 'Organizer with the most events: a full hackathon with a waitlist, a draft, a cancelled event, a past event with check-ins.',
+    purpose:
+      'Organizer with the most events: a full hackathon with a waitlist, a draft, a cancelled event, a past event with check-ins.',
   },
   {
     key: 'cultural',
@@ -173,15 +174,13 @@ export const users: DemoUser[] = [
   },
   // Clean accounts with no activity, so several people can try the app at once
   // or walk through it as a brand-new user.
-  ...[1, 2, 3, 4, 5].map(
-    (n): DemoUser => ({
-      key: `tester${n}`,
-      name: `Test User ${n}`,
-      email: `tester${n}@syncronify.dev`,
-      role: 'member',
-      purpose: 'Fresh member account with no activity.',
-    })
-  ),
+  ...[1, 2, 3, 4, 5].map((n): DemoUser => ({
+    key: `tester${n}`,
+    name: `Test User ${n}`,
+    email: `tester${n}@syncronify.dev`,
+    role: 'member',
+    purpose: 'Fresh member account with no activity.',
+  })),
 ];
 
 // ---------------------------------------------------------------------------
@@ -209,7 +208,8 @@ export const events: DemoEvent[] = [
     key: 'summit',
     owner: 'tech',
     title: 'Tech Summit 2026',
-    description: 'Keynotes on agentic AI, distributed systems and the future of the web, followed by live demos from student teams.',
+    description:
+      'Keynotes on agentic AI, distributed systems and the future of the web, followed by live demos from student teams.',
     category: 'conference',
     tags: ['ai', 'talks'],
     cover: 'photo-1540575467063-178a50c2df87',
@@ -229,7 +229,8 @@ export const events: DemoEvent[] = [
     key: 'ai-reading',
     owner: 'tech',
     title: 'AI Reading Group: Building Agents',
-    description: 'We discuss one paper or blog post on AI agents each week. This week: tool use and planning. Join from anywhere.',
+    description:
+      'We discuss one paper or blog post on AI agents each week. This week: tool use and planning. Join from anywhere.',
     category: 'meetup',
     tags: ['ai', 'online'],
     cover: 'photo-1517245386807-bb43f82c33c4',
@@ -244,7 +245,7 @@ export const events: DemoEvent[] = [
     title: '24h Design & Build Hackathon',
     description: 'Form a team, build something delightful in 24 hours. Mentors, food and prizes for the top three teams.',
     category: 'tech',
-    tags: ['hackathon', 'design'],
+    tags: ['hackathon', 'design', 'free-food'],
     cover: 'photo-1515187029135-18ee286d815b',
     starts: { day: 7, hour: 9 },
     ends: { day: 8, hour: 9 },
@@ -330,7 +331,7 @@ export const events: DemoEvent[] = [
     title: 'Annual Cultural Fest: Live Band Night',
     description: 'An evening of music, art installations and food pop-ups under the stars.',
     category: 'cultural',
-    tags: ['music', 'festival'],
+    tags: ['music', 'festival', 'free-food'],
     cover: 'photo-1492684223066-81342ee5ff30',
     starts: { day: 10, hour: 18 },
     ends: { day: 10, hour: 23 },
@@ -479,13 +480,56 @@ export const events: DemoEvent[] = [
 // ---------------------------------------------------------------------------
 
 export const notes: DemoNote[] = [
-  { owner: 'member', title: 'Hackathon team ideas', content: 'Campus lost & found app\nShared ride planner\nMess menu ratings', tag: 'ideas', pinned: true, event: 'hackathon' },
-  { owner: 'member', title: 'Summit talks to catch', content: 'Agentic AI keynote at 11:00\nDistributed systems panel after lunch', tag: 'plan', event: 'summit' },
-  { owner: 'member', title: 'Rust setup checklist', content: 'Install rustup\ncargo new hello\nRead chapter 4 (ownership)', tag: 'plan', event: 'rust' },
-  { owner: 'member', title: 'Things to try this semester', content: 'Learn to swim\nJoin the photography club\nRun a 5K', tag: 'personal' },
-  { owner: 'tech', title: 'Summit logistics checklist', content: 'Projector test\nPrint QR codes\nConfirm catering for 300', tag: 'logistics', pinned: true, event: 'summit' },
-  { owner: 'tech', title: 'Keynote speaker shortlist', content: 'Alumni from the 2019 batch\nLocal startup CTO', tag: 'speaker', event: 'summit' },
-  { owner: 'cultural', title: 'Band night run sheet', content: '18:00 doors\n18:30 opening act\n21:00 headliner', tag: 'logistics', event: 'band-night' },
+  {
+    owner: 'member',
+    title: 'Hackathon team ideas',
+    content: 'Campus lost & found app\nShared ride planner\nMess menu ratings',
+    tag: 'ideas',
+    pinned: true,
+    event: 'hackathon',
+  },
+  {
+    owner: 'member',
+    title: 'Summit talks to catch',
+    content: 'Agentic AI keynote at 11:00\nDistributed systems panel after lunch',
+    tag: 'plan',
+    event: 'summit',
+  },
+  {
+    owner: 'member',
+    title: 'Rust setup checklist',
+    content: 'Install rustup\ncargo new hello\nRead chapter 4 (ownership)',
+    tag: 'plan',
+    event: 'rust',
+  },
+  {
+    owner: 'member',
+    title: 'Things to try this semester',
+    content: 'Learn to swim\nJoin the photography club\nRun a 5K',
+    tag: 'personal',
+  },
+  {
+    owner: 'tech',
+    title: 'Summit logistics checklist',
+    content: 'Projector test\nPrint QR codes\nConfirm catering for 300',
+    tag: 'logistics',
+    pinned: true,
+    event: 'summit',
+  },
+  {
+    owner: 'tech',
+    title: 'Keynote speaker shortlist',
+    content: 'Alumni from the 2019 batch\nLocal startup CTO',
+    tag: 'speaker',
+    event: 'summit',
+  },
+  {
+    owner: 'cultural',
+    title: 'Band night run sheet',
+    content: '18:00 doors\n18:30 opening act\n21:00 headliner',
+    tag: 'logistics',
+    event: 'band-night',
+  },
 ];
 
 export const applications: DemoApplication[] = [

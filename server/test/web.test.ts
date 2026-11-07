@@ -52,7 +52,11 @@ describe('AI assistant without a key', () => {
     assert.equal(meta.body.data.assistant, false);
 
     const { auth } = await createUser();
-    const res = await api().post('/api/assistant/chat').set(auth).send({ messages: [{ role: 'user', content: 'hi' }] }).expect(503);
+    const res = await api()
+      .post('/api/assistant/chat')
+      .set(auth)
+      .send({ messages: [{ role: 'user', content: 'hi' }] })
+      .expect(503);
     assert.equal(res.body.error.code, 'ASSISTANT_DISABLED');
   });
 });

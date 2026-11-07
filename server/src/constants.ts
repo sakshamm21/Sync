@@ -15,7 +15,16 @@ export const USER_STATUS = Object.freeze({
 export type UserStatus = ValueOf<typeof USER_STATUS>;
 
 // Display labels live in the web app (client/src/lib/format.ts).
-export const CATEGORY_VALUES = Object.freeze(['tech', 'workshop', 'cultural', 'sports', 'meetup', 'conference', 'social', 'other'] as const);
+export const CATEGORY_VALUES = Object.freeze([
+  'tech',
+  'workshop',
+  'cultural',
+  'sports',
+  'meetup',
+  'conference',
+  'social',
+  'other',
+] as const);
 export type Category = (typeof CATEGORY_VALUES)[number];
 
 export const EVENT_VISIBILITY = Object.freeze({
@@ -34,6 +43,10 @@ export type EventStatus = ValueOf<typeof EVENT_STATUS>;
 export const REGISTRATION_STATUS = Object.freeze({
   GOING: 'going',
   WAITLISTED: 'waitlisted',
+  /** Offered a freed seat that must be claimed before `offerExpiresAt` (events with a claim window). */
+  OFFERED: 'offered',
+  /** Asked to join an event that needs the organiser's approval; holds no seat yet. */
+  PENDING: 'pending',
 } as const);
 export type RegistrationStatus = ValueOf<typeof REGISTRATION_STATUS>;
 
@@ -67,6 +80,18 @@ export const NOTIFICATION_TYPES = Object.freeze({
   ORGANIZER_APPROVED: 'organizer_approved',
   ORGANIZER_REJECTED: 'organizer_rejected',
   STAFF_INVITED: 'staff_invited',
+  /** A club you follow published a new event. */
+  CLUB_NEW_EVENT: 'club_new_event',
+  /** A spot opened up and is being held for you to claim. */
+  WAITLIST_OFFER: 'waitlist_offer',
+  /** The organiser approved or declined your request to join. */
+  REGISTRATION_DECISION: 'registration_decision',
+  /** Someone asked to be friends, or accepted. */
+  FRIEND_REQUEST: 'friend_request',
+  /** Someone @mentioned you in an event chat. */
+  MENTION: 'mention',
+  /** A friend invited you to an event, or your own reminder is due. */
+  EVENT_INVITE: 'event_invite',
 } as const);
 export type NotificationType = ValueOf<typeof NOTIFICATION_TYPES>;
 

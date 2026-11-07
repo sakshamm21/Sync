@@ -15,7 +15,8 @@ export const metadata: Metadata = {
     template: '%s · Sync',
   },
   description: 'Campus plans, minus the chaos. Find what’s on, RSVP in a tap, and never miss the good stuff.',
-  icons: { icon: '/icon.svg' },
+  icons: { icon: '/icon.svg', apple: '/apple-touch-icon.png' },
+  appleWebApp: { capable: true, title: 'Sync', statusBarStyle: 'black-translucent' },
   openGraph: {
     type: 'website',
     siteName: 'Sync',
@@ -35,7 +36,11 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     // next-themes sets the theme class before paint, which React would otherwise flag.
-    <html lang="en" className={`${sans.variable} ${mono.variable} ${display.variable} ${serif.variable}`} suppressHydrationWarning>
+    <html
+      lang="en"
+      className={`${sans.variable} ${mono.variable} ${display.variable} ${serif.variable}`}
+      suppressHydrationWarning
+    >
       <body>
         <Providers>{children}</Providers>
       </body>

@@ -4,6 +4,8 @@ import env from '../../config/env';
 import { notFound } from '../../lib/errors';
 import { emitToUser } from '../../lib/realtime';
 import { queueMail } from '../../jobs/outbox';
+import { pushConfigured, sendPush } from '../../lib/push';
+import { runInBackground } from '../../lib/background';
 import * as emails from '../../lib/emailTemplates';
 import { paginationMeta, type Page } from '../../lib/schemas';
 import type { NotificationType } from '../../constants';
@@ -33,23 +35,38 @@ export async function notify(
   const recipients = [...new Set(userIds.map(String))];
   if (!recipients.length) return;
 
-  const docs = await Notification.insertMany(
-    recipients.map((user) => ({ user, type, title, body, event: eventId }))
-  );
+  const docs = await Notification.insertMany(recipients.map((user) => ({ user, type, title, body, event: eventId })));
   for (const doc of docs) emitToUser(doc.user, 'notification:new', doc.toJSON());
 
-  if (!email) return;
-  const users = await User.find({ _id: { $in: recipients }, 'preferences.emailNotifications': true }).select('name email');
-  const url = eventId ? `${env.clientUrl}/events/${eventId}` : env.clientUrl;
-  for (const u of users) {
-    await queueMail({ to: u.email, ...emails.notification({ name: u.name, title, body, url }) });
+  // Phones and desktops that allowed notifications get them even with the app closed.
+  if (pushConfigured()) {
+    const url = eventId ? `/events/${eventId}` : '/notifications';
+    runInBackground('push', () => sendPush(recipients, { title, body, url, tag: eventId ? `event-${eventId}` : undefined }));
   }
+
+  if (!email) return;
+  // Suspended accounts keep their in-app history but get no more email.
+  const users = await User.find({
+    _id: { $in: recipients },
+    'preferences.emailNotifications': true,
+    // Types the user chose to keep in the app only.
+    'preferences.mutedEmailTypes': { $ne: type },
+    status: { $ne: 'suspended' },
+  }).select('name email');
+  const url = eventId ? `${env.clientUrl}/events/${eventId}` : env.clientUrl;
+  await queueMail(...users.map((u) => ({ to: u.email, ...emails.notification({ name: u.name, title, body, url }) })));
 }
 
-export async function list(user: UserDocument, { unreadOnly, page, limit }: Page & { unreadOnly: boolean }) {
-  const filter = { user: user.id, ...(unreadOnly ? { readAt: null } : {}) };
+export async function list(
+  user: UserDocument,
+  { unreadOnly, type, page, limit }: Page & { unreadOnly: boolean; type?: NotificationType }
+) {
+  const filter = { user: user.id, ...(unreadOnly ? { readAt: null } : {}), ...(type ? { type } : {}) };
   const [items, total, unread] = await Promise.all([
-    Notification.find(filter).sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit),
+    Notification.find(filter)
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit),
     Notification.countDocuments(filter),
     Notification.countDocuments({ user: user.id, readAt: null }),
   ]);

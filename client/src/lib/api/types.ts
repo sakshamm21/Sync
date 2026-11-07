@@ -3,15 +3,7 @@
 export type Role = 'member' | 'organizer' | 'admin';
 export type UserStatus = 'active' | 'suspended';
 
-export type CategoryValue =
-  | 'tech'
-  | 'workshop'
-  | 'cultural'
-  | 'sports'
-  | 'meetup'
-  | 'conference'
-  | 'social'
-  | 'other';
+export type CategoryValue = 'tech' | 'workshop' | 'cultural' | 'sports' | 'meetup' | 'conference' | 'social' | 'other';
 
 export interface Category {
   value: CategoryValue;
@@ -29,8 +21,11 @@ export interface User {
   avatarUrl: string;
   organization: string;
   interests: CategoryValue[];
-  preferences: { emailNotifications: boolean };
+  /** `mutedEmailTypes`: kinds of notification kept in the app and never emailed. */
+  preferences: { emailNotifications: boolean; mutedEmailTypes?: NotificationType[]; autoAcceptWaitlist?: boolean };
   lastLoginAt?: string;
+  /** On the team of an event someone else owns (only on the signed-in user). */
+  isEventStaff?: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -48,7 +43,8 @@ export interface Session {
   user: User;
 }
 
-export type RegistrationStatus = 'going' | 'waitlisted';
+/** `offered`: a freed seat is being held for you to claim before `viewer.offerExpiresAt`. */
+export type RegistrationStatus = 'going' | 'waitlisted' | 'offered' | 'pending';
 export type EventVisibility = 'public' | 'private';
 export type EventStatus = 'draft' | 'published' | 'cancelled';
 /** What a person is allowed to do with an event. */
@@ -89,6 +85,16 @@ export interface EventViewer {
   canChat: boolean;
   staffRole: StaffRole | null;
   registration: RegistrationStatus | null;
+  /** 1 = next in line; only present on a single event you're waitlisted for. */
+  waitlistPosition?: number;
+  /** Bookmarked as "Interested". */
+  interested?: boolean;
+  /** Checked in at the door. */
+  checkedIn?: boolean;
+  /** Friends going (first few names) and how many in all. */
+  friendsGoing?: { names: string[]; count: number };
+  /** For a held seat: claim it before this. */
+  offerExpiresAt?: string | null;
 }
 
 export interface SyncEvent {
@@ -107,6 +113,27 @@ export interface SyncEvent {
   owner: UserSummary;
   capacity: number | null;
   attendeeCount: number;
+  /** Optional sign-up window. */
+  registrationOpensAt?: string | null;
+  registrationClosesAt?: string | null;
+  /** Hours a freed seat is held for the next person; null = automatic. */
+  waitlistClaimHours?: number | null;
+  /** Asked when someone RSVPs. */
+  questions?: EventQuestion[];
+  /** RSVPs wait for the organiser's approval. */
+  requiresApproval?: boolean;
+  /** Shared by every date of a repeating event. */
+  seriesId?: string | null;
+  /** Team events: allowed team size. */
+  teamSize?: { min: number; max: number } | null;
+  /** Photo album link, added after the event. */
+  albumUrl?: string;
+  /** A new organiser's first event, waiting for an admin. */
+  awaitingReview?: boolean;
+  /** Only on create/update responses: other events booked at the same venue and time. */
+  venueClashes?: { id: string; title: string; startsAt: string; endsAt: string }[];
+  /** People who bookmarked it as "Interested". */
+  interestedCount?: number;
   spotsLeft: number | null;
   isPast: boolean;
   averageRating: number | null;
@@ -139,6 +166,18 @@ export interface EventInput {
   visibility?: EventVisibility;
   status?: 'draft' | 'published';
   capacity?: number | null;
+  registrationOpensAt?: string | null;
+  registrationClosesAt?: string | null;
+  /** Hours a freed seat is held for the next person; null = automatic. */
+  waitlistClaimHours?: number | null;
+  /** Asked when someone RSVPs. */
+  questions?: Omit<EventQuestion, 'id'>[];
+  /** RSVPs wait for the organiser's approval. */
+  requiresApproval?: boolean;
+  teamSize?: { min: number; max: number } | null;
+  albumUrl?: string;
+  /** Only when creating: make it a series. */
+  repeat?: { every: 'week' | 'fortnight'; count: number };
 }
 
 export interface Attendee {
@@ -146,12 +185,14 @@ export interface Attendee {
   status: RegistrationStatus;
   registeredAt: string;
   checkedInAt: string | null;
+  /** Answers to the event's questions, labelled. */
+  answers?: { question: string; answer: string }[];
   user: { id: string; name: string; email: string; avatarUrl: string } | null;
 }
 
 export interface AttendeeList {
   items: Attendee[];
-  counts: { going: number; waitlisted: number; checkedIn: number };
+  counts: { going: number; waitlisted: number; offered?: number; pending?: number; checkedIn: number };
 }
 
 /** Door staff's view of who is coming: names and check-ins, no email addresses. */
@@ -178,6 +219,14 @@ export interface ChatMessage {
   event: string;
   text: string;
   isAnnouncement: boolean;
+  /** Set when the message was removed; `text` is then empty. */
+  removedAt?: string | null;
+  /** The message this one answers, as a short quote. */
+  replyTo?: { id: string; text: string; removedAt?: string | null; sender: { name: string } | null } | null;
+  /** Emoji reactions: who reacted with what. */
+  reactions?: { emoji: string; user: string }[];
+  /** Pinned to the top by an organiser. */
+  pinnedAt?: string | null;
   sender: { id: string; name: string; avatarUrl: string; role: Role };
   createdAt: string;
 }
@@ -190,7 +239,13 @@ export type NotificationType =
   | 'announcement'
   | 'organizer_approved'
   | 'organizer_rejected'
-  | 'staff_invited';
+  | 'staff_invited'
+  | 'club_new_event'
+  | 'waitlist_offer'
+  | 'registration_decision'
+  | 'friend_request'
+  | 'mention'
+  | 'event_invite';
 
 export interface AppNotification {
   id: string;
@@ -233,6 +288,8 @@ export interface OrganizerOverview {
 }
 
 export interface PlatformStats {
+  /** Last 8 weeks, oldest first. */
+  trends?: { weekStarts: string[]; newUsers: number[]; rsvps: number[]; events: number[]; activeClubs: number[] };
   users: { total: number; byRole: Record<Role, number>; suspended: number };
   events: { total: number; upcoming: number };
   registrations: number;
@@ -266,6 +323,8 @@ export interface EventRating {
   average: number | null;
   count: number;
   mine: number | null;
+  /** The viewer's own written feedback. */
+  myComment?: string;
   /** Star-by-star breakdown; index 0 is one star. */
   breakdown: number[];
 }
@@ -286,9 +345,9 @@ export interface EventReport {
 }
 
 /** The signed code an attendee shows at the door. */
+/** What an attendee shows at the door: a short signed code (about 40 characters). */
 export interface EventTicket {
   token: string;
-  payload: { reg: string; event: string; user: string };
 }
 
 export interface ScanResult {
@@ -296,4 +355,114 @@ export interface ScanResult {
   alreadyCheckedIn: boolean;
   checkedInAt: string | null;
   attendee: { name: string; avatarUrl: string } | null;
+}
+
+/** A club's public page: an organiser account and what it runs. */
+export interface ClubProfile {
+  id: string;
+  name: string;
+  contactName: string | null;
+  bio: string;
+  avatarUrl: string;
+  followers: number;
+  following: boolean;
+  averageRating: number | null;
+  ratingCount: number;
+  upcoming: SyncEvent[];
+  past: SyncEvent[];
+}
+
+export interface ClubSuggestion {
+  id: string;
+  name: string;
+  avatarUrl: string;
+  bio: string;
+  upcomingEvents: number;
+}
+
+/** A question an organiser asks at RSVP time. */
+export interface EventQuestion {
+  id: string;
+  label: string;
+  kind: 'text' | 'choice';
+  options: string[];
+  required: boolean;
+}
+
+/** One admin action, as shown in the audit log. */
+export interface AuditEntry {
+  id: string;
+  action: string;
+  summary: string;
+  actor: { id: string; name: string; avatarUrl: string } | null;
+  target: { kind: 'user' | 'event' | 'application' | 'report'; id: string };
+  createdAt: string;
+}
+
+/** A reported chat message, as an admin sees it. */
+export interface MessageReport {
+  id: string;
+  reason: ReportReason;
+  details: string;
+  status: ReportStatus;
+  createdAt: string;
+  event: { id: string; title: string } | null;
+  reporter: { name: string } | null;
+  message: { id: string; text: string; removed: boolean; sender: string | null } | null;
+}
+
+/** One event's numbers for its organisers. */
+export interface EventInsights {
+  rsvpsByDay: { day: string; count: number }[];
+  going: number;
+  waitlisted: number;
+  pending: number;
+  interested: number;
+  checkedIn: number;
+  showUpRate: number | null;
+  averageRating: number | null;
+  ratingCount: number;
+}
+
+/** A participation certificate for a checked-in attendee of a finished event. */
+export interface Certificate {
+  name: string;
+  event: { id: string; title: string; startsAt: string; endsAt: string; venue: string };
+  host: string;
+  checkedInAt: string;
+  reference: string;
+}
+
+export interface FriendPerson {
+  id: string;
+  name: string;
+  avatarUrl: string;
+}
+
+/** Your friends, requests waiting for you, and requests you sent. */
+export interface FriendsList {
+  friends: { id: string; user: FriendPerson | null }[];
+  incoming: { id: string; user: FriendPerson | null }[];
+  outgoing: { id: string; user: FriendPerson | null }[];
+}
+
+/** A team at a team event. `code` is only sent to members and organisers. */
+export interface Team {
+  id: string;
+  name: string;
+  code?: string;
+  captain: string;
+  complete?: boolean;
+  members: { id: string; name: string; avatarUrl: string; status: RegistrationStatus | null; checkedIn: boolean }[];
+}
+
+/** A room in the admin-kept campus venue list. */
+export interface CampusVenue {
+  id: string;
+  name: string;
+  address: string;
+  latitude: number;
+  longitude: number;
+  capacity: number | null;
+  accessibility: string;
 }

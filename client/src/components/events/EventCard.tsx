@@ -2,40 +2,64 @@
 
 import Link from 'next/link';
 import type { SyncEvent } from '@/lib/api';
-import { formatTime, formatVenue } from '@/lib/format';
+import { campusDateParts, formatTime, formatVenue } from '@/lib/format';
 import { Tilt } from '@/components/ui/motion';
 import { cn } from '@/lib/cn';
 import EventCover from './EventCover';
 import RsvpButton from './RsvpButton';
 
+/** "Aanya + 2 friends going": seeing friends attend is the strongest nudge to RSVP. */
+export function FriendsGoing({ event, className }: { event: SyncEvent; className?: string }) {
+  const going = event.viewer.friendsGoing;
+  if (!going?.count) return null;
+  const first = going.names[0];
+  const others = going.count - 1;
+  return (
+    <p className={cn('truncate text-xs font-medium text-primary-soft-foreground', className)}>
+      👋 {first}
+      {others > 0 ? ` + ${others} friend${others === 1 ? '' : 's'}` : ''} going
+    </p>
+  );
+}
+
 /** Big stamped date: weekday, giant day number, month. */
 export function DateStamp({ iso, className }: { iso: string; className?: string }) {
-  const d = new Date(iso);
+  const d = campusDateParts(iso);
   return (
     <div className={cn('flex w-14 shrink-0 flex-col items-center text-center leading-none', className)}>
-      <span className="font-mono text-[10px] font-medium uppercase tracking-[0.18em] text-muted">{d.toLocaleDateString(undefined, { weekday: 'short' })}</span>
-      <span className="my-0.5 font-display text-[2.6rem] font-extrabold tabular-nums tracking-tighter">{d.getDate()}</span>
-      <span className="font-mono text-[10px] font-medium uppercase tracking-[0.18em] text-primary">{d.toLocaleDateString(undefined, { month: 'short' })}</span>
+      <span className="font-mono text-[10px] font-medium uppercase tracking-[0.18em] text-muted">{d.weekday}</span>
+      <span className="my-0.5 font-display text-[2.6rem] font-extrabold tabular-nums tracking-tighter">{d.day}</span>
+      <span className="font-mono text-[10px] font-medium uppercase tracking-[0.18em] text-primary">{d.month}</span>
     </div>
   );
 }
 
 export function CapacityBar({ event }: { event: SyncEvent }) {
   if (event.capacity == null) {
-    return <span className="font-mono text-[11px] uppercase tracking-wider text-muted">🔥 {event.attendeeCount} going</span>;
+    return (
+      <span className="font-mono text-[11px] uppercase tracking-wider text-muted">
+        🔥 {event.attendeeCount} going{event.interestedCount ? ` · ${event.interestedCount} interested` : ''}
+      </span>
+    );
   }
   const ratio = Math.min(event.attendeeCount / event.capacity, 1);
   return (
     <div className="min-w-0 flex-1">
       <div className="flex justify-between font-mono text-[11px] uppercase tracking-wider text-muted">
-        <span>{event.spotsLeft === 0 ? 'Full' : `${event.spotsLeft} spots`}</span>
+        <span>
+          {event.spotsLeft === 0 ? 'Full' : `${event.spotsLeft} spots`}
+          {event.interestedCount ? ` · ${event.interestedCount} interested` : ''}
+        </span>
         <span className="tabular-nums">
           {event.attendeeCount}/{event.capacity}
         </span>
       </div>
       <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-surface-muted">
         <div
-          className={cn('h-full rounded-full transition-all duration-700', ratio >= 1 ? 'bg-pink' : ratio > 0.75 ? 'bg-orange' : 'bg-primary')}
+          className={cn(
+            'h-full rounded-full transition-all duration-700',
+            ratio >= 1 ? 'bg-pink' : ratio > 0.75 ? 'bg-orange' : 'bg-primary'
+          )}
           style={{ width: `${Math.max(ratio * 100, 4)}%` }}
         />
       </div>
@@ -44,7 +68,15 @@ export function CapacityBar({ event }: { event: SyncEvent }) {
 }
 
 /** An event as a ticket: cover on top, perforated stub with the date below. */
-export default function EventCard({ event, onChange, className }: { event: SyncEvent; onChange: (event: SyncEvent) => void; className?: string }) {
+export default function EventCard({
+  event,
+  onChange,
+  className,
+}: {
+  event: SyncEvent;
+  onChange: (event: SyncEvent) => void;
+  className?: string;
+}) {
   const host = event.owner.organization || event.owner.name;
   return (
     <Tilt className={cn('group h-full rounded-[28px] [filter:drop-shadow(0_20px_30px_rgb(0_0_0/0.25))]', className)}>
@@ -57,13 +89,17 @@ export default function EventCard({ event, onChange, className }: { event: SyncE
           <div className="flex gap-4">
             <DateStamp iso={event.startsAt} />
             <div className="min-w-0 flex-1 border-l border-border pl-4">
-              <Link href={`/events/${event.id}`} className="line-clamp-2 font-display text-lg font-bold leading-tight transition-colors hover:text-primary">
+              <Link
+                href={`/events/${event.id}`}
+                className="line-clamp-2 font-display text-lg font-bold leading-tight transition-colors hover:text-primary"
+              >
                 {event.title}
               </Link>
               <p className="mt-1.5 truncate font-mono text-[11px] uppercase tracking-wider text-muted">
                 {formatTime(event.startsAt)} · {formatVenue(event)}
               </p>
               <p className="mt-0.5 truncate text-xs text-subtle">by {host}</p>
+              <FriendsGoing event={event} className="mt-1" />
             </div>
           </div>
           <div className="mt-auto flex items-end gap-3 pt-4">

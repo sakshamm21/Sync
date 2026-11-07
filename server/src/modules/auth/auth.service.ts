@@ -1,5 +1,7 @@
 import crypto from 'node:crypto';
+import bcrypt from 'bcryptjs';
 import { User, type UserDocument } from '../../models';
+import { DUMMY_PASSWORD_HASH } from '../../models/User';
 import env from '../../config/env';
 import { AppError, badRequest, conflict, forbidden, unauthenticated } from '../../lib/errors';
 import { signAccessToken, generateOtp, generateUrlToken, sha256 } from '../../lib/tokens';
@@ -11,6 +13,7 @@ const CODE_TTL_MINUTES = 10;
 const CODE_MAX_ATTEMPTS = 5;
 const CODE_RESEND_COOLDOWN_SECONDS = 30;
 const RESET_TTL_MINUTES = 30;
+const RESET_COOLDOWN_MS = 60 * 1000;
 
 export interface Session {
   token: string;
@@ -19,7 +22,8 @@ export interface Session {
 
 function assertNotSuspended(user: UserDocument) {
   if (user.status === USER_STATUS.SUSPENDED) {
-    throw forbidden('This account has been suspended. Contact an administrator.', 'ACCOUNT_SUSPENDED');
+    const why = user.suspensionReason ? ` Reason: ${user.suspensionReason}` : '';
+    throw forbidden(`This account has been suspended.${why} Contact an administrator.`, 'ACCOUNT_SUSPENDED');
   }
 }
 
@@ -31,7 +35,8 @@ export function createSession(user: UserDocument): Session {
  * Without working email the code cannot reach an inbox, so it is returned to
  * the client instead. Never in production unless EXPOSE_VERIFICATION_CODES is set.
  */
-const devOnly = <T>(delivered: boolean, value: T): T | undefined => (!delivered && env.exposeVerificationCodes ? value : undefined);
+const devOnly = <T>(delivered: boolean, value: T): T | undefined =>
+  !delivered && env.exposeVerificationCodes ? value : undefined;
 
 function safeEqual(a: string, b: string): boolean {
   const left = Buffer.from(a);
@@ -65,7 +70,20 @@ async function sendVerificationCode(user: UserDocument) {
   return { delivered, code };
 }
 
+/** True when sign-up is open to this address (see ALLOWED_EMAIL_DOMAINS). */
+export function emailDomainAllowed(email: string, allowed = env.allowedEmailDomains): boolean {
+  if (!allowed.length) return true;
+  const domain = email.split('@').pop()?.toLowerCase() ?? '';
+  return allowed.some((d) => domain === d || domain.endsWith(`.${d}`));
+}
+
 export async function register({ name, email, password }: { name: string; email: string; password: string }) {
+  if (!emailDomainAllowed(email)) {
+    throw forbidden(
+      `Sign-up is for ${env.allowedEmailDomains.map((d) => `@${d}`).join(' or ')} addresses. Use your college email.`,
+      'EMAIL_DOMAIN_NOT_ALLOWED'
+    );
+  }
   let user = await User.findOne({ email }).select('+emailVerification');
 
   if (user?.emailVerified) {
@@ -109,7 +127,9 @@ export async function verifyEmail({ email, code }: { email: string; code: string
     await user.save();
     const left = CODE_MAX_ATTEMPTS - pending.attempts;
     throw badRequest(
-      left > 0 ? `That code is not valid. ${left} attempt${left === 1 ? '' : 's'} left.` : 'Too many incorrect attempts. Request a new code.',
+      left > 0
+        ? `That code is not valid. ${left} attempt${left === 1 ? '' : 's'} left.`
+        : 'Too many incorrect attempts. Request a new code.',
       'INVALID_CODE'
     );
   }
@@ -125,7 +145,10 @@ export async function verifyEmail({ email, code }: { email: string; code: string
 
 export async function login({ email, password }: { email: string; password: string }) {
   const user = await User.findOne({ email }).select('+passwordHash');
-  if (!user || !(await user.checkPassword(password))) {
+  // Compare against a dummy hash for unknown emails too, so the response time
+  // doesn't reveal whether an account exists.
+  const matches = user ? await user.checkPassword(password) : await bcrypt.compare(password, DUMMY_PASSWORD_HASH);
+  if (!user || !matches) {
     throw unauthenticated('Incorrect email or password.', 'INVALID_CREDENTIALS');
   }
   if (!user.emailVerified) {
@@ -139,11 +162,18 @@ export async function login({ email, password }: { email: string; password: stri
 }
 
 export async function forgotPassword({ email }: { email: string }) {
-  const user = await User.findOne({ email });
+  const user = await User.findOne({ email }).select('+passwordReset');
   if (!user) return {};
+  // One email a minute per account, so the form can't be used to flood an inbox.
+  const lastSent = user.passwordReset?.sentAt?.getTime() ?? 0;
+  if (Date.now() - lastSent < RESET_COOLDOWN_MS) return {};
 
   const token = generateUrlToken();
-  user.passwordReset = { tokenHash: sha256(token), expiresAt: new Date(Date.now() + RESET_TTL_MINUTES * 60 * 1000) };
+  user.passwordReset = {
+    tokenHash: sha256(token),
+    expiresAt: new Date(Date.now() + RESET_TTL_MINUTES * 60 * 1000),
+    sentAt: new Date(),
+  };
   await user.save();
 
   const resetUrl = `${env.clientUrl}/reset-password?token=${token}`;
@@ -172,4 +202,57 @@ export async function resetPassword({ token, password }: { token: string; passwo
   user.lastLoginAt = new Date();
   await user.save();
   return createSession(user);
+}
+
+/**
+ * Changing email, step 1: check the password and that the new address is
+ * free (and allowed), then send a code to the new address. Nothing changes
+ * until the code comes back, so a typo can't lock anyone out.
+ */
+export async function startEmailChange(user: UserDocument, { email, password }: { email: string; password: string }) {
+  const account = await User.findById(user._id).select('+passwordHash +emailChange');
+  if (!account || !(await account.checkPassword(password)))
+    throw unauthenticated('That password is not right', 'INVALID_PASSWORD');
+  if (email === account.email) throw badRequest('That is already your email', 'SAME_EMAIL');
+  if (!emailDomainAllowed(email)) throw forbidden('Use your college email address', 'EMAIL_DOMAIN_NOT_ALLOWED');
+  if (await User.exists({ email })) throw conflict('Another account already uses that email', 'EMAIL_TAKEN');
+
+  const code = generateOtp();
+  account.emailChange = {
+    email,
+    codeHash: sha256(code),
+    expiresAt: new Date(Date.now() + CODE_TTL_MINUTES * 60 * 1000),
+    attempts: 0,
+  };
+  await account.save();
+  const delivered = await sendMail({
+    to: email,
+    ...emails.verificationCode({ name: account.name, otp: code, expiresInMinutes: CODE_TTL_MINUTES }),
+  });
+  return { pendingEmail: email, devCode: devOnly(delivered, code) };
+}
+
+/** Step 2: the code from the new inbox swaps the address. Other sessions are signed out. */
+export async function confirmEmailChange(user: UserDocument, { code }: { code: string }) {
+  const account = await User.findById(user._id).select('+emailChange');
+  const pending = account?.emailChange;
+  if (!account || !pending?.email || !pending.codeHash || !pending.expiresAt || pending.expiresAt < new Date()) {
+    throw badRequest('This code has expired. Start again.', 'CODE_EXPIRED');
+  }
+  if (pending.attempts >= CODE_MAX_ATTEMPTS)
+    throw new AppError(429, 'Too many incorrect attempts. Start again.', 'TOO_MANY_ATTEMPTS');
+  if (!safeEqual(sha256(code), pending.codeHash)) {
+    pending.attempts += 1;
+    account.markModified('emailChange');
+    await account.save();
+    throw badRequest('That code is not valid.', 'INVALID_CODE');
+  }
+  if (await User.exists({ email: pending.email, _id: { $ne: account._id } })) {
+    throw conflict('Another account already uses that email', 'EMAIL_TAKEN');
+  }
+  account.email = pending.email;
+  account.emailChange = undefined;
+  account.passwordChangedAt = new Date();
+  await account.save();
+  return createSession(account);
 }

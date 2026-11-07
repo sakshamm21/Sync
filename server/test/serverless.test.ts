@@ -15,13 +15,26 @@ beforeEach(resetDatabase);
 describe('serverless deployment support', () => {
   it('tells the client to poll', async () => {
     const res = await api().get('/api/meta').expect(200);
-    assert.deepEqual(res.body.data, { realtime: 'polling', emailDelivery: false, assistant: false, demo: false });
+    assert.deepEqual(res.body.data, {
+      realtime: 'polling',
+      emailDelivery: false,
+      assistant: false,
+      demo: false,
+      allowedEmailDomains: [],
+      pushPublicKey: null,
+      uploads: false,
+    });
   });
 
   it('runs reminders only for callers with the cron secret', async () => {
     const organizer = await createUser({ role: 'organizer' });
     const member = await createUser();
-    const event = (await api().post('/api/events').set(organizer.auth).send(eventInput({ startsAt: hoursFromNow(2), endsAt: hoursFromNow(3) }))).body.data;
+    const event = (
+      await api()
+        .post('/api/events')
+        .set(organizer.auth)
+        .send(eventInput({ startsAt: hoursFromNow(2), endsAt: hoursFromNow(3) }))
+    ).body.data;
     await api().post(`/api/events/${event.id}/registration`).set(member.auth);
 
     await api().get('/api/jobs/event-reminders').expect(403);
@@ -45,8 +58,15 @@ describe('serverless deployment support', () => {
     const first = (await api().post(`/api/events/${event.id}/messages`).set(member.auth).send({ text: 'one' })).body.data;
     await api().post(`/api/events/${event.id}/messages`).set(organizer.auth).send({ text: 'two' });
 
-    const res = await api().get(`/api/events/${event.id}/messages`).query({ after: first.createdAt }).set(member.auth).expect(200);
-    assert.deepEqual(res.body.data.map((m) => m.text), ['two']);
+    const res = await api()
+      .get(`/api/events/${event.id}/messages`)
+      .query({ after: first.createdAt })
+      .set(member.auth)
+      .expect(200);
+    assert.deepEqual(
+      res.body.data.map((m) => m.text),
+      ['two']
+    );
   });
 
   it('allows preview deployment origins that match a wildcard', async () => {

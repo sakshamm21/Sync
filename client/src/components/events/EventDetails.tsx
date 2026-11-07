@@ -5,23 +5,39 @@
  * details for the first paint; this hydrates from that same data and takes
  * over everything that depends on who is signed in.
  */
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import {
-  ArrowLeft, CalendarPlus, Flag, Hourglass, Link2, MapPin, Navigation, Share2, Star, Users,
+  ArrowLeft,
+  CalendarPlus,
+  Flag,
+  Hourglass,
+  Link2,
+  MapPin,
+  MessageCircle,
+  Navigation,
+  ImageDown,
+  Share2,
+  Star,
+  Users,
 } from 'lucide-react';
 import RsvpButton from './RsvpButton';
+import InterestedButton from './InterestedButton';
+import TeamPanel from '@/components/teams/TeamPanel';
 import EventCover, { statusOf } from './EventCover';
-import { CapacityBar, DateStamp } from './EventCard';
+import { CapacityBar, DateStamp, FriendsGoing } from './EventCard';
 import EventChat from '@/components/chat/EventChat';
 import { useAuth } from '@/context/AuthContext';
+import { useEventsSync } from '@/context/EventContext';
 import { errorMessage, eventsApi, type EventRating, type ReportReason, type SyncEvent } from '@/lib/api';
 import { CATEGORY_EMOJI, formatEventWhen, formatVenue } from '@/lib/format';
+import { SITE_URL, whatsappShareUrl } from '@/lib/calendarLinks';
 import { Button, ButtonLink } from '@/components/ui/button';
-import { Avatar, Card, Kicker, Sticker } from '@/components/ui/surface';
+import { Avatar, Card, EmptyState, Kicker, Sticker } from '@/components/ui/surface';
 import { FadeIn } from '@/components/ui/motion';
+import { cn } from '@/lib/cn';
 
 /** What the server rendered, before any client-side fetch. */
 interface ServerEvent {
@@ -54,7 +70,17 @@ function mapEmbed(event: SyncEvent): string | null {
   return `https://www.openstreetmap.org/export/embed.html?bbox=${lng - d}%2C${lat - d}%2C${lng + d}%2C${lat + d}&layer=mapnik&marker=${lat}%2C${lng}`;
 }
 
-function RoundAction({ label, onClick, href, children }: { label: string; onClick?: () => void; href?: string | null; children: React.ReactNode }) {
+function RoundAction({
+  label,
+  onClick,
+  href,
+  children,
+}: {
+  label: string;
+  onClick?: () => void;
+  href?: string | null;
+  children: React.ReactNode;
+}) {
   const className =
     'flex flex-col items-center gap-1.5 text-xs font-semibold text-muted transition hover:text-foreground disabled:opacity-40 [&>span:first-child]:flex [&>span:first-child]:size-12 [&>span:first-child]:items-center [&>span:first-child]:justify-center [&>span:first-child]:rounded-full [&>span:first-child]:border [&>span:first-child]:border-border [&>span:first-child]:bg-surface-muted [&>span:first-child]:transition hover:[&>span:first-child]:border-primary hover:[&>span:first-child]:text-primary [&_svg]:size-5';
   if (href) {
@@ -79,16 +105,23 @@ function RatingPanel({ event, onRated }: { event: SyncEvent; onRated: (r: EventR
   const [pending, setPending] = useState(false);
 
   useEffect(() => {
-    eventsApi.ratings(event.id).then(setRating).catch(() => setRating(null));
+    eventsApi
+      .ratings(event.id)
+      .then(setRating)
+      .catch(() => setRating(null));
   }, [event.id]);
 
   if (!rating) return null;
-  const canRate = event.viewer.registration === 'going' && event.isPast;
+  // Only people checked in at the door may rate (the server checks too).
+  const canRate = event.viewer.registration === 'going' && event.isPast && Boolean(event.viewer.checkedIn);
 
-  async function give(value: number) {
+  async function give(value: number, comment?: string) {
     setPending(true);
     try {
-      onRated(await eventsApi.rate(event.id, value));
+      const updated = await eventsApi.rate(event.id, value, comment);
+      setRating(updated);
+      onRated(updated);
+      if (comment !== undefined) toast.success('Thanks for the feedback', { description: 'Only the organisers see it.' });
     } catch (err) {
       toast.error(errorMessage(err));
     } finally {
@@ -137,8 +170,116 @@ function RatingPanel({ event, onRated }: { event: SyncEvent; onRated: (r: EventR
         ) : (
           rating.average === null && <p className="text-sm text-muted">No ratings yet.</p>
         )}
+        {canRate && rating.mine && <FeedbackBox initial={rating.myComment ?? ''} onSave={(c) => give(rating.mine!, c)} />}
+        {event.albumUrl && (
+          <a
+            href={event.albumUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mt-4 mr-2 inline-flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-sm font-medium hover:border-border-strong"
+          >
+            📸 See the photos
+          </a>
+        )}
+        {canRate && (
+          <ButtonLink href={`/certificates/${event.id}`} variant="secondary" size="sm" className="mt-4">
+            Get your certificate
+          </ButtonLink>
+        )}
       </Card>
     </section>
+  );
+}
+
+/** The other dates of a repeating event, with "RSVP to all". */
+function SeriesPanel({ event }: { event: SyncEvent }) {
+  const router = useRouter();
+  const { user } = useAuth();
+  const { eventsChanged } = useEventsSync();
+  const [dates, setDates] = useState<SyncEvent[] | null>(null);
+  const [pending, setPending] = useState(false);
+
+  useEffect(() => {
+    eventsApi
+      .series(event.id)
+      .then(setDates)
+      .catch(() => setDates(null));
+  }, [event.id]);
+
+  if (!dates || dates.length < 2) return null;
+  const canJoinAll = event.visibility === 'public' && !event.viewer.isOrganizer && !event.viewer.canCheckIn;
+
+  async function joinAll() {
+    if (!user) {
+      router.push(`/authentication?next=${encodeURIComponent(`/events/${event.id}`)}`);
+      return;
+    }
+    setPending(true);
+    try {
+      const results = await eventsApi.registerSeries(event.id);
+      const ok = results.filter((r) => r.status).length;
+      toast.success(`You're down for ${ok} of ${results.length} dates`);
+      setDates(await eventsApi.series(event.id));
+      eventsChanged();
+    } catch (err) {
+      toast.error(errorMessage(err));
+    } finally {
+      setPending(false);
+    }
+  }
+
+  return (
+    <section>
+      <Kicker className="mb-3">Repeats · {dates.length} upcoming dates</Kicker>
+      <Card className="p-5">
+        <ul className="mb-4 space-y-1.5 text-sm">
+          {dates.map((d) => (
+            <li key={d.id} className="flex items-center justify-between gap-3">
+              <Link href={`/events/${d.id}`} className={d.id === event.id ? 'font-semibold' : 'hover:text-primary'}>
+                {formatEventWhen(d)}
+              </Link>
+              <span className="text-xs text-muted">
+                {d.viewer.registration === 'going' ? "You're in" : d.viewer.registration === 'waitlisted' ? 'Waitlisted' : ''}
+              </span>
+            </li>
+          ))}
+        </ul>
+        {canJoinAll && (
+          <Button variant="secondary" size="sm" loading={pending} onClick={joinAll}>
+            RSVP to all dates
+          </Button>
+        )}
+      </Card>
+    </section>
+  );
+}
+
+/** Written feedback after rating: seen only by the organisers. */
+function FeedbackBox({ initial, onSave }: { initial: string; onSave: (comment: string) => void }) {
+  const [text, setText] = useState(initial);
+  return (
+    <form
+      className="mt-4 space-y-2"
+      onSubmit={(e) => {
+        e.preventDefault();
+        onSave(text.trim());
+      }}
+    >
+      <label htmlFor="feedback" className="block text-sm text-muted">
+        Anything the organisers should know? (only they see it)
+      </label>
+      <textarea
+        id="feedback"
+        rows={3}
+        maxLength={1000}
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        className="w-full rounded-2xl border border-border bg-surface-muted p-3 text-sm outline-none focus:border-primary"
+      />
+      <Button type="submit" size="sm" variant="secondary" disabled={text.trim() === initial.trim()}>
+        Send feedback
+      </Button>
+    </form>
   );
 }
 
@@ -171,7 +312,10 @@ function ReportButton({ event }: { event: SyncEvent }) {
 
   if (!open) {
     return (
-      <button onClick={() => setOpen(true)} className="text-xs text-muted underline-offset-2 hover:text-foreground hover:underline">
+      <button
+        onClick={() => setOpen(true)}
+        className="text-xs text-muted underline-offset-2 hover:text-foreground hover:underline"
+      >
         Report this event
       </button>
     );
@@ -189,8 +333,12 @@ function ReportButton({ event }: { event: SyncEvent }) {
         ))}
       </div>
       <div className="mt-3 flex gap-2">
-        <Button size="sm" onClick={submit} loading={pending}>Send</Button>
-        <Button size="sm" variant="ghost" onClick={() => setOpen(false)}>Cancel</Button>
+        <Button size="sm" onClick={submit} loading={pending}>
+          Send
+        </Button>
+        <Button size="sm" variant="ghost" onClick={() => setOpen(false)}>
+          Cancel
+        </Button>
       </div>
     </div>
   );
@@ -202,37 +350,61 @@ export default function EventDetails({
   initialCategoryLabel,
 }: {
   id: string;
-  initialEvent: ServerEvent;
+  /** Null for events the server can't show anonymously (private plans, drafts): fetched with the user's session instead. */
+  initialEvent: ServerEvent | null;
   initialCategoryLabel: string;
 }) {
   const router = useRouter();
   const { user, status } = useAuth();
   // Start from the server's copy so the page is readable before any fetch,
   // then replace it with the authenticated view once that arrives.
-  const [event, setEvent] = useState<SyncEvent | null>(() => ({
-    ...(initialEvent as unknown as SyncEvent),
-    tags: [],
-    onlineUrl: '',
-    viewer: { isOwner: false, isOrganizer: false, canManage: false, canCheckIn: false, canChat: false, staffRole: null, registration: null },
-    spotsLeft:
-      initialEvent.capacity === null ? null : Math.max(initialEvent.capacity - initialEvent.attendeeCount, 0),
-    isPast: new Date(initialEvent.endsAt) < new Date(),
-    averageRating: null,
-    createdAt: initialEvent.startsAt,
-    updatedAt: initialEvent.startsAt,
-  }));
+  const [missing, setMissing] = useState(false);
+  const [loaded, setEvent] = useState<SyncEvent | null>(
+    () =>
+      initialEvent && {
+        ...(initialEvent as unknown as SyncEvent),
+        tags: [],
+        onlineUrl: '',
+        viewer: {
+          isOwner: false,
+          isOrganizer: false,
+          canManage: false,
+          canCheckIn: false,
+          canChat: false,
+          staffRole: null,
+          registration: null,
+        },
+        spotsLeft: initialEvent.capacity === null ? null : Math.max(initialEvent.capacity - initialEvent.attendeeCount, 0),
+        isPast: new Date(initialEvent.endsAt) < new Date(),
+        averageRating: null,
+        createdAt: initialEvent.startsAt,
+        updatedAt: initialEvent.startsAt,
+      }
+  );
+
+  // Bumped by every local change (RSVP, Interested, rating), so a slower fetch
+  // that started earlier can't overwrite what the user just did.
+  const changes = useRef(0);
+  const applyChange = (next: SyncEvent) => {
+    changes.current += 1;
+    setEvent(next);
+  };
 
   useEffect(() => {
     if (status === 'loading') return;
+    const startedAt = changes.current;
     eventsApi
       .get(id)
-      .then(setEvent)
+      .then((fresh) => {
+        if (changes.current === startedAt) setEvent(fresh);
+      })
       .catch((err) => {
-        // A private event is only visible to its owner; the server already
-        // handled the shared-link case, so this is usually a network blip.
-        if (!event) toast.error(errorMessage(err));
+        // With no server copy this was a private plan or draft: if the
+        // signed-in user can't see it either, it doesn't exist for them.
+        if (!initialEvent) setMissing(true);
+        else toast.error(errorMessage(err));
       });
-  }, [id, status]);
+  }, [id, status, initialEvent]);
 
   async function share() {
     if (!event) return;
@@ -257,13 +429,79 @@ export default function EventDetails({
     }
   }
 
+  // "Preview as attendee": organisers see the page exactly as a member who
+  // hasn't RSVPed would, without the organiser-only controls.
+  const [previewing, setPreviewing] = useState(false);
+  const canPreview = Boolean(loaded?.viewer.isOrganizer || loaded?.viewer.canCheckIn);
+  const event = useMemo<SyncEvent | null>(
+    () =>
+      loaded && previewing
+        ? {
+            ...loaded,
+            viewer: {
+              ...loaded.viewer,
+              isOwner: false,
+              isOrganizer: false,
+              canManage: false,
+              canCheckIn: false,
+              staffRole: null,
+              registration: null,
+              interested: false,
+              waitlistPosition: undefined,
+            },
+          }
+        : loaded,
+    [loaded, previewing]
+  );
+
   const embed = useMemo(() => (event ? mapEmbed(event) : null), [event]);
   const badge = event && statusOf(event);
   const host = event ? event.owner?.organization || event.owner?.name || '' : '';
 
+  if (missing) {
+    return (
+      <main className="mx-auto max-w-3xl px-4 py-24">
+        <EmptyState
+          emoji="🔍"
+          title="Event not found"
+          description={
+            user
+              ? 'This event may have been deleted, or it is private.'
+              : 'If this is your private plan or draft, sign in to see it.'
+          }
+          action={
+            user ? (
+              <ButtonLink href="/explore">See what&apos;s on</ButtonLink>
+            ) : (
+              <ButtonLink href={`/authentication?next=${encodeURIComponent(`/events/${id}`)}`}>Sign in</ButtonLink>
+            )
+          }
+        />
+      </main>
+    );
+  }
+
   return (
     <>
       {!event && <div className="mx-auto mt-6 h-[55vh] max-w-7xl animate-pulse rounded-[40px] bg-surface-muted" />}
+
+      {canPreview && (
+        <div className="sticky top-16 z-30 mx-auto mt-3 flex max-w-7xl justify-end px-4 sm:px-6 lg:px-8">
+          <button
+            type="button"
+            aria-pressed={previewing}
+            onClick={() => setPreviewing((p) => !p)}
+            className={cn(
+              'rounded-full border px-4 py-2 text-sm font-semibold shadow-lifted backdrop-blur transition',
+              previewing
+                ? 'border-transparent bg-foreground text-background'
+                : 'border-border bg-surface/90 text-muted hover:text-foreground'
+            )}
+          >
+            {previewing ? 'Previewing as an attendee · Exit' : 'Preview as attendee'}
+          </button>
+        </div>
+      )}
 
       {event && (
         <>
@@ -293,12 +531,20 @@ export default function EventDetails({
                   )}
                 </div>
                 <Kicker className="text-foreground/80">{formatEventWhen(event)}</Kicker>
-                <h1 className="mt-3 max-w-4xl text-[clamp(2.4rem,6vw,5.5rem)] font-extrabold leading-[0.92] tracking-[-0.04em]">{event.title}</h1>
+                <h1 className="mt-3 max-w-4xl text-[clamp(2.4rem,6vw,5.5rem)] font-extrabold leading-[0.92] tracking-[-0.04em]">
+                  {event.title}
+                </h1>
                 {event.visibility === 'public' && host && (
                   <div className="mt-5 flex items-center gap-2.5 text-sm">
                     <Avatar name={host} src={event.owner?.avatarUrl} size={30} />
                     <span className="text-muted">hosted by</span>
-                    <span className="font-semibold">{host}</span>
+                    {event.owner?.id ? (
+                      <Link href={`/clubs/${event.owner.id}`} className="font-semibold underline-offset-4 hover:underline">
+                        {host}
+                      </Link>
+                    ) : (
+                      <span className="font-semibold">{host}</span>
+                    )}
                   </div>
                 )}
               </FadeIn>
@@ -338,7 +584,11 @@ export default function EventDetails({
                 </section>
               )}
 
-              {event.visibility === 'public' && <RatingPanel event={event} onRated={(r) => setEvent({ ...event, averageRating: r.average })} />}
+              {event.seriesId && <SeriesPanel event={event} />}
+              {event.teamSize && <TeamPanel event={event} />}
+              {event.visibility === 'public' && (
+                <RatingPanel event={event} onRated={(r) => applyChange({ ...event, averageRating: r.average })} />
+              )}
 
               {event.visibility === 'public' && (
                 <section>
@@ -351,7 +601,9 @@ export default function EventDetails({
                     <Card className="p-8 text-center">
                       <p className="text-3xl">💬</p>
                       <p className="mt-2 font-display text-lg font-bold">The chat is for people who are going</p>
-                      <p className="mt-1 text-sm text-muted">{user ? 'Tap I’m in to join the conversation.' : 'Sign in and tap I’m in to join.'}</p>
+                      <p className="mt-1 text-sm text-muted">
+                        {user ? 'Tap I’m in to join the conversation.' : 'Sign in and tap I’m in to join.'}
+                      </p>
                     </Card>
                   )}
                 </section>
@@ -380,7 +632,12 @@ export default function EventDetails({
                         <span className="truncate">{formatVenue(event)}</span>
                       </p>
                       {event.onlineUrl && (
-                        <a href={event.onlineUrl} target="_blank" rel="noreferrer" className="flex items-center gap-1.5 font-semibold text-primary hover:underline">
+                        <a
+                          href={event.onlineUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="flex items-center gap-1.5 font-semibold text-primary hover:underline"
+                        >
                           <Link2 className="size-4" /> Join online
                         </a>
                       )}
@@ -390,13 +647,18 @@ export default function EventDetails({
                 <div className="ticket-bottom relative space-y-5 rounded-b-[28px] bg-surface p-6 pt-7">
                   <div aria-hidden="true" className="absolute inset-x-6 top-0 border-t-2 border-dashed border-border" />
                   {event.visibility === 'public' && <CapacityBar event={event} />}
+                  <FriendsGoing event={event} />
                   {event.viewer.registration === 'waitlisted' && (
                     <p className="flex gap-2 rounded-2xl bg-warning-soft p-3 text-sm text-warning">
                       <Hourglass className="mt-0.5 size-4 shrink-0" />
-                      You&apos;re on the waitlist. If a spot opens, you&apos;re in automatically.
+                      {event.viewer.waitlistPosition
+                        ? `You're #${event.viewer.waitlistPosition} on the waitlist.`
+                        : "You're on the waitlist."}{' '}
+                      If a spot opens, you&apos;re in automatically.
                     </p>
                   )}
-                  <RsvpButton event={event} onChange={setEvent} size="xl" className="w-full" />
+                  <RsvpButton event={event} onChange={applyChange} size="xl" className="w-full" />
+                  <InterestedButton event={event} onChange={applyChange} />
                   <div className="flex justify-around pt-1">
                     <RoundAction label="Calendar" onClick={addToCalendar}>
                       <CalendarPlus />
@@ -404,6 +666,16 @@ export default function EventDetails({
                     <RoundAction label="Share" onClick={event.visibility === 'public' ? share : undefined}>
                       <Share2 />
                     </RoundAction>
+                    {event.visibility === 'public' && (
+                      <RoundAction label="Story" href={`/events/${event.id}/story`}>
+                        <ImageDown />
+                      </RoundAction>
+                    )}
+                    {event.visibility === 'public' && (
+                      <RoundAction label="WhatsApp" href={whatsappShareUrl(event, formatEventWhen(event), SITE_URL)}>
+                        <MessageCircle />
+                      </RoundAction>
+                    )}
                     <RoundAction label="Directions" href={directionsUrl(event)} onClick={undefined}>
                       <Navigation />
                     </RoundAction>

@@ -7,7 +7,7 @@
 
 <p align="center">
   <a href="https://github.com/sakshamm21/Sync/actions/workflows/ci.yml"><img src="https://img.shields.io/github/actions/workflow/status/sakshamm21/Sync/ci.yml?branch=master&style=flat-square&label=build&color=6a3dff" alt="Build status"></a>
-  <img src="https://img.shields.io/badge/tests-123%20passing-0b0b10?style=flat-square" alt="123 API tests">
+  <a href="https://github.com/sakshamm21/Sync/actions/workflows/ci.yml"><img src="https://github.com/sakshamm21/Sync/actions/workflows/ci.yml/badge.svg?branch=master" alt="CI status"></a>
   <img src="https://img.shields.io/badge/made%20with-Next.js%20%2B%20Express-0b0b10?style=flat-square" alt="Made with Next.js and Express">
   <img src="https://img.shields.io/badge/license-ISC-0b0b10?style=flat-square" alt="License: ISC">
 </p>
@@ -120,7 +120,7 @@ Every account, and a script of things to try with each, is in [TEST_ACCOUNTS.md]
 |---|---|
 | **Home** | Your tickets, recommendations from your interests and what's popular, and unread notifications. |
 | **Explore** | Search and filter public events by category and date, sorted by soonest or most popular. RSVP in one tap; a full event puts you on the waitlist instead of turning you away. |
-| **Event page** | Details, venue map, seats left, organizer, an "Add to calendar" file, the event chat and, once it has ended, a rating. Server-rendered, so a shared link shows a real preview. |
+| **Event page** | Details, venue map, seats left, organizer, an "Add to calendar" file, the event chat and, once it has ended, a rating from people who were checked in. Server-rendered, so a shared link shows a real preview. |
 | **Schedule** | A calendar of everything you are attending, waitlisted for, organising or planned privately. Click a day to add a private plan. Your QR entry code lives here. |
 | **Chats** | One chat per event, open to its attendees. Organizer announcements notify everyone going. |
 | **Notes** | Personal sticky notes, optionally linked to an event; pin the ones that matter. |
@@ -151,7 +151,7 @@ flowchart LR
 - **The last seat goes to one person.** Taking a seat is a single conditional update: "add one to the count if it is still below capacity". There is no gap between checking and taking, so two people tapping at the same instant cannot both get in. A unique index on (event, user) stops a double tap from creating two registrations.
 - **The waitlist runs itself.** When someone leaves a full event, or the organizer raises the capacity, the people waiting are moved up first come, first served, and each is notified in the app and by email.
 - **A counter that repairs itself.** The attendee count is a stored number, so an RSVP never has to count registrations. If a process dies between taking a seat and saving the registration the number would drift, so a maintenance job recounts from the registrations that exist and corrects it.
-- **Nobody waits on an email provider.** Emails are written to an outbox collection and the request returns at once. A background job delivers them in batches of 25, claims each row before sending so two workers never send the same email twice, retries up to five times, and picks up rows a crashed worker left behind.
+- **Nobody waits on an email provider.** Emails are written to an outbox collection and the request returns at once. Queuing an email also starts delivery in the background (Vercel's `waitUntil` on serverless), so it usually leaves within seconds. Each row is claimed before sending so two workers never send the same email twice; a failed send is retried up to five times with backoff (1 minute, 5, 30, 2 hours), a permanent rejection is not retried, and rows a crashed worker left behind are picked up again.
 - **One permission layer.** A single policy module answers "what can this person do with this event?" for every feature. Door staff can scan tickets but cannot open the attendee list, because it holds everyone's email. A hidden event returns "not found", never "forbidden". Private plans are visible to their owner only, not even to admins.
 - **An assistant that cannot change anything.** Ask Sync has four tools (`search_events`, `get_my_schedule`, `get_event_details`, `get_recommendations`), each a thin read-only wrapper over the same services the app uses, so it sees exactly what the signed-in user may see. The server formats every time in the user's time zone, so the model never does time-zone maths, and it gets at most five rounds of tool calls before it must answer.
 - **Entry codes carry no personal data.** A ticket is a signed token holding three ids, valid for 14 days and for one event only. The scan re-checks the live registration, so a waitlisted ticket is refused, and scanning twice says "already checked in" instead of failing. The QR encoder is written in the repository rather than pulled in as a dependency.
@@ -171,7 +171,7 @@ flowchart LR
 | Email | A transactional outbox, delivered through Brevo's HTTP API or any SMTP server |
 | AI | Any OpenAI-compatible Chat Completions API, in Ask Sync only |
 | Maps | OpenStreetMap, with place search through Nominatim |
-| Security | helmet, a CORS allowlist, three rate limiters (sign-in, the whole API, the assistant per user) |
+| Security | helmet, a CORS allowlist, three rate limiters (sign-in, the whole API, the assistant per user) whose counts are shared through MongoDB in production |
 | Jobs | Vercel Schedules in production, in-process timers elsewhere |
 | Testing | Node's built-in test runner with supertest, against an in-memory MongoDB |
 | Hosting | Vercel (web app and API as two projects), GitHub Actions for CI |
@@ -268,9 +268,13 @@ Every variable is documented in `server/.env.example` and `client/.env.example`.
 |---|---|
 | `npm run dev:memory` | Run the API and the web app with a local database and the demo data |
 | `npm run dev` | Run both against the MongoDB in `DB_URI` |
-| `npm test` | API tests (123 tests) |
+| `npm test` | API tests (against an in-memory MongoDB) |
 | `npm --prefix server run typecheck` | Type-check the API and its tests |
 | `npm run build` | Build, and type-check, the web app |
+| `npm run lint` | ESLint for the API and the web app |
+| `npm run format` / `npm run format:check` | Prettier |
+| `npm --prefix client test` | Web app unit tests (time zones, date filters, redirects) |
+| `npm run e2e` | Browser tests with Playwright: key flows, a fake-camera QR scan and axe accessibility checks (run `npx playwright install chromium` once) |
 | `npm --prefix server run seed` | Load the demo data; add `-- --reset` to wipe everything first (refuses to run in production unless `DEMO_MODE=true`) |
 | `npm --prefix server run create-admin -- --email you@example.com` | Create the first admin, or promote an existing account |
 
@@ -294,14 +298,14 @@ There are no automated tests for the web app yet; it is covered by the type-chec
 1. Create a free MongoDB Atlas database and, for real email, a free Brevo account with a verified sender.
 2. Import the repository on Vercel **twice**: one project with root directory `client/`, one with `server/`.
 3. On the API project set at least `DB_URI`, `JWT_SECRET` (32 characters or more), `CLIENT_URL` (the web app's address) and `CRON_SECRET`; add `BREVO_API_KEY`, `MAIL_FROM` and `AI_API_KEY` for email and Ask Sync.
-4. On the web project set `NEXT_PUBLIC_API_URL` (the API's address) and `NEXT_PUBLIC_SITE_URL` (its own).
+4. On the web project set `NEXT_PUBLIC_API_URL` (the API's address) and `NEXT_PUBLIC_SITE_URL` (its own). `NEXT_PUBLIC_CAMPUS_TIMEZONE` defaults to `Asia/Kolkata`; set it to match the API's `CAMPUS_TIMEZONE` if your campus is elsewhere.
 5. Deploy, then, with `DB_URI` in `server/.env` pointing at your database, run `npm --prefix server run create-admin -- --email you@example.com` for the first admin.
 
 `server/vercel.json` runs these jobs with [Vercel Schedules](https://vercel.com/docs/schedules). Each is called with `Authorization: Bearer $CRON_SECRET`, and each can be run by hand from the project's **Schedules** page in the Vercel dashboard:
 
 | Job | When | What it does |
 |---|---|---|
-| `/api/jobs/email-outbox` | Every 15 minutes | Delivers queued emails |
+| `/api/jobs/email-outbox` | Every 15 minutes | Delivers anything still queued (mail normally leaves straight after it is queued) |
 | `/api/jobs/event-reminders` | Every hour | Emails attendees 24 hours before an event starts |
 | `/api/jobs/maintenance` | Daily, 09:00 IST | Recounts attendees from the registrations that exist, and prunes old rows |
 | `/api/jobs/demo-reset` | Daily, 02:00 IST | Public demos only (`DEMO_MODE=true`): wipes the database and reloads fresh demo data |

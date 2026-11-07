@@ -1,6 +1,8 @@
 'use client';
 
+import { useEffect } from 'react';
 import { ThemeProvider, useTheme } from 'next-themes';
+import { startDevice } from '@/lib/device';
 import { Toaster } from 'sonner';
 import { AuthProvider } from '@/context/AuthContext';
 import { EventProvider } from '@/context/EventContext';
@@ -25,6 +27,7 @@ function ThemedToaster() {
 }
 
 export default function Providers({ children }: { children: React.ReactNode }) {
+  useEffect(startDevice, []);
   return (
     // Dark ("after dark") is the brand default; day mode and system are in Settings.
     <ThemeProvider attribute="class" defaultTheme="dark" enableSystem disableTransitionOnChange>

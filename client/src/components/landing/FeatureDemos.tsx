@@ -37,7 +37,9 @@ export function RsvpDemo() {
         {going ? <Check className="size-5" /> : <Plus className="size-5" />}
         {going ? "You're in" : "I'm in"}
       </motion.button>
-      <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-subtle">{going ? 'tap again to cancel' : 'go on, tap it'}</p>
+      <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-subtle">
+        {going ? 'tap again to cancel' : 'go on, tap it'}
+      </p>
     </div>
   );
 }
@@ -57,7 +59,11 @@ export function WaitlistDemo() {
   return (
     <div ref={ref} className="w-full max-w-xs">
       <div className="h-3 overflow-hidden rounded-full bg-surface-muted">
-        <motion.div className={cn('h-full rounded-full', i >= 3 ? (i === 4 ? 'bg-primary' : 'bg-pink') : 'bg-orange')} animate={{ width: `${ratio * 100}%` }} transition={{ type: 'spring', bounce: 0.2 }} />
+        <motion.div
+          className={cn('h-full rounded-full', i >= 3 ? (i === 4 ? 'bg-primary' : 'bg-pink') : 'bg-orange')}
+          animate={{ width: `${ratio * 100}%` }}
+          transition={{ type: 'spring', bounce: 0.2 }}
+        />
       </div>
       <AnimatePresence mode="wait">
         <motion.p
@@ -78,8 +84,13 @@ export function WaitlistDemo() {
 export function NotifyDemo() {
   const items = [
     { icon: <Bell />, title: 'Tomorrow: Tech Summit', body: 'Starts at 10:00 · Main Auditorium', tone: 'bg-surface-raised' },
-    { icon: <Megaphone />, title: 'Venue changed', body: 'Moved to the Open Air Theatre', tone: 'bg-pink text-white' },
-    { icon: <PartyPopper />, title: "You're off the waitlist", body: 'A spot opened for Hackathon', tone: 'bg-primary text-primary-foreground' },
+    { icon: <Megaphone />, title: 'Venue changed', body: 'Moved to the Open Air Theatre', tone: 'bg-pink text-[#09090d]' },
+    {
+      icon: <PartyPopper />,
+      title: "You're off the waitlist",
+      body: 'A spot opened for Hackathon',
+      tone: 'bg-primary text-primary-foreground',
+    },
   ];
   const [shown, setShown] = useState(0);
   const ref = useRef<HTMLDivElement>(null);
@@ -100,7 +111,10 @@ export function NotifyDemo() {
             exit={{ opacity: 0, scale: 0.9 }}
             transition={{ type: 'spring', bounce: 0.3 }}
             style={{ zIndex: i }}
-            className={cn('absolute inset-x-0 top-0 flex items-center gap-3 rounded-2xl border border-border p-3 shadow-lifted [&_svg]:size-4', n.tone)}
+            className={cn(
+              'absolute inset-x-0 top-0 flex items-center gap-3 rounded-2xl border border-border p-3 shadow-lifted [&_svg]:size-4',
+              n.tone
+            )}
           >
             <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-black/10">{n.icon}</span>
             <span className="min-w-0">
@@ -140,7 +154,12 @@ export function ChatDemo() {
             initial={{ opacity: 0, y: 12, scale: 0.9 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0 }}
-            className={cn('max-w-[80%] rounded-3xl px-4 py-2 text-sm', l.me ? 'self-end rounded-br-lg bg-primary font-medium text-primary-foreground' : 'self-start rounded-bl-lg bg-surface-raised')}
+            className={cn(
+              'max-w-[80%] rounded-3xl px-4 py-2 text-sm',
+              l.me
+                ? 'self-end rounded-br-lg bg-primary font-medium text-primary-foreground'
+                : 'self-start rounded-bl-lg bg-surface-raised'
+            )}
           >
             {l.text}
           </motion.div>

@@ -3,7 +3,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { Check, LoaderCircle, MapPin, Navigation, Search } from 'lucide-react';
-import { eventsApi, type VenueSummary } from '@/lib/api';
+import { eventsApi, venuesApi, type CampusVenue, type VenueSummary } from '@/lib/api';
+import dynamic from 'next/dynamic';
+import type { MapPin as Pin } from './LeafletMap';
+
+// Leaflet needs the browser, so the map isn't server-rendered.
+const LeafletMap = dynamic(() => import('./LeafletMap'), { ssr: false });
 import { CATEGORY_LABELS, formatDay, formatTime } from '@/lib/format';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/cn';
@@ -23,21 +28,25 @@ interface VenueMapProps {
 }
 
 // Shown before anything is selected; the busiest venue replaces it once loaded.
-const DEFAULT_CENTER = { latitude: 26.5123, longitude: 80.2329 };
+/** Where the map opens before a venue is picked: the campus (NEXT_PUBLIC_CAMPUS_LATITUDE/LONGITUDE). */
+const DEFAULT_CENTER = {
+  latitude: Number(process.env.NEXT_PUBLIC_CAMPUS_LATITUDE) || 26.5123,
+  longitude: Number(process.env.NEXT_PUBLIC_CAMPUS_LONGITUDE) || 80.2329,
+};
 
-function osmEmbedUrl(lat: number, lng: number) {
-  const d = 0.008;
-  const bbox = [lng - d, lat - d, lng + d, lat + d].join('%2C');
-  return `https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&layer=mapnik&marker=${lat}%2C${lng}`;
-}
-
-const toLocation = (v: VenueSummary): PickedLocation => ({ name: v.name, address: v.address, latitude: v.latitude, longitude: v.longitude });
+const toLocation = (v: VenueSummary): PickedLocation => ({
+  name: v.name,
+  address: v.address,
+  latitude: v.latitude,
+  longitude: v.longitude,
+});
 
 /** Map of venues used by upcoming events, plus place search (OpenStreetMap). */
 export default function VenueMap({ onPick, className }: VenueMapProps) {
   const [venues, setVenues] = useState<VenueSummary[] | null>(null);
   const [selected, setSelected] = useState<PickedLocation | null>(null);
   const [query, setQuery] = useState('');
+  const [campusVenues, setCampusVenues] = useState<CampusVenue[]>([]);
   const { results, searching, error, clear } = usePlaceSearch(query);
 
   useEffect(() => {
@@ -48,9 +57,37 @@ export default function VenueMap({ onPick, className }: VenueMapProps) {
         setSelected((current) => current ?? (list[0] ? toLocation(list[0]) : null));
       })
       .catch(() => setVenues([]));
+    venuesApi
+      .list()
+      .then(setCampusVenues)
+      .catch(() => setCampusVenues([]));
   }, []);
 
   const center = selected ?? DEFAULT_CENTER;
+  // Pins: venues with upcoming events, the admin-kept campus venues, and the current pick.
+  const pins = useMemo<Pin[]>(() => {
+    const all = new Map<string, Pin>();
+    for (const v of campusVenues)
+      all.set(`${v.latitude}|${v.longitude}`, { key: v.id, name: v.name, latitude: v.latitude, longitude: v.longitude });
+    for (const v of venues ?? [])
+      all.set(`${v.latitude}|${v.longitude}`, {
+        key: `${v.name}-${v.latitude}`,
+        name: v.name,
+        latitude: v.latitude,
+        longitude: v.longitude,
+      });
+    if (selected) {
+      const k = `${selected.latitude}|${selected.longitude}`;
+      all.set(k, {
+        key: 'selected',
+        name: selected.name,
+        latitude: selected.latitude,
+        longitude: selected.longitude,
+        active: true,
+      });
+    }
+    return [...all.values()];
+  }, [venues, campusVenues, selected]);
   const eventsHere = useMemo(
     () => venues?.find((v) => selected && v.latitude === selected.latitude && v.longitude === selected.longitude)?.events ?? [],
     [venues, selected]
@@ -67,7 +104,18 @@ export default function VenueMap({ onPick, className }: VenueMapProps) {
   return (
     <div className={cn('grid gap-4 lg:grid-cols-[1fr_20rem]', className)}>
       <div className="relative min-h-[420px] overflow-hidden rounded-[32px] border border-border bg-surface-muted">
-        <iframe title="Map" src={osmEmbedUrl(center.latitude, center.longitude)} className="map-frame absolute inset-0 size-full border-0" />
+        <LeafletMap
+          className="absolute inset-0 z-0 size-full"
+          center={center}
+          pins={pins}
+          onSelect={(pin) => choose({ name: pin.name, address: '', latitude: pin.latitude, longitude: pin.longitude })}
+          onDrop={
+            onPick
+              ? (latitude, longitude) =>
+                  choose({ name: 'Dropped pin', address: `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`, latitude, longitude })
+              : undefined
+          }
+        />
 
         <div className="absolute inset-x-3 top-3 z-10">
           <div className="relative">
@@ -87,7 +135,11 @@ export default function VenueMap({ onPick, className }: VenueMapProps) {
               {!searching && error && <li className="px-3 py-2 text-sm text-muted">{error}</li>}
               {results.map((place) => (
                 <li key={place.id}>
-                  <button type="button" onClick={() => choose(place)} className="flex w-full items-start gap-2.5 rounded-lg px-3 py-2 text-left transition hover:bg-surface-muted">
+                  <button
+                    type="button"
+                    onClick={() => choose(place)}
+                    className="flex w-full items-start gap-2.5 rounded-lg px-3 py-2 text-left transition hover:bg-surface-muted"
+                  >
                     <MapPin className="mt-0.5 size-4 shrink-0 text-primary" />
                     <span className="min-w-0">
                       <span className="block text-sm font-medium">{place.name}</span>
@@ -146,7 +198,12 @@ export default function VenueMap({ onPick, className }: VenueMapProps) {
                     active ? 'border-transparent bg-primary text-primary-foreground' : 'border-transparent hover:bg-surface-muted'
                   )}
                 >
-                  <span className={cn('flex size-8 shrink-0 items-center justify-center rounded-lg', active ? 'bg-black/15' : 'bg-surface-muted text-muted')}>
+                  <span
+                    className={cn(
+                      'flex size-8 shrink-0 items-center justify-center rounded-lg',
+                      active ? 'bg-black/15' : 'bg-surface-muted text-muted'
+                    )}
+                  >
                     <MapPin className="size-4" />
                   </span>
                   <span className="min-w-0">

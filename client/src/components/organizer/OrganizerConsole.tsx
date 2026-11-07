@@ -3,8 +3,22 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { toast } from 'sonner';
-import { Ban, CalendarCheck, CalendarDays, Hourglass, Pencil, Plus, Trash2, TrendingUp, Users } from 'lucide-react';
+import {
+  Ban,
+  Copy,
+  CalendarCheck,
+  CalendarDays,
+  Hourglass,
+  Pencil,
+  Plus,
+  ScanLine,
+  Trash2,
+  TrendingUp,
+  Users,
+} from 'lucide-react';
 import { useEventsSync } from '@/context/EventContext';
+import { useAuth } from '@/context/AuthContext';
+import Committee from '@/components/organizer/Committee';
 import { errorMessage, eventsApi, organizerApi, type OrganizedEvent, type OrganizerOverview } from '@/lib/api';
 import { formatEventWhen, formatVenue } from '@/lib/format';
 import { useCreateEvent } from '@/components/events/CreateEventDialog';
@@ -34,6 +48,7 @@ function StatusBadge({ event }: { event: OrganizedEvent }) {
 
 export default function OrganizerConsole() {
   const { version, eventsChanged } = useEventsSync();
+  const { user } = useAuth();
   const { openCreateEvent } = useCreateEvent();
   const [overview, setOverview] = useState<OrganizerOverview | null>(null);
   const [filter, setFilter] = useState<Filter>('upcoming');
@@ -42,12 +57,18 @@ export default function OrganizerConsole() {
   const [deleting, setDeleting] = useState<OrganizedEvent | null>(null);
 
   const load = useCallback(() => {
-    organizerApi.overview().then(setOverview).catch((err) => toast.error(errorMessage(err)));
+    organizerApi
+      .overview()
+      .then(setOverview)
+      .catch((err) => toast.error(errorMessage(err)));
   }, []);
   useEffect(load, [load, version]);
 
   const counts = useMemo(
-    () => Object.fromEntries((Object.keys(matches) as Filter[]).map((f) => [f, overview?.events.filter(matches[f]).length ?? 0])) as Record<Filter, number>,
+    () =>
+      Object.fromEntries(
+        (Object.keys(matches) as Filter[]).map((f) => [f, overview?.events.filter(matches[f]).length ?? 0])
+      ) as Record<Filter, number>,
     [overview]
   );
   const visible = overview?.events.filter(matches[filter]) ?? [];
@@ -79,7 +100,11 @@ export default function OrganizerConsole() {
     <>
       <PageHeader
         kicker="Organizer console"
-        title={<>Run the <em>show</em></>}
+        title={
+          <>
+            Run the <em>show</em>
+          </>
+        }
         description="Publish events, watch RSVPs roll in, check people in at the door."
         actions={
           <Button onClick={() => openCreateEvent()}>
@@ -101,7 +126,13 @@ export default function OrganizerConsole() {
           },
         ].map((s) => (
           <StaggerItem key={s.label} className="h-full">
-            <StatCard label={s.label} value={s.value ?? <span className="inline-block h-10 w-14 animate-pulse rounded-xl bg-surface-muted" />} icon={s.icon} hint={s.hint} accent={s.accent} />
+            <StatCard
+              label={s.label}
+              value={s.value ?? <span className="inline-block h-10 w-14 animate-pulse rounded-xl bg-surface-muted" />}
+              icon={s.icon}
+              hint={s.hint}
+              accent={s.accent}
+            />
           </StaggerItem>
         ))}
       </Stagger>
@@ -130,7 +161,13 @@ export default function OrganizerConsole() {
           emoji="📣"
           title={filter === 'upcoming' ? 'No upcoming events' : `No ${filter} events`}
           description={filter === 'upcoming' ? 'Publish your first event and start collecting RSVPs.' : undefined}
-          action={filter === 'upcoming' && <Button onClick={() => openCreateEvent()}><Plus /> New event</Button>}
+          action={
+            filter === 'upcoming' && (
+              <Button onClick={() => openCreateEvent()}>
+                <Plus /> New event
+              </Button>
+            )
+          }
         />
       ) : (
         <Stagger key={filter} className="space-y-3">
@@ -145,35 +182,89 @@ export default function OrganizerConsole() {
                     <StatusBadge event={event} />
                     {event.capacity && event.attendeeCount >= event.capacity && <Badge tone="warning">Full</Badge>}
                   </div>
-                  <Link href={`/events/${event.id}`} className="mt-1.5 block truncate font-display text-xl font-bold hover:text-primary">
+                  <Link
+                    href={`/events/${event.id}`}
+                    className="mt-1.5 block truncate font-display text-xl font-bold hover:text-primary"
+                  >
                     {event.title}
                   </Link>
                   <p className="truncate text-sm text-muted">
                     {formatEventWhen(event)} · {formatVenue(event)}
                   </p>
                   <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted">
-                    <span className="flex items-center gap-1"><Users className="size-3.5" /> {event.stats.going}{event.capacity ? `/${event.capacity}` : ''} going</span>
-                    <span className="flex items-center gap-1"><Hourglass className="size-3.5" /> {event.stats.waitlisted} waitlisted</span>
-                    <span className="flex items-center gap-1"><CalendarCheck className="size-3.5" /> {event.stats.checkedIn} checked in</span>
+                    <span className="flex items-center gap-1">
+                      <Users className="size-3.5" /> {event.stats.going}
+                      {event.capacity ? `/${event.capacity}` : ''} going
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <Hourglass className="size-3.5" /> {event.stats.waitlisted} waitlisted
+                    </span>
+                    <span className="flex items-center gap-1">
+                      <CalendarCheck className="size-3.5" /> {event.stats.checkedIn} checked in
+                    </span>
                   </div>
                 </div>
                 <div className="flex shrink-0 items-center gap-1 px-1">
                   <ButtonLink href={`/organizer/events/${event.id}`} variant="secondary" size="sm">
-                    <Users /> Attendees
+                    {event.viewer.canManage ? (
+                      <>
+                        <Users /> Attendees
+                      </>
+                    ) : (
+                      <>
+                        <ScanLine /> Door check-in
+                      </>
+                    )}
                   </ButtonLink>
-                  {event.status !== 'cancelled' && (
-                    <Button variant="ghost" size="icon-sm" aria-label="Edit" title="Edit" onClick={() => openCreateEvent({ event })}>
+                  {event.viewer.canManage && event.status !== 'cancelled' && (
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      aria-label="Edit"
+                      title="Edit"
+                      onClick={() => openCreateEvent({ event })}
+                    >
                       <Pencil />
                     </Button>
                   )}
-                  {event.status === 'published' && !event.isPast && (
-                    <Button variant="ghost" size="icon-sm" aria-label="Cancel event" title="Cancel event" onClick={() => { setCancelReason(''); setCancelling(event); }}>
+                  {event.viewer.canManage && event.status === 'published' && !event.isPast && (
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      aria-label="Cancel event"
+                      title="Cancel event"
+                      onClick={() => {
+                        setCancelReason('');
+                        setCancelling(event);
+                      }}
+                    >
                       <Ban />
                     </Button>
                   )}
-                  <Button variant="ghost" size="icon-sm" aria-label="Delete" title="Delete" onClick={() => setDeleting(event)} className="hover:text-danger">
-                    <Trash2 />
-                  </Button>
+                  {event.viewer.canManage && (
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      aria-label="Duplicate"
+                      title="Duplicate (same details, a week later)"
+                      onClick={() => openCreateEvent({ copyFrom: event })}
+                    >
+                      <Copy />
+                    </Button>
+                  )}
+                  {/* Only the owner may delete (managers can cancel instead). */}
+                  {event.viewer.isOwner && (
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      aria-label="Delete"
+                      title="Delete"
+                      onClick={() => setDeleting(event)}
+                      className="hover:text-danger"
+                    >
+                      <Trash2 />
+                    </Button>
+                  )}
                 </div>
               </article>
             </StaggerItem>
@@ -189,8 +280,16 @@ export default function OrganizerConsole() {
         description={`${(cancelling?.stats.going ?? 0) + (cancelling?.stats.waitlisted ?? 0)} registered people will be notified by email and in the app.`}
         confirmLabel="Cancel event"
       >
-        <label htmlFor="cancel-reason" className="mb-1.5 block text-sm font-medium">Message to attendees (optional)</label>
-        <Textarea id="cancel-reason" rows={3} value={cancelReason} onChange={(e) => setCancelReason(e.target.value)} placeholder="e.g. Rescheduling due to rain. New date coming soon." />
+        <label htmlFor="cancel-reason" className="mb-1.5 block text-sm font-medium">
+          Message to attendees (optional)
+        </label>
+        <Textarea
+          id="cancel-reason"
+          rows={3}
+          value={cancelReason}
+          onChange={(e) => setCancelReason(e.target.value)}
+          placeholder="e.g. Rescheduling due to rain. New date coming soon."
+        />
       </ConfirmDialog>
 
       <ConfirmDialog
@@ -201,6 +300,9 @@ export default function OrganizerConsole() {
         description="This removes the event, its registrations and chat history. It can't be undone."
         confirmLabel="Delete permanently"
       />
+
+      {/* Club accounts (organisers and admins) manage their committee here. */}
+      {(user?.role === 'organizer' || user?.role === 'admin') && <Committee />}
     </>
   );
 }

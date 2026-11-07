@@ -40,7 +40,13 @@ export async function recountAttendees(now = new Date()): Promise<number> {
     lastId = events[events.length - 1]._id;
 
     const counts = await Registration.aggregate<{ _id: unknown; count: number }>([
-      { $match: { event: { $in: events.map((e) => e._id) }, status: REGISTRATION_STATUS.GOING } },
+      // A held offer occupies a seat just like a confirmed place.
+      {
+        $match: {
+          event: { $in: events.map((e) => e._id) },
+          status: { $in: [REGISTRATION_STATUS.GOING, REGISTRATION_STATUS.OFFERED] },
+        },
+      },
       { $group: { _id: '$event', count: { $sum: 1 } } },
     ]);
     const byEvent = new Map(counts.map((c) => [String(c._id), c.count]));
@@ -70,23 +76,24 @@ export async function recountAttendees(now = new Date()): Promise<number> {
 }
 
 /**
- * Housekeeping for rows nothing will ever read again: delivered outbox
- * entries, notifications the user has seen, and past events' chats.
+ * Housekeeping for rows nothing will ever read again: delivered or abandoned
+ * outbox entries, and notifications the user has seen. Event chats are kept:
+ * they are part of the event's history.
  */
 export async function pruneOldData(now = new Date()): Promise<{ emails: number; notifications: number }> {
   const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
   const ninetyDaysAgo = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
 
   const [emails, notifications] = await Promise.all([
-    OutboxEmail.deleteMany({ sentAt: { $lt: thirtyDaysAgo } }),
+    OutboxEmail.deleteMany({ $or: [{ sentAt: { $lt: thirtyDaysAgo } }, { failedAt: { $lt: thirtyDaysAgo } }] }),
     // Unread notifications are kept; only ones already read are dropped.
-      // `$exists: true` rather than `$ne: null`, because an unread notification
-      // stores `readAt` as absent or null depending on how it was written.
-      Notification.deleteMany({
-        readAt: { $exists: true, $ne: null },
-        createdAt: { $lt: ninetyDaysAgo },
-      }),
-    ]);
+    // `$exists: true` rather than `$ne: null`, because an unread notification
+    // stores `readAt` as absent or null depending on how it was written.
+    Notification.deleteMany({
+      readAt: { $exists: true, $ne: null },
+      createdAt: { $lt: ninetyDaysAgo },
+    }),
+  ]);
 
   return { emails: emails.deletedCount ?? 0, notifications: notifications.deletedCount ?? 0 };
 }

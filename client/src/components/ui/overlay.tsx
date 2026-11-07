@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useId, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { AnimatePresence, motion } from 'motion/react';
 import { X } from 'lucide-react';
@@ -21,22 +21,73 @@ interface DialogProps {
 
 const widths = { sm: 'max-w-md', md: 'max-w-xl', lg: 'max-w-2xl', xl: 'max-w-5xl' };
 
-/** Bottom sheet on phones, centred card on larger screens. Escape closes; body scroll is locked. */
+/**
+ * Open dialogs, innermost last. Only the top one reacts to Escape and Tab, so
+ * closing a dialog opened from another (the map picker inside the event form)
+ * doesn't close both.
+ */
+const dialogStack: string[] = [];
+
+const FOCUSABLE =
+  'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
+/**
+ * Bottom sheet on phones, centred card on larger screens. Escape closes the
+ * top dialog; focus stays inside it and returns to the opener on close; body
+ * scroll is locked.
+ */
 export function Dialog({ open, onClose, title, description, children, footer, size = 'md', tall }: DialogProps) {
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
+  const id = useId();
+  const panelRef = useRef<HTMLDivElement>(null);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
 
   useEffect(() => {
     if (!open) return;
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
+    dialogStack.push(id);
+    const opener = document.activeElement as HTMLElement | null;
+    const isTop = () => dialogStack[dialogStack.length - 1] === id;
+
+    const onKey = (e: KeyboardEvent) => {
+      if (!isTop()) return;
+      if (e.key === 'Escape') {
+        e.stopPropagation();
+        onCloseRef.current();
+        return;
+      }
+      if (e.key !== 'Tab' || !panelRef.current) return;
+      const items = [...panelRef.current.querySelectorAll<HTMLElement>(FOCUSABLE)].filter((el) => el.offsetParent !== null);
+      if (!items.length) return;
+      const first = items[0];
+      const last = items[items.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
+    };
     document.addEventListener('keydown', onKey);
     const previous = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
+    // Move focus in once the panel has mounted.
+    const focusTimer = window.setTimeout(() => {
+      const panel = panelRef.current;
+      if (panel && !panel.contains(document.activeElement)) (panel.querySelector<HTMLElement>('[autofocus]') ?? panel).focus();
+    }, 50);
+
     return () => {
+      window.clearTimeout(focusTimer);
       document.removeEventListener('keydown', onKey);
-      document.body.style.overflow = previous;
+      const at = dialogStack.lastIndexOf(id);
+      if (at >= 0) dialogStack.splice(at, 1);
+      if (!dialogStack.length) document.body.style.overflow = previous;
+      opener?.focus?.();
     };
-  }, [open, onClose]);
+  }, [open, id]);
 
   if (!mounted) return null;
 
@@ -53,10 +104,14 @@ export function Dialog({ open, onClose, title, description, children, footer, si
             onClick={onClose}
           />
           <motion.div
+            ref={panelRef}
+            tabIndex={-1}
             role="dialog"
             aria-modal="true"
+            aria-labelledby={title ? `${id}-title` : undefined}
+            aria-describedby={description ? `${id}-desc` : undefined}
             className={cn(
-              'relative flex w-full flex-col overflow-hidden rounded-t-[32px] border border-border bg-surface shadow-overlay sm:rounded-[32px]',
+              'relative flex w-full flex-col overflow-hidden rounded-t-[32px] outline-none border border-border bg-surface shadow-overlay sm:rounded-[32px]',
               widths[size],
               tall ? 'h-[92vh]' : 'max-h-[92vh]'
             )}
@@ -68,8 +123,19 @@ export function Dialog({ open, onClose, title, description, children, footer, si
             {(title || description) && (
               <div className="flex items-start justify-between gap-4 px-6 pb-4 pt-6 sm:px-8">
                 <div>
-                  {title && <h2 className="text-2xl font-extrabold [&_em]:font-serif [&_em]:font-normal [&_em]:italic [&_em]:text-primary">{title}</h2>}
-                  {description && <p className="mt-1 text-sm text-muted">{description}</p>}
+                  {title && (
+                    <h2
+                      id={`${id}-title`}
+                      className="text-2xl font-extrabold [&_em]:font-serif [&_em]:font-normal [&_em]:italic [&_em]:text-primary"
+                    >
+                      {title}
+                    </h2>
+                  )}
+                  {description && (
+                    <p id={`${id}-desc`} className="mt-1 text-sm text-muted">
+                      {description}
+                    </p>
+                  )}
                 </div>
                 <button
                   onClick={onClose}
@@ -81,7 +147,11 @@ export function Dialog({ open, onClose, title, description, children, footer, si
               </div>
             )}
             <div className="flex-1 overflow-y-auto">{children}</div>
-            {footer && <div className="flex flex-wrap items-center justify-end gap-2 border-t border-border px-6 py-4 sm:px-8">{footer}</div>}
+            {footer && (
+              <div className="flex flex-wrap items-center justify-end gap-2 border-t border-border px-6 py-4 sm:px-8">
+                {footer}
+              </div>
+            )}
           </motion.div>
         </div>
       )}
@@ -140,11 +210,19 @@ export function Popover({ trigger, children, align = 'right', side = 'bottom', c
   );
 }
 
-export function MenuItem({ icon, children, className, ...props }: React.ButtonHTMLAttributes<HTMLButtonElement> & { icon?: React.ReactNode }) {
+export function MenuItem({
+  icon,
+  children,
+  className,
+  ...props
+}: React.ButtonHTMLAttributes<HTMLButtonElement> & { icon?: React.ReactNode }) {
   return (
     <button
       type="button"
-      className={cn('flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left text-sm font-medium transition hover:bg-surface-muted [&_svg]:size-4 [&_svg]:text-muted', className)}
+      className={cn(
+        'flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left text-sm font-medium transition hover:bg-surface-muted [&_svg]:size-4 [&_svg]:text-muted',
+        className
+      )}
       {...props}
     >
       {icon}
@@ -166,13 +244,24 @@ interface ConfirmDialogProps {
 }
 
 /** Replaces window.confirm with an on-brand, accessible dialog. */
-export function ConfirmDialog({ open, onClose, onConfirm, title, description, confirmLabel, tone = 'danger', children }: ConfirmDialogProps) {
+export function ConfirmDialog({
+  open,
+  onClose,
+  onConfirm,
+  title,
+  description,
+  confirmLabel,
+  tone = 'danger',
+  children,
+}: ConfirmDialogProps) {
   const [busy, setBusy] = useState(false);
   const confirm = async () => {
     setBusy(true);
     try {
       await onConfirm();
       onClose();
+    } catch {
+      // The action failed and said why; stay open so the user can try again.
     } finally {
       setBusy(false);
     }

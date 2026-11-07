@@ -19,7 +19,11 @@ export default async function handler(req: IncomingMessage, res: ServerResponse)
     logger.error({ err: (err as Error).message }, 'Database unavailable');
     res.statusCode = 503;
     res.setHeader('Content-Type', 'application/json');
-    res.end(JSON.stringify({ error: { code: 'DATABASE_UNAVAILABLE', message: 'Service temporarily unavailable. Please try again shortly.' } }));
+    res.end(
+      JSON.stringify({
+        error: { code: 'DATABASE_UNAVAILABLE', message: 'Service temporarily unavailable. Please try again shortly.' },
+      })
+    );
     return;
   }
   return app(req, res);

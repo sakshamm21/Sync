@@ -1,6 +1,10 @@
 /** Minimal RFC 5545 (iCalendar) writer for "Add to calendar" downloads. */
 
-const formatDate = (date: Date) => date.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+const formatDate = (date: Date) =>
+  date
+    .toISOString()
+    .replace(/[-:]/g, '')
+    .replace(/\.\d{3}/, '');
 
 const escapeText = (value = '') =>
   String(value).replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,').replace(/\r?\n/g, '\\n');
@@ -28,18 +32,18 @@ export interface CalendarEntry {
   startsAt: Date;
   endsAt: Date;
   cancelled?: boolean;
+  /** When the event last changed; calendar apps use it to pick up edits. */
+  updatedAt?: Date;
 }
 
-export function buildEventCalendar({ uid, title, description, location, url, startsAt, endsAt, cancelled }: CalendarEntry): string {
-  const lines = [
-    'BEGIN:VCALENDAR',
-    'VERSION:2.0',
-    'PRODID:-//Sync//Events//EN',
-    'CALSCALE:GREGORIAN',
-    'METHOD:PUBLISH',
+function eventLines({ uid, title, description, location, url, startsAt, endsAt, cancelled, updatedAt }: CalendarEntry) {
+  return [
     'BEGIN:VEVENT',
     `UID:${uid}`,
     `DTSTAMP:${formatDate(new Date())}`,
+    updatedAt ? `LAST-MODIFIED:${formatDate(updatedAt)}` : null,
+    // Seconds since 2020 always grow when the event changes, as SEQUENCE must.
+    updatedAt ? `SEQUENCE:${Math.max(0, Math.floor((updatedAt.getTime() - Date.UTC(2020, 0, 1)) / 1000))}` : null,
     `DTSTART:${formatDate(startsAt)}`,
     `DTEND:${formatDate(endsAt)}`,
     `SUMMARY:${escapeText(title)}`,
@@ -48,7 +52,29 @@ export function buildEventCalendar({ uid, title, description, location, url, sta
     url ? `URL:${url}` : null,
     `STATUS:${cancelled ? 'CANCELLED' : 'CONFIRMED'}`,
     'END:VEVENT',
+  ];
+}
+
+/** A calendar of several events, e.g. a subscription feed. */
+export function buildCalendar(entries: CalendarEntry[], { name }: { name?: string } = {}): string {
+  const lines = [
+    'BEGIN:VCALENDAR',
+    'VERSION:2.0',
+    'PRODID:-//Sync//Events//EN',
+    'CALSCALE:GREGORIAN',
+    'METHOD:PUBLISH',
+    name ? `X-WR-CALNAME:${escapeText(name)}` : null,
+    // Ask subscribed apps to check back hourly (most cap this at their own minimum).
+    name ? 'REFRESH-INTERVAL;VALUE=DURATION:PT1H' : null,
+    name ? 'X-PUBLISHED-TTL:PT1H' : null,
+    ...entries.flatMap(eventLines),
     'END:VCALENDAR',
   ];
-  return `${lines.filter((line): line is string => Boolean(line)).map(fold).join('\r\n')}\r\n`;
+  return `${lines
+    .filter((line): line is string => Boolean(line))
+    .map(fold)
+    .join('\r\n')}\r\n`;
 }
+
+/** One event, for an "Add to calendar" download. */
+export const buildEventCalendar = (entry: CalendarEntry) => buildCalendar([entry]);

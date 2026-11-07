@@ -1,7 +1,16 @@
 import { Schema, model, type HydratedDocument, type Model } from 'mongoose';
 import bcrypt from 'bcryptjs';
 import env from '../config/env';
-import { ROLES, USER_STATUS, CATEGORY_VALUES, type Category, type Role, type UserStatus } from '../constants';
+import {
+  ROLES,
+  USER_STATUS,
+  CATEGORY_VALUES,
+  NOTIFICATION_TYPES,
+  type Category,
+  type NotificationType,
+  type Role,
+  type UserStatus,
+} from '../constants';
 
 // Hashing is deliberately slow; tests use the minimum cost to stay fast.
 const BCRYPT_ROUNDS = env.isTest ? 4 : 12;
@@ -14,14 +23,25 @@ export interface IUser {
   status: UserStatus;
   emailVerified: boolean;
   emailVerification?: { codeHash?: string; expiresAt?: Date; attempts: number; sentAt?: Date };
-  passwordReset?: { tokenHash?: string; expiresAt?: Date };
+  /** A new address waiting for its code before it replaces `email`. */
+  emailChange?: { email?: string; codeHash?: string; expiresAt?: Date; attempts: number };
+  passwordReset?: { tokenHash?: string; expiresAt?: Date; sentAt?: Date };
+  /** Tokens issued before this are refused ("sign out of all devices"). */
+  sessionsRevokedAt?: Date;
+  /** Clubs: a Discord or Slack incoming-webhook URL that hears about new events. */
+  announceWebhookUrl?: string;
+  /** Why the account was suspended, shown when they try to sign in. */
+  suspensionReason?: string;
+  /** Secret in the user's calendar subscription URL. */
+  calendarToken?: string;
   // Tokens issued before this instant are rejected (password change / reset).
   passwordChangedAt?: Date;
   bio: string;
   avatarUrl: string;
   organization: string;
   interests: Category[];
-  preferences: { emailNotifications: boolean };
+  /** `mutedEmailTypes`: notification types that stay in the app and are never emailed. */
+  preferences: { emailNotifications: boolean; mutedEmailTypes: NotificationType[]; autoAcceptWaitlist: boolean };
   lastLoginAt?: Date;
   createdAt: Date;
   updatedAt: Date;
@@ -60,11 +80,19 @@ const userSchema = new Schema<IUser, UserModel, UserMethods>(
       type: { codeHash: String, expiresAt: Date, attempts: { type: Number, default: 0 }, sentAt: Date },
       select: false,
     },
+    emailChange: {
+      type: { email: String, codeHash: String, expiresAt: Date, attempts: { type: Number, default: 0 } },
+      select: false,
+    },
     passwordReset: {
-      type: { tokenHash: String, expiresAt: Date },
+      type: { tokenHash: String, expiresAt: Date, sentAt: Date },
       select: false,
     },
     passwordChangedAt: { type: Date, select: false },
+    sessionsRevokedAt: { type: Date, select: false },
+    calendarToken: { type: String, select: false, index: { unique: true, sparse: true } },
+    suspensionReason: { type: String, trim: true, maxlength: 500, default: '' },
+    announceWebhookUrl: { type: String, trim: true, select: false, default: '' },
 
     bio: { type: String, trim: true, maxlength: 500, default: '' },
     avatarUrl: { type: String, trim: true, default: '' },
@@ -72,6 +100,9 @@ const userSchema = new Schema<IUser, UserModel, UserMethods>(
     interests: [{ type: String, enum: CATEGORY_VALUES }],
     preferences: {
       emailNotifications: { type: Boolean, default: true },
+      mutedEmailTypes: { type: [{ type: String, enum: Object.values(NOTIFICATION_TYPES) }], default: [] },
+      // "Take any seat automatically": skip the claim step on events that use one.
+      autoAcceptWaitlist: { type: Boolean, default: false },
     },
     lastLoginAt: Date,
   },
@@ -84,7 +115,11 @@ const userSchema = new Schema<IUser, UserModel, UserMethods>(
         delete ret._id;
         delete ret.passwordHash;
         delete ret.emailVerification;
+        delete ret.emailChange;
         delete ret.passwordReset;
+        delete ret.sessionsRevokedAt;
+        delete ret.calendarToken;
+        delete ret.announceWebhookUrl;
         delete ret.passwordChangedAt;
         return ret;
       },
@@ -100,10 +135,14 @@ userSchema.method('checkPassword', function checkPassword(plain: string) {
   return bcrypt.compare(plain, this.passwordHash);
 });
 
+/** True if a token issued at `issuedAt` predates a password change or a "sign out everywhere". */
 userSchema.method('tokenIssuedBeforePasswordChange', function tokenIssuedBeforePasswordChange(issuedAt: number) {
-  if (!this.passwordChangedAt) return false;
-  return issuedAt < Math.floor(this.passwordChangedAt.getTime() / 1000);
+  const cutoffs = [this.passwordChangedAt, this.sessionsRevokedAt].filter((d): d is Date => Boolean(d));
+  return cutoffs.some((d) => issuedAt < Math.floor(d.getTime() / 1000));
 });
+
+/** A real hash of nothing, so checking a password for an unknown email takes as long as for a real one. */
+export const DUMMY_PASSWORD_HASH = bcrypt.hashSync('not-a-real-password', BCRYPT_ROUNDS);
 
 userSchema.method('toSummary', function toSummary(): UserSummary {
   return { id: this.id, name: this.name, avatarUrl: this.avatarUrl, organization: this.organization, role: this.role };

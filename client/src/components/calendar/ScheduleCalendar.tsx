@@ -25,7 +25,7 @@ function toCalendarEvent(event: SyncEvent): EventInput {
       ? 'cancelled'
       : event.visibility === 'private'
         ? 'personal'
-        : event.viewer.isOwner
+        : event.viewer.isOrganizer
           ? 'organizing'
           : event.viewer.registration === 'waitlisted'
             ? 'waitlisted'
@@ -39,7 +39,7 @@ function toCalendarEvent(event: SyncEvent): EventInput {
     backgroundColor: color,
     borderColor: color,
     textColor: text,
-    classNames: key === 'cancelled' ? ['line-through', 'opacity-70'] : [],
+    classNames: key === 'cancelled' ? ['line-through'] : [],
   };
 }
 

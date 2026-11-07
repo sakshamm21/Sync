@@ -1,11 +1,30 @@
-import type { FilterQuery, SortOrder, Types } from 'mongoose';
-import { Event, Registration, Message, Note, EventStaff, Report, Rating, type EventDocument, type IEvent, type UserDocument } from '../../models';
+import crypto from 'node:crypto';
+import { Types, type FilterQuery, type SortOrder } from 'mongoose';
+import {
+  Event,
+  User,
+  CampusVenue,
+  Registration,
+  Interest,
+  Message,
+  Note,
+  Notification,
+  EventStaff,
+  Report,
+  Rating,
+  type EventDocument,
+  type IEvent,
+  type UserDocument,
+} from '../../models';
 import env from '../../config/env';
 import { forbidden, badRequest } from '../../lib/errors';
 import { paginationMeta, escapeRegex } from '../../lib/schemas';
-import { buildEventCalendar } from '../../lib/ics';
+import { buildCalendar, buildEventCalendar } from '../../lib/ics';
 import * as notifications from '../notifications/notifications.service';
 import { fillFromWaitlist } from './waitlist.service';
+import * as clubs from '../clubs/clubs.service';
+import * as clubMembers from '../clubs/members.service';
+import * as ops from '../ops/ops.service';
 import {
   OWNER_FIELDS,
   canPublishPublicEvents,
@@ -20,7 +39,10 @@ import { ROLES, EVENT_VISIBILITY, EVENT_STATUS, NOTIFICATION_TYPES, type Categor
 
 const publicListing = (): FilterQuery<IEvent> => ({ visibility: EVENT_VISIBILITY.PUBLIC, status: EVENT_STATUS.PUBLISHED });
 
-async function notifyAttendees(event: EventDocument, { type, title, body }: { type: NotificationType; title: string; body: string }) {
+async function notifyAttendees(
+  event: EventDocument,
+  { type, title, body }: { type: NotificationType; title: string; body: string }
+) {
   const attendees = await Registration.find({ event: event._id }).distinct('user');
   await notifications.notify(attendees, { type, title, body, eventId: event._id }, { email: true });
 }
@@ -29,16 +51,37 @@ async function notifyAttendees(event: EventDocument, { type, title, body }: { ty
 // Queries
 // ---------------------------------------------------------------------------
 
-export async function listPublic(viewer: Viewer, { q, category, organizer, from, to, sort, includePast, page, limit }: ListEventsQuery) {
+export async function listPublic(
+  viewer: Viewer,
+  { q, category, organizer, from, to, sort, includePast, hasSpots, online, tag, page, limit }: ListEventsQuery
+) {
   const filter = publicListing();
+  const and: FilterQuery<IEvent>[] = [];
   if (!includePast) filter.endsAt = { $gte: new Date() };
   if (category) filter.category = category;
-  if (organizer) filter.owner = organizer;
+  // Co-organisers count: an event someone helps run is one of theirs too.
+  if (organizer) and.push({ $or: [{ organizers: organizer }, { owner: organizer }] });
   if (from || to) filter.startsAt = { ...(from && { $gte: from }), ...(to && { $lte: to }) };
+  if (hasSpots) and.push({ $or: [{ capacity: null }, { $expr: { $lt: ['$attendeeCount', '$capacity'] } }] });
+  if (online) filter.onlineUrl = { $nin: [null, ''] };
+  if (tag) filter.tags = tag;
   if (q) {
     const pattern = new RegExp(escapeRegex(q), 'i');
-    filter.$or = [{ title: pattern }, { description: pattern }, { 'venue.name': pattern }, { tags: pattern }];
+    // Searching a club's name finds its events too.
+    const clubs = await User.find({ $or: [{ organization: pattern }, { name: pattern }], role: { $in: ['organizer', 'admin'] } })
+      .select('_id')
+      .limit(50);
+    and.push({
+      $or: [
+        { title: pattern },
+        { description: pattern },
+        { 'venue.name': pattern },
+        { tags: pattern },
+        ...(clubs.length ? [{ owner: { $in: clubs.map((c) => c._id) } }] : []),
+      ],
+    });
   }
+  if (and.length) filter.$and = and;
 
   const orders: Record<ListEventsQuery['sort'], Record<string, SortOrder>> = {
     soonest: { startsAt: 1 },
@@ -47,36 +90,66 @@ export async function listPublic(viewer: Viewer, { q, category, organizer, from,
   };
 
   const [events, total] = await Promise.all([
-    Event.find(filter).sort(orders[sort]).skip((page - 1) * limit).limit(limit).populate('owner', OWNER_FIELDS),
+    Event.find(filter)
+      .sort(orders[sort])
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .populate('owner', OWNER_FIELDS),
     Event.countDocuments(filter),
   ]);
   return { items: await withViewerContext(events, viewer), meta: paginationMeta({ page, limit }, total) };
 }
 
-/** Upcoming public events matching the user's interests that they haven't joined yet. */
-export async function recommendedFor(user: UserDocument, limit = 6) {
-  const joined: (string | Types.ObjectId)[] = await Registration.find({ user: user.id }).distinct('event');
-  const filter: FilterQuery<IEvent> = { ...publicListing(), startsAt: { $gte: new Date() }, owner: { $ne: user._id } };
-  // Well-rated events outrank merely popular ones, so a club cannot hold the
-  // top slot forever on attendance alone.
-  const byQuality = { ratingSum: -1, ratingCount: -1, attendeeCount: -1, startsAt: 1 } as const;
+/** How many upcoming events are scored before the best are picked. */
+const RECOMMENDATION_POOL = 200;
 
-  let events: EventDocument[] = [];
-  if (user.interests?.length) {
-    events = await Event.find({ ...filter, _id: { $nin: joined }, category: { $in: user.interests } })
-      .sort(byQuality)
-      .limit(limit)
-      .populate('owner', OWNER_FIELDS);
-  }
-  // Top up with other popular events so new users without interests still get suggestions.
-  if (events.length < limit) {
-    const more = await Event.find({ ...filter, _id: { $nin: [...joined, ...events.map((e) => e._id)] } })
-      .sort(byQuality)
-      .limit(limit - events.length)
-      .populate('owner', OWNER_FIELDS);
-    events = events.concat(more);
-  }
-  return withViewerContext(events, user);
+/**
+ * Upcoming public events the user hasn't joined and doesn't help run, best first.
+ *
+ * An upcoming event has no ratings of its own yet, so quality comes from its
+ * organiser's track record: the average rating across their past events.
+ * The score adds that to interest match, a little for attendance (social
+ * proof) and a little for being soon.
+ */
+export async function recommendedFor(user: UserDocument, limit = 6) {
+  const now = new Date();
+  const joined: (string | Types.ObjectId)[] = await Registration.find({ user: user.id }).distinct('event');
+  const candidates = await Event.find({
+    ...publicListing(),
+    startsAt: { $gte: now },
+    _id: { $nin: joined },
+    owner: { $ne: user._id },
+    organizers: { $ne: user._id },
+  })
+    .sort({ startsAt: 1 })
+    .limit(RECOMMENDATION_POOL)
+    .populate('owner', OWNER_FIELDS);
+  if (!candidates.length) return [];
+
+  const ownerIds = [...new Set(candidates.map((e) => String((e.owner as unknown as { _id: unknown })?._id ?? e.owner)))];
+  const records = await Event.aggregate<{ _id: Types.ObjectId; sum: number; count: number }>([
+    { $match: { owner: { $in: ownerIds.map((id) => new Types.ObjectId(id)) }, endsAt: { $lt: now }, ratingCount: { $gt: 0 } } },
+    { $group: { _id: '$owner', sum: { $sum: '$ratingSum' }, count: { $sum: '$ratingCount' } } },
+  ]);
+  const organiserAverage = new Map(records.map((r) => [String(r._id), r.sum / r.count]));
+  const interests = new Set(user.interests ?? []);
+
+  const score = (e: EventDocument) => {
+    const ownerId = String((e.owner as unknown as { _id: unknown })?._id ?? e.owner);
+    const quality = organiserAverage.get(ownerId) ?? 3; // an unrated organiser counts as average
+    const interest = interests.has(e.category) ? 3 : 0;
+    const popularity = Math.log2(1 + e.attendeeCount);
+    const daysAway = (e.startsAt.getTime() - now.getTime()) / (24 * 60 * 60 * 1000);
+    const soon = Math.max(0, 2 - daysAway / 7); // up to 2 points, fading over two weeks
+    return interest + quality + popularity + soon;
+  };
+
+  const best = candidates
+    .map((e) => ({ e, s: score(e) }))
+    .sort((a, b) => b.s - a.s || a.e.startsAt.getTime() - b.e.startsAt.getTime())
+    .slice(0, limit)
+    .map(({ e }) => e);
+  return withViewerContext(best, user);
 }
 
 interface VenueListing {
@@ -108,13 +181,82 @@ export async function venueDirectory(): Promise<VenueListing[]> {
       venue = { name: name || address || 'Unnamed venue', address: address || '', latitude, longitude, events: [] };
       venues.set(key, venue);
     }
-    venue.events.push({ id: event.id, title: event.title, category: event.category, startsAt: event.startsAt, endsAt: event.endsAt });
+    venue.events.push({
+      id: event.id,
+      title: event.title,
+      category: event.category,
+      startsAt: event.startsAt,
+      endsAt: event.endsAt,
+    });
   }
   return [...venues.values()].sort((a, b) => b.events.length - a.events.length || a.name.localeCompare(b.name));
 }
 
 export async function getForViewer(viewer: Viewer, id: string) {
-  return present(await findViewableEvent(viewer, id), viewer);
+  const presented = await present(await findViewableEvent(viewer, id), viewer);
+  // "You're #3 in line": only worked out for the single event being viewed.
+  if (viewer && presented.viewer.registration === 'offered') {
+    const mine = await Registration.findOne({ event: presented.id, user: viewer.id }).select('offerExpiresAt');
+    return { ...presented, viewer: { ...presented.viewer, offerExpiresAt: mine?.offerExpiresAt ?? null } };
+  }
+  if (viewer && presented.viewer.registration === 'waitlisted') {
+    const mine = await Registration.findOne({ event: presented.id, user: viewer.id }).select('createdAt');
+    if (mine) {
+      const ahead = await Registration.countDocuments({
+        event: presented.id,
+        status: 'waitlisted',
+        $or: [{ createdAt: { $lt: mine.createdAt } }, { createdAt: mine.createdAt, _id: { $lt: mine._id } }],
+      });
+      return { ...presented, viewer: { ...presented.viewer, waitlistPosition: ahead + 1 } };
+    }
+  }
+  return presented;
+}
+
+/** How far back and ahead a calendar subscription covers. */
+const FEED_PAST_DAYS = 60;
+const FEED_FUTURE_DAYS = 365;
+
+const entryFor = (event: EventDocument) => ({
+  uid: `${event.id}@sync`,
+  title: event.title,
+  description: event.description,
+  location: [event.venue?.name, event.venue?.address].filter(Boolean).join(', ') || event.onlineUrl,
+  url: `${env.clientUrl}/events/${event.id}`,
+  startsAt: event.startsAt,
+  endsAt: event.endsAt,
+  cancelled: event.status === EVENT_STATUS.CANCELLED,
+  updatedAt: event.updatedAt,
+});
+
+/**
+ * The user's calendar subscription (Roadmap: "a calendar that stays in sync"):
+ * events they're going to, plans of their own and events they help run.
+ * Calendar apps re-fetch it, so moved and cancelled events update by themselves.
+ */
+export async function calendarFeed(token: string) {
+  const user = await User.findOne({ calendarToken: token, status: { $ne: 'suspended' } });
+  if (!user) return null;
+  const now = Date.now();
+  const going = await Registration.find({ user: user._id, status: 'going' }).distinct('event');
+  const events = await Event.find({
+    status: { $ne: EVENT_STATUS.DRAFT },
+    endsAt: { $gte: new Date(now - FEED_PAST_DAYS * 864e5) },
+    startsAt: { $lte: new Date(now + FEED_FUTURE_DAYS * 864e5) },
+    $or: [{ _id: { $in: going } }, { owner: user._id }, { organizers: user._id }],
+  })
+    .sort({ startsAt: 1 })
+    .limit(500);
+  return buildCalendar(events.map(entryFor), { name: 'Sync' });
+}
+
+/** The user's feed token, created on first use (or replaced when `reset`). */
+export async function calendarTokenFor(user: UserDocument, { reset = false } = {}): Promise<string> {
+  const current = await User.findById(user._id).select('+calendarToken');
+  if (current?.calendarToken && !reset) return current.calendarToken;
+  const token = crypto.randomBytes(24).toString('base64url');
+  await User.updateOne({ _id: user._id }, { $set: { calendarToken: token } });
+  return token;
 }
 
 /** Everything that belongs on the user's calendar in a date range. */
@@ -146,26 +288,134 @@ export async function calendarFor(user: UserDocument, { from, to }: CalendarRang
 export async function create(user: UserDocument, input: CreateEventInput) {
   const visibility = input.visibility ?? (canPublishPublicEvents(user) ? EVENT_VISIBILITY.PUBLIC : EVENT_VISIBILITY.PRIVATE);
   if (visibility === EVENT_VISIBILITY.PUBLIC && !canPublishPublicEvents(user)) {
-    throw forbidden('Only organisers can publish public events. Apply to become an organiser from your profile.', 'ORGANIZER_ONLY');
+    throw forbidden(
+      'Only organisers can publish public events. Apply to become an organiser from your profile.',
+      'ORGANIZER_ONLY'
+    );
   }
 
   const isPublic = visibility === EVENT_VISIBILITY.PUBLIC;
+  const { repeat, ...details } = input;
+  // Optional safeguard: a new organiser's first public event waits for an admin.
+  const needsReview =
+    env.reviewFirstEvent &&
+    isPublic &&
+    user.role === ROLES.ORGANIZER &&
+    (input.status ?? EVENT_STATUS.PUBLISHED) === EVENT_STATUS.PUBLISHED &&
+    !(await Event.exists({ owner: user._id, visibility: EVENT_VISIBILITY.PUBLIC, status: { $ne: EVENT_STATUS.DRAFT } }));
+  const seriesId = repeat ? new Types.ObjectId() : null;
   const event = await Event.create({
-    ...input,
+    ...details,
+    seriesId,
     visibility,
     // Personal events have no registration, so drafts and capacity don't apply.
-    status: isPublic ? input.status ?? EVENT_STATUS.PUBLISHED : EVENT_STATUS.PUBLISHED,
-    capacity: isPublic ? input.capacity ?? null : null,
+    status: needsReview ? EVENT_STATUS.DRAFT : isPublic ? (input.status ?? EVENT_STATUS.PUBLISHED) : EVENT_STATUS.PUBLISHED,
+    awaitingReview: needsReview,
+    capacity: isPublic ? (input.capacity ?? null) : null,
     owner: user._id,
     // The creator is always in `organizers` so co-ownership needs no special case.
     organizers: [user._id],
   });
+  // The rest of a repeating series: same details, moved on a week (or two) each time.
+  if (repeat) {
+    const step = (repeat.every === 'fortnight' ? 14 : 7) * 24 * 60 * 60 * 1000;
+    const base = event.toObject();
+    const shift = (d: Date | null | undefined, n: number) => (d ? new Date(d.getTime() + n * step) : d);
+    await Event.insertMany(
+      Array.from({ length: repeat.count - 1 }, (_, i) => {
+        const n = i + 1;
+        const { _id: _ignored, createdAt: _c, updatedAt: _u, ...copy } = base;
+        return {
+          ...copy,
+          startsAt: shift(base.startsAt, n),
+          endsAt: shift(base.endsAt, n),
+          registrationOpensAt: shift(base.registrationOpensAt, n),
+          registrationClosesAt: shift(base.registrationClosesAt, n),
+          attendeeCount: 0,
+          interestedCount: 0,
+          ratingSum: 0,
+          ratingCount: 0,
+        };
+      })
+    );
+  }
+  // The club's committee joins the team of every new event (and of each date in a series).
+  if (isPublic) {
+    const dates = seriesId ? await Event.find({ seriesId }).select('_id owner') : [event];
+    for (const date of dates) await clubMembers.staffNewEvent(date);
+  }
+  if (needsReview) {
+    const admins = await User.find({ role: ROLES.ADMIN, status: { $ne: 'suspended' } }).distinct('_id');
+    await notifications.notify(admins, {
+      type: NOTIFICATION_TYPES.REGISTRATION_DECISION,
+      title: `First event to review: ${event.title}`,
+      body: `${user.name}'s first public event is waiting for approval in the admin console.`,
+      eventId: event._id,
+    });
+  }
   await event.populate('owner', OWNER_FIELDS);
-  return present(event, user);
+  if (isPublic && event.status === EVENT_STATUS.PUBLISHED) await clubs.announceNewEvent(event);
+  return { ...(await present(event, user)), venueClashes: await venueClashes(event) };
 }
 
-const logisticsSnapshot = (event: EventDocument) =>
-  JSON.stringify([event.startsAt, event.endsAt, event.venue, event.onlineUrl]);
+/** Roughly 40 m in degrees: two pins this close are the same building. */
+const SAME_PLACE_DEG = 0.0004;
+
+/**
+ * Other published events booked at the same venue at an overlapping time
+ * (Roadmap "Next" #8). Matches the venue name (ignoring case) or a pin within
+ * about 40 m. A warning for the organiser, never a block.
+ */
+export async function venueClashes(event: EventDocument) {
+  const { name, latitude, longitude } = event.venue ?? {};
+  const sameVenue: FilterQuery<IEvent>[] = [];
+  if (name?.trim()) sameVenue.push({ 'venue.name': new RegExp(`^${escapeRegex(name.trim())}$`, 'i') });
+  if (latitude != null && longitude != null) {
+    sameVenue.push({
+      'venue.latitude': { $gte: latitude - SAME_PLACE_DEG, $lte: latitude + SAME_PLACE_DEG },
+      'venue.longitude': { $gte: longitude - SAME_PLACE_DEG, $lte: longitude + SAME_PLACE_DEG },
+    });
+  }
+  if (!sameVenue.length || event.visibility !== EVENT_VISIBILITY.PUBLIC) return [];
+  // A curated room smaller than the event's capacity is worth a warning too.
+  const room = name?.trim() ? await CampusVenue.findOne({ name: name.trim() }).collation({ locale: 'en', strength: 2 }) : null;
+  const tooSmall =
+    room?.capacity && event.capacity && event.capacity > room.capacity
+      ? [
+          {
+            id: String(room._id),
+            title: `${room.name} holds ${room.capacity}, fewer than this event's ${event.capacity} places`,
+            startsAt: event.startsAt,
+            endsAt: event.endsAt,
+          },
+        ]
+      : [];
+  const clashes = await Event.find({
+    _id: { $ne: event._id },
+    ...(event.seriesId ? { seriesId: { $ne: event.seriesId } } : {}),
+    visibility: EVENT_VISIBILITY.PUBLIC,
+    status: EVENT_STATUS.PUBLISHED,
+    startsAt: { $lt: event.endsAt },
+    endsAt: { $gt: event.startsAt },
+    $or: sameVenue,
+  })
+    .select('title startsAt endsAt venue.name')
+    .limit(5);
+  return [...tooSmall, ...clashes.map((c) => ({ id: c.id as string, title: c.title, startsAt: c.startsAt, endsAt: c.endsAt }))];
+}
+
+/** The other upcoming dates of an event's series, soonest first. */
+export async function seriesFor(viewer: Viewer, id: string) {
+  const event = await findViewableEvent(viewer, id);
+  if (!event.seriesId) return [];
+  const dates = await Event.find({ seriesId: event.seriesId, endsAt: { $gte: new Date() }, status: { $ne: EVENT_STATUS.DRAFT } })
+    .sort({ startsAt: 1 })
+    .limit(20)
+    .populate('owner', OWNER_FIELDS);
+  return withViewerContext(dates, viewer);
+}
+
+const logisticsSnapshot = (event: EventDocument) => JSON.stringify([event.startsAt, event.endsAt, event.venue, event.onlineUrl]);
 
 export async function update(user: UserDocument, id: string, changes: UpdateEventInput) {
   const { event, access } = await loadEvent(user, id);
@@ -185,12 +435,18 @@ export async function update(user: UserDocument, id: string, changes: UpdateEven
     if (event.visibility !== EVENT_VISIBILITY.PUBLIC) throw badRequest('Personal events cannot be drafts');
     // Unpublishing would hide the event from people holding a ticket, without telling them.
     if (await Registration.exists({ event: event._id })) {
-      throw badRequest('People have already registered, so this event cannot go back to draft. Cancel it instead.', 'HAS_REGISTRATIONS');
+      throw badRequest(
+        'People have already registered, so this event cannot go back to draft. Cancel it instead.',
+        'HAS_REGISTRATIONS'
+      );
     }
   }
   const isPublicAfter = (changes.visibility ?? event.visibility) === EVENT_VISIBILITY.PUBLIC;
   if (!isPublicAfter && changes.capacity != null) throw badRequest('Personal events have no capacity');
   const publishing = changes.status === EVENT_STATUS.PUBLISHED && event.status === EVENT_STATUS.DRAFT;
+  if (publishing && event.awaitingReview && user.role !== ROLES.ADMIN) {
+    throw forbidden('Your first event is waiting for an admin to approve it.', 'AWAITING_REVIEW');
+  }
   if (publishing && (changes.endsAt ?? event.endsAt) <= new Date()) {
     throw badRequest('This event has already ended, so it cannot be published', 'EVENT_ENDED');
   }
@@ -198,10 +454,16 @@ export async function update(user: UserDocument, id: string, changes: UpdateEven
   const logisticsBefore = logisticsSnapshot(event);
   const wasPublished = event.status === EVENT_STATUS.PUBLISHED;
   const previousCapacity = event.capacity;
+  const previousStart = event.startsAt.getTime();
 
   event.set(changes);
   if (event.endsAt <= event.startsAt) throw badRequest('The event must end after it starts');
   await event.save();
+
+  // A moved event gets a fresh reminder for its new date.
+  if (event.startsAt.getTime() !== previousStart) {
+    await Registration.updateMany({ event: event._id }, { $set: { reminderSentAt: null } });
+  }
 
   if (event.visibility === EVENT_VISIBILITY.PUBLIC && wasPublished && logisticsSnapshot(event) !== logisticsBefore) {
     await notifyAttendees(event, {
@@ -211,11 +473,12 @@ export async function update(user: UserDocument, id: string, changes: UpdateEven
     });
   }
 
-  const capacityGrew =
-    previousCapacity !== null && (event.capacity === null || event.capacity > previousCapacity);
+  if (publishing) await clubs.announceNewEvent(event);
+
+  const capacityGrew = previousCapacity !== null && (event.capacity === null || event.capacity > previousCapacity);
   if (capacityGrew) await fillFromWaitlist(event);
 
-  return getForViewer(user, id);
+  return { ...(await getForViewer(user, id)), venueClashes: await venueClashes(event) };
 }
 
 /**
@@ -250,6 +513,11 @@ export async function remove(user: UserDocument, id: string): Promise<void> {
   // Deleting destroys registrations and history, so co-organisers may not.
   const isAdmin = user.role === ROLES.ADMIN && event.visibility === EVENT_VISIBILITY.PUBLIC;
   if (!event.isOwnedBy(user.id) && !isAdmin) throw forbidden('Only the event owner can delete this event', 'OWNER_ONLY');
+  // Once an event has started its registrations are its attendance record;
+  // a public event that happened stays (cancel it instead if it is wrong).
+  if (event.visibility === EVENT_VISIBILITY.PUBLIC && event.status !== EVENT_STATUS.DRAFT && event.startsAt <= new Date()) {
+    throw badRequest('Events that have already started cannot be deleted', 'EVENT_STARTED');
+  }
 
   if (event.visibility === EVENT_VISIBILITY.PUBLIC && event.status === EVENT_STATUS.PUBLISHED && !event.isPast) {
     await notifyAttendees(event, {
@@ -259,32 +527,62 @@ export async function remove(user: UserDocument, id: string): Promise<void> {
     });
   }
 
+  // The event goes first, so a failure part-way leaves only unreachable
+  // leftovers rather than an event with half its data.
+  await event.deleteOne();
   await Promise.all([
+    // Notifications stay in people's history but no longer link to a missing page.
+    Notification.updateMany({ event: event._id }, { $set: { event: null } }),
     Registration.deleteMany({ event: event._id }),
+    Interest.deleteMany({ event: event._id }),
+    ops.forgetEvent(event._id),
     Message.deleteMany({ event: event._id }),
     EventStaff.deleteMany({ event: event._id }),
     Report.deleteMany({ event: event._id }),
     Rating.deleteMany({ event: event._id }),
     Note.updateMany({ event: event._id }, { $set: { event: null } }),
   ]);
-  await event.deleteOne();
 }
 
 export async function toCalendarFile(viewer: Viewer, id: string) {
   const event = await findViewableEvent(viewer, id);
   const location = [event.venue?.name, event.venue?.address].filter(Boolean).join(', ') || event.onlineUrl;
-  const slug = event.title.replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '').toLowerCase() || 'event';
+  const slug =
+    event.title
+      .replace(/[^a-z0-9]+/gi, '-')
+      .replace(/^-|-$/g, '')
+      .toLowerCase() || 'event';
   return {
     filename: `${slug}.ics`,
-    content: buildEventCalendar({
-      uid: `${event.id}@sync`,
-      title: event.title,
-      description: event.description,
-      location,
-      url: `${env.clientUrl}/events/${event.id}`,
-      startsAt: event.startsAt,
-      endsAt: event.endsAt,
-      cancelled: event.status === EVENT_STATUS.CANCELLED,
-    }),
+    content: buildEventCalendar({ ...entryFor(event), location }),
   };
+}
+
+/** First events waiting for an admin (only when REVIEW_FIRST_EVENT is on). */
+export async function awaitingReview() {
+  const items = await Event.find({ awaitingReview: true }).sort({ createdAt: 1 }).populate('owner', OWNER_FIELDS);
+  return items.map((e) => e.toJSON());
+}
+
+/** An admin approves (publishes) or sends back a first event, with a note for the organiser. */
+export async function reviewFirstEvent(admin: UserDocument, id: string, { approve, note }: { approve: boolean; note: string }) {
+  const event = await Event.findOne({ _id: id, awaitingReview: true });
+  if (!event) throw badRequest('That event is not waiting for review');
+  event.awaitingReview = false;
+  if (approve) event.status = EVENT_STATUS.PUBLISHED;
+  await event.save();
+  await notifications.notify(
+    [event.owner],
+    {
+      type: NOTIFICATION_TYPES.REGISTRATION_DECISION,
+      title: approve ? `Approved and live: ${event.title}` : `Changes needed: ${event.title}`,
+      body: approve
+        ? `Your event is published.${note ? ` ${note}` : ''}`
+        : note || 'An admin asked for changes before it can go live.',
+      eventId: event._id,
+    },
+    { email: true }
+  );
+  if (approve) await clubs.announceNewEvent(event);
+  return event.toJSON();
 }

@@ -18,13 +18,20 @@ export class AppError extends Error {
 
 function defaultCode(statusCode: number): string {
   switch (statusCode) {
-    case 400: return 'BAD_REQUEST';
-    case 401: return 'UNAUTHENTICATED';
-    case 403: return 'FORBIDDEN';
-    case 404: return 'NOT_FOUND';
-    case 409: return 'CONFLICT';
-    case 429: return 'TOO_MANY_REQUESTS';
-    default: return 'ERROR';
+    case 400:
+      return 'BAD_REQUEST';
+    case 401:
+      return 'UNAUTHENTICATED';
+    case 403:
+      return 'FORBIDDEN';
+    case 404:
+      return 'NOT_FOUND';
+    case 409:
+      return 'CONFLICT';
+    case 429:
+      return 'TOO_MANY_REQUESTS';
+    default:
+      return 'ERROR';
   }
 }
 

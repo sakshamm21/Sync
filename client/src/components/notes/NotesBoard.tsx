@@ -108,7 +108,11 @@ export default function NotesBoard() {
     <>
       <PageHeader
         kicker="Agendas, checklists, 3am ideas"
-        title={<>Notes &amp; <em>ideas</em></>}
+        title={
+          <>
+            Notes &amp; <em>ideas</em>
+          </>
+        }
         description="Stick them to an event so they’re there when you need them."
         actions={
           <Button onClick={() => setDraft(EMPTY_DRAFT)}>
@@ -129,7 +133,12 @@ export default function NotesBoard() {
             className="h-12 w-full rounded-full border border-border bg-surface pl-11 pr-4 text-[15px] outline-none transition hover:border-border-strong focus:border-primary focus:ring-4 focus:ring-ring/25"
           />
         </div>
-        <FilterChips<NoteTag> value={tag} onChange={setTag} allLabel="All notes" options={NOTE_TAGS.map((t) => ({ value: t, label: NOTE_TAG_LABELS[t], emoji: NOTE_TAG_EMOJI[t] }))} />
+        <FilterChips<NoteTag>
+          value={tag}
+          onChange={setTag}
+          allLabel="All notes"
+          options={NOTE_TAGS.map((t) => ({ value: t, label: NOTE_TAG_LABELS[t], emoji: NOTE_TAG_EMOJI[t] }))}
+        />
       </div>
 
       {notes === null ? (
@@ -143,7 +152,14 @@ export default function NotesBoard() {
           emoji="📝"
           title={search || tag ? 'No matching notes' : 'No notes yet'}
           description="Keep agendas, logistics and ideas next to the events they're for."
-          action={!search && !tag && <Button onClick={() => setDraft(EMPTY_DRAFT)}><Plus /> Write your first note</Button>}
+          action={
+            !search &&
+            !tag && (
+              <Button onClick={() => setDraft(EMPTY_DRAFT)}>
+                <Plus /> Write your first note
+              </Button>
+            )
+          }
         />
       ) : (
         <motion.div layout className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
@@ -157,30 +173,65 @@ export default function NotesBoard() {
                 exit={{ opacity: 0, scale: 0.9 }}
                 whileHover={{ rotate: 0, y: -6, scale: 1.02 }}
                 transition={{ type: 'spring', bounce: 0.3, duration: 0.45 }}
-                className={cn('group relative flex min-h-56 flex-col rounded-[6px] p-6 text-black shadow-[0_18px_30px_-14px_rgb(0_0_0/0.55)]', STICKY_COLORS[note.tag])}
+                className={cn(
+                  'group relative flex min-h-56 flex-col rounded-[6px] p-6 text-black shadow-[0_18px_30px_-14px_rgb(0_0_0/0.55)]',
+                  STICKY_COLORS[note.tag]
+                )}
               >
-                {note.pinned && <span aria-hidden="true" className="absolute -top-3 left-1/2 h-6 w-20 -translate-x-1/2 rotate-[-3deg] bg-white/55 backdrop-blur-sm" />}
+                {note.pinned && (
+                  <span
+                    aria-hidden="true"
+                    className="absolute -top-3 left-1/2 h-6 w-20 -translate-x-1/2 rotate-[-3deg] bg-white/55 backdrop-blur-sm"
+                  />
+                )}
                 <div className="flex items-start justify-between gap-2">
                   <span className="font-mono text-[10px] font-semibold uppercase tracking-[0.16em] text-black/60">
                     {NOTE_TAG_EMOJI[note.tag]} {NOTE_TAG_LABELS[note.tag]}
                   </span>
                   <div className="-mr-2 -mt-2 flex opacity-100 transition sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100">
                     {[
-                      { label: note.pinned ? 'Unpin' : 'Pin', icon: <Pin className={cn(note.pinned && 'fill-current')} />, onClick: () => togglePin(note) },
-                      { label: 'Edit', icon: <Pencil />, onClick: () => setDraft({ id: note.id, title: note.title, content: note.content, tag: note.tag, event: note.event?.id ?? null }) },
+                      {
+                        label: note.pinned ? 'Unpin' : 'Pin',
+                        icon: <Pin className={cn(note.pinned && 'fill-current')} />,
+                        onClick: () => togglePin(note),
+                      },
+                      {
+                        label: 'Edit',
+                        icon: <Pencil />,
+                        onClick: () =>
+                          setDraft({
+                            id: note.id,
+                            title: note.title,
+                            content: note.content,
+                            tag: note.tag,
+                            event: note.event?.id ?? null,
+                          }),
+                      },
                       { label: 'Delete', icon: <Trash2 />, onClick: () => remove(note) },
                     ].map((a) => (
-                      <button key={a.label} aria-label={a.label} onClick={a.onClick} className="flex size-8 items-center justify-center rounded-full text-black/60 transition hover:bg-black/10 hover:text-black [&_svg]:size-4">
+                      <button
+                        key={a.label}
+                        aria-label={a.label}
+                        onClick={a.onClick}
+                        className="flex size-8 items-center justify-center rounded-full text-black/60 transition hover:bg-black/10 hover:text-black [&_svg]:size-4"
+                      >
                         {a.icon}
                       </button>
                     ))}
                   </div>
                 </div>
                 <h3 className="mt-3 text-2xl font-extrabold leading-tight">{note.title}</h3>
-                {note.content && <p className="mt-2 line-clamp-6 whitespace-pre-wrap font-serif text-lg leading-snug text-black/75">{note.content}</p>}
+                {note.content && (
+                  <p className="mt-2 line-clamp-6 whitespace-pre-wrap font-serif text-lg leading-snug text-black/75">
+                    {note.content}
+                  </p>
+                )}
                 <div className="mt-auto flex items-center justify-between gap-2 pt-5 text-xs text-black/60">
                   {note.event ? (
-                    <Link href={`/events/${note.event.id}`} className="flex min-w-0 items-center gap-1.5 font-semibold text-black underline-offset-4 hover:underline">
+                    <Link
+                      href={`/events/${note.event.id}`}
+                      className="flex min-w-0 items-center gap-1.5 font-semibold text-black underline-offset-4 hover:underline"
+                    >
                       <CalendarDays className="size-3.5 shrink-0" />
                       <span className="truncate">{note.event.title}</span>
                     </Link>
@@ -200,35 +251,58 @@ export default function NotesBoard() {
         title={draft?.id ? 'Edit note' : 'New note'}
         footer={
           <>
-            <Button variant="ghost" onClick={() => setDraft(null)}>Cancel</Button>
-            <Button type="submit" form="note-form" loading={saving}>Save note</Button>
+            <Button variant="ghost" onClick={() => setDraft(null)}>
+              Cancel
+            </Button>
+            <Button type="submit" form="note-form" loading={saving}>
+              Save note
+            </Button>
           </>
         }
       >
         {draft && (
           <form id="note-form" onSubmit={saveDraft} className="space-y-4 p-6">
             <Field label="Title" htmlFor="note-title">
-              <Input id="note-title" required autoFocus value={draft.title} onChange={(e) => setDraft({ ...draft, title: e.target.value })} />
+              <Input
+                id="note-title"
+                required
+                autoFocus
+                value={draft.title}
+                onChange={(e) => setDraft({ ...draft, title: e.target.value })}
+              />
             </Field>
             <div className="grid gap-4 sm:grid-cols-2">
               <Field label="Tag" htmlFor="note-tag">
                 <Select id="note-tag" value={draft.tag} onChange={(e) => setDraft({ ...draft, tag: e.target.value as NoteTag })}>
                   {NOTE_TAGS.map((t) => (
-                    <option key={t} value={t}>{NOTE_TAG_LABELS[t]}</option>
+                    <option key={t} value={t}>
+                      {NOTE_TAG_LABELS[t]}
+                    </option>
                   ))}
                 </Select>
               </Field>
               <Field label="Linked event" htmlFor="note-event">
-                <Select id="note-event" value={draft.event ?? ''} onChange={(e) => setDraft({ ...draft, event: e.target.value || null })}>
+                <Select
+                  id="note-event"
+                  value={draft.event ?? ''}
+                  onChange={(e) => setDraft({ ...draft, event: e.target.value || null })}
+                >
                   <option value="">None</option>
                   {linkableEvents.map((ev) => (
-                    <option key={ev.id} value={ev.id}>{ev.title}</option>
+                    <option key={ev.id} value={ev.id}>
+                      {ev.title}
+                    </option>
                   ))}
                 </Select>
               </Field>
             </div>
             <Field label="Note" htmlFor="note-content">
-              <Textarea id="note-content" rows={8} value={draft.content} onChange={(e) => setDraft({ ...draft, content: e.target.value })} />
+              <Textarea
+                id="note-content"
+                rows={8}
+                value={draft.content}
+                onChange={(e) => setDraft({ ...draft, content: e.target.value })}
+              />
             </Field>
           </form>
         )}

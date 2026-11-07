@@ -1,5 +1,16 @@
+import { saveBlob } from '../download';
 import { http } from './client';
 import type {
+  CampusVenue,
+  Team,
+  FriendsList,
+  Certificate,
+  EventInsights,
+  MessageReport,
+  AuditEntry,
+  ClubProfile,
+  ClubSuggestion,
+  NotificationType,
   AppNotification,
   AttendeeList,
   CategoryValue,
@@ -39,8 +50,7 @@ type Data<T> = { data: T };
 type Listed<T> = { data: T[]; meta: PageMeta };
 
 const data = <T>(p: Promise<{ data: Data<T> }>) => p.then((r) => r.data.data);
-const page = <T>(p: Promise<{ data: Listed<T> }>): Promise<Page<T>> =>
-  p.then((r) => ({ items: r.data.data, meta: r.data.meta }));
+const page = <T>(p: Promise<{ data: Listed<T> }>): Promise<Page<T>> => p.then((r) => ({ items: r.data.data, meta: r.data.meta }));
 
 // --- Server capabilities ------------------------------------------------------
 
@@ -52,6 +62,12 @@ export interface ServerMeta {
   assistant: boolean;
   /** A public demo with shared accounts that resets nightly (DEMO_MODE). */
   demo?: boolean;
+  /** Only these email domains may sign up; empty means anyone. */
+  allowedEmailDomains?: string[];
+  /** VAPID public key for Web Push, or null when push isn't set up. */
+  pushPublicKey?: string | null;
+  /** Whether photo uploads (Vercel Blob) are set up. */
+  uploads?: boolean;
 }
 
 export const metaApi = {
@@ -68,8 +84,7 @@ export interface RegisterResult {
 }
 
 export const authApi = {
-  register: (body: { name: string; email: string; password: string }) =>
-    data<RegisterResult>(http.post('/auth/register', body)),
+  register: (body: { name: string; email: string; password: string }) => data<RegisterResult>(http.post('/auth/register', body)),
   verifyEmail: (body: { email: string; code: string }) => data<Session>(http.post('/auth/verify-email', body)),
   resendVerification: (email: string) => data<RegisterResult>(http.post('/auth/resend-verification', { email })),
   login: (body: { email: string; password: string }) => data<Session>(http.post('/auth/login', body)),
@@ -84,14 +99,37 @@ export interface ProfileUpdate {
   bio?: string;
   avatarUrl?: string;
   interests?: CategoryValue[];
-  preferences?: { emailNotifications?: boolean };
+  preferences?: { emailNotifications?: boolean; mutedEmailTypes?: NotificationType[]; autoAcceptWaitlist?: boolean };
 }
 
 export const meApi = {
   get: () => data<User>(http.get('/me')),
   update: (body: ProfileUpdate) => data<User>(http.patch('/me', body)),
-  changePassword: (body: { currentPassword: string; newPassword: string }) =>
-    data<Session>(http.post('/me/password', body)),
+  changePassword: (body: { currentPassword: string; newPassword: string }) => data<Session>(http.post('/me/password', body)),
+  /** The secret calendar subscription URL; `reset` replaces it. */
+  calendarFeed: (reset = false) =>
+    data<{ url: string; webcalUrl: string }>(reset ? http.post('/me/calendar-feed/reset') : http.get('/me/calendar-feed')),
+  /** Registers / removes this browser for push notifications. */
+  addPushSubscription: (subscription: PushSubscriptionJSON) =>
+    data<{ ok: true }>(http.post('/me/push-subscriptions', subscription)),
+  removePushSubscription: (endpoint: string) => data<{ ok: true }>(http.post('/me/push-subscriptions/remove', { endpoint })),
+  /** Unread message counts per chat. */
+  chatUnread: (eventIds: string[]) =>
+    data<Record<string, number>>(http.get('/me/chats/unread', { params: { events: eventIds.join(',') } })),
+  /** Change email, step 1: a code goes to the new address. */
+  startEmailChange: (email: string, password: string) =>
+    data<{ pendingEmail: string; devCode?: string }>(http.post('/me/email', { email, password })),
+  /** Step 2: the code swaps the address; returns a fresh session. */
+  confirmEmailChange: (code: string) => data<Session>(http.post('/me/email/confirm', { code })),
+  /** Everything Sync holds about you, as a JSON file. */
+  async downloadData() {
+    const response = await http.get<Blob>('/me/export', { responseType: 'blob' });
+    saveBlob(response.data, 'sync-my-data.json');
+  },
+  /** Deletes the account for good. */
+  deleteAccount: (password: string) => data<{ deleted: true }>(http.post('/me/delete', { password })),
+  /** Ends every session for this account, this device included. */
+  signOutEverywhere: () => data<{ ok: true }>(http.post('/me/sign-out-everywhere')),
   calendar: (range: { from: string; to: string }) => data<SyncEvent[]>(http.get('/me/calendar', { params: range })),
   registrations: (upcoming = true) => data<SyncEvent[]>(http.get('/me/registrations', { params: { upcoming } })),
 };
@@ -106,6 +144,9 @@ export interface EventQuery {
   to?: string;
   sort?: 'soonest' | 'popular' | 'newest';
   includePast?: boolean;
+  hasSpots?: boolean;
+  online?: boolean;
+  tag?: string;
   page?: number;
   limit?: number;
 }
@@ -119,7 +160,21 @@ export const eventsApi = {
   update: (id: string, body: Partial<EventInput>) => data<SyncEvent>(http.patch(`/events/${id}`, body)),
   cancel: (id: string, reason = '') => data<SyncEvent>(http.post(`/events/${id}/cancel`, { reason })),
   remove: (id: string) => http.delete(`/events/${id}`).then(() => undefined),
-  register: (id: string) => data<RegistrationResponse>(http.post(`/events/${id}/registration`)),
+  register: (id: string, answers: { question: string; answer: string }[] = []) =>
+    data<RegistrationResponse>(http.post(`/events/${id}/registration`, { answers })),
+  /** Approve or decline a request to join (events that need approval). */
+  decide: (id: string, userId: string, approve: boolean) =>
+    data<AttendeeList>(http.put(`/events/${id}/attendees/${userId}/approval`, { approve })),
+  /** The other upcoming dates of a repeating event. */
+  series: (id: string) => data<SyncEvent[]>(http.get(`/events/${id}/series`)),
+  /** RSVPs to every upcoming date of a repeating event. */
+  registerSeries: (id: string) =>
+    data<{ id: string; status: RegistrationStatus | null; error?: string }[]>(http.post(`/events/${id}/registration/series`)),
+  /** Accepts a seat held for you off the waitlist. */
+  claim: (id: string) => data<RegistrationResponse>(http.post(`/events/${id}/registration/claim`)),
+  /** Bookmark ("Interested") or un-bookmark; takes no seat. */
+  setInterested: (id: string, interested: boolean) =>
+    data<SyncEvent>(interested ? http.put(`/events/${id}/interest`) : http.delete(`/events/${id}/interest`)),
   unregister: (id: string) => data<SyncEvent>(http.delete(`/events/${id}/registration`)),
   attendees: (id: string, status?: RegistrationStatus) =>
     data<AttendeeList>(http.get(`/events/${id}/attendees`, { params: { status } })),
@@ -127,30 +182,58 @@ export const eventsApi = {
   doorList: (id: string) => data<DoorList>(http.get(`/events/${id}/door-list`)),
   setCheckIn: (id: string, userId: string, checkedIn: boolean) =>
     data<{ checkedInAt: string | null }>(http.put(`/events/${id}/attendees/${userId}/check-in`, { checkedIn })),
-    /** The signed code this user shows at the door. Null when not attending. */
-    ticket: (id: string) => data<EventTicket | null>(http.get(`/events/${id}/ticket`)),
-    /** Checks a scanned ticket in. Throws with a friendly message if it is not valid. */
-    scan: (id: string, token: string) => data<ScanResult>(http.post(`/events/${id}/scan`, { token })),
-    ratings: (id: string) => data<EventRating>(http.get(`/events/${id}/ratings`)),
-    rate: (id: string, rating: number) => data<EventRating>(http.put(`/events/${id}/ratings`, { rating })),
-    report: (id: string, body: { reason: ReportReason; details?: string }) =>
-      data<{ id: string; status: ReportStatus }>(http.post(`/reports/${id}/report`, body)),
+  /** The signed code this user shows at the door. Null when not attending. */
+  ticket: (id: string) => data<EventTicket | null>(http.get(`/events/${id}/ticket`)),
+  /** Checks a scanned ticket in. Throws with a friendly message if it is not valid. */
+  scan: (id: string, token: string) => data<ScanResult>(http.post(`/events/${id}/scan`, { token })),
+  ratings: (id: string) => data<EventRating>(http.get(`/events/${id}/ratings`)),
+  rate: (id: string, rating: number, comment?: string) =>
+    data<EventRating>(http.put(`/events/${id}/ratings`, { rating, ...(comment !== undefined ? { comment } : {}) })),
+  /** Written feedback for organisers (no names). */
+  feedback: (id: string) => data<{ rating: number; comment: string; at: string }[]>(http.get(`/events/${id}/feedback`)),
+  /** What the printable participation certificate needs. */
+  certificate: (id: string) => data<Certificate>(http.get(`/events/${id}/certificate`)),
+  report: (id: string, body: { reason: ReportReason; details?: string }) =>
+    data<{ id: string; status: ReportStatus }>(http.post(`/reports/${id}/report`, body)),
   messages: (id: string, params: { before?: string; after?: string; limit?: number } = {}) =>
     http
       .get<{ data: ChatMessage[]; meta: { hasMore: boolean } }>(`/events/${id}/messages`, { params })
       .then((r) => ({ items: r.data.data, hasMore: r.data.meta.hasMore })),
-  sendMessage: (id: string, body: { text: string; announcement?: boolean }) =>
-    data<ChatMessage>(http.post(`/events/${id}/messages`, body)),
+  /** Removes a chat message (the sender, an organiser or an admin). */
+  removeMessage: (id: string, messageId: string) => data<{ id: string }>(http.delete(`/events/${id}/messages/${messageId}`)),
+  reportMessage: (id: string, messageId: string, reason: ReportReason = 'inappropriate') =>
+    data<{ reported: true }>(http.post(`/events/${id}/messages/${messageId}/report`, { reason })),
+  /** RSVPs per day, show-up rate and ratings, for the event's organisers. */
+  insights: (id: string) => data<EventInsights>(http.get(`/organizer/events/${id}/insights`)),
+  /** Adds or removes your reaction on a message. */
+  react: (id: string, messageId: string, emoji: string) =>
+    data<{ id: string; reactions: { emoji: string; user: string }[] }>(
+      http.put(`/events/${id}/messages/${messageId}/reactions`, { emoji })
+    ),
+  /** Organisers pin a message to the top of the chat. */
+  pin: (id: string, messageId: string, pinned: boolean) =>
+    data<{ id: string; pinnedAt: string | null }>(http.put(`/events/${id}/messages/${messageId}/pin`, { pinned })),
+  pinned: (id: string) => data<ChatMessage[]>(http.get(`/events/${id}/messages/pinned`)),
+  /** Tell friends about an event. */
+  invite: (id: string, friends: string[]) =>
+    data<{ invited: number; alreadyGoing: number }>(http.post(`/events/${id}/invite`, { friends })),
+  /** Your own "remind me" for an event. */
+  reminder: (id: string) => data<{ minutesBefore: number | null }>(http.get(`/events/${id}/reminder`)),
+  setReminder: (id: string, minutesBefore: number | null) =>
+    data<{ minutesBefore: number | null }>(
+      minutesBefore ? http.put(`/events/${id}/reminder`, { minutesBefore }) : http.delete(`/events/${id}/reminder`)
+    ),
+  /** Clears this chat's unread badge. */
+  markChatRead: (id: string) => data<{ ok: true }>(http.post(`/events/${id}/messages/read`)),
+  sendMessage: (
+    id: string,
+    body: { text: string; announcement?: boolean; audience?: 'all' | 'going' | 'waitlisted'; replyTo?: string }
+  ) => data<ChatMessage>(http.post(`/events/${id}/messages`, body)),
 
   /** Downloads the event as an .ics file ("Add to calendar"). */
   async downloadCalendarFile(event: Pick<SyncEvent, 'id' | 'title'>) {
     const response = await http.get<Blob>(`/events/${event.id}/calendar.ics`, { responseType: 'blob' });
-    const url = URL.createObjectURL(response.data);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `${event.title.replace(/[^a-z0-9]+/gi, '-').toLowerCase() || 'event'}.ics`;
-    link.click();
-    URL.revokeObjectURL(url);
+    saveBlob(response.data, `${event.title.replace(/[^a-z0-9]+/gi, '-').toLowerCase() || 'event'}.ics`);
   },
 };
 
@@ -180,8 +263,59 @@ export const notesApi = {
 
 // --- Notifications --------------------------------------------------------------
 
+export interface CommitteeMember {
+  id: string;
+  role: 'core' | 'volunteer';
+  user: { id: string; name: string; email: string; avatarUrl: string } | null;
+}
+
+export const clubsApi = {
+  committee: () => data<CommitteeMember[]>(http.get('/clubs/me/members')),
+  /** The club's Discord/Slack channel for new events. */
+  webhook: () => data<{ connected: boolean; kind: 'discord' | 'slack' | null }>(http.get('/clubs/me/webhook')),
+  setWebhook: (url: string) => data<{ connected: boolean }>(http.put('/clubs/me/webhook', { url })),
+  addMember: (email: string, role: CommitteeMember['role']) =>
+    data<CommitteeMember[]>(http.post('/clubs/me/members', { email, role })),
+  setMemberRole: (id: string, role: CommitteeMember['role']) =>
+    data<CommitteeMember[]>(http.patch(`/clubs/me/members/${id}`, { role })),
+  removeMember: (id: string) => data<CommitteeMember[]>(http.delete(`/clubs/me/members/${id}`)),
+  get: (id: string) => data<ClubProfile>(http.get(`/clubs/${id}`)),
+  setFollowing: (id: string, follow: boolean) =>
+    data<{ following: boolean; followers: number }>(
+      follow ? http.put(`/clubs/${id}/follow`) : http.delete(`/clubs/${id}/follow`)
+    ),
+  suggestions: (interests: CategoryValue[] = []) =>
+    data<ClubSuggestion[]>(
+      http.get('/clubs/suggestions', { params: interests.length ? { interests: interests.join(',') } : {} })
+    ),
+};
+
+export const venuesApi = {
+  list: () => data<CampusVenue[]>(http.get('/venues')),
+  add: (body: Omit<CampusVenue, 'id'>) => data<CampusVenue>(http.post('/venues', body)),
+  remove: (id: string) => http.delete(`/venues/${id}`).then(() => undefined),
+};
+
+export const teamsApi = {
+  mine: (eventId: string) => data<Team | null>(http.get(`/events/${eventId}/teams/mine`)),
+  create: (eventId: string, name: string) => data<Team>(http.post(`/events/${eventId}/teams`, { name })),
+  join: (eventId: string, code: string) => data<Team>(http.post(`/events/${eventId}/teams/join`, { code })),
+  leave: (eventId: string) => data<null>(http.delete(`/events/${eventId}/teams/mine`)),
+  list: (eventId: string) =>
+    data<{ teamSize: { min: number; max: number }; teams: Team[] }>(http.get(`/events/${eventId}/teams`)),
+  checkIn: (eventId: string, teamId: string) =>
+    data<{ checkedIn: number }>(http.put(`/events/${eventId}/teams/${teamId}/check-in`)),
+};
+
+export const friendsApi = {
+  list: () => data<FriendsList>(http.get('/friends')),
+  request: (email: string) => data<{ sent: true }>(http.post('/friends/requests', { email })),
+  respond: (requestId: string, accept: boolean) => data<FriendsList>(http.put(`/friends/requests/${requestId}`, { accept })),
+  remove: (userId: string) => data<FriendsList>(http.delete(`/friends/${userId}`)),
+};
+
 export const notificationsApi = {
-  list: (query: { unreadOnly?: boolean; page?: number; limit?: number } = {}) =>
+  list: (query: { unreadOnly?: boolean; type?: NotificationType; page?: number; limit?: number } = {}) =>
     http
       .get<{ data: AppNotification[]; meta: PageMeta & { unread: number } }>('/notifications', { params: query })
       .then((r) => ({ items: r.data.data, meta: r.data.meta })),
@@ -206,29 +340,36 @@ export const staffApi = {
     data<StaffMember[]>(http.post(`/event-staff/${eventId}/staff`, body)),
   setRole: (eventId: string, staffId: string, role: StaffRole) =>
     data<StaffMember[]>(http.patch(`/event-staff/${eventId}/staff/${staffId}`, { role })),
-  remove: (eventId: string, staffId: string) =>
-    data<StaffMember[]>(http.delete(`/event-staff/${eventId}/staff/${staffId}`)),
+  remove: (eventId: string, staffId: string) => data<StaffMember[]>(http.delete(`/event-staff/${eventId}/staff/${staffId}`)),
 };
 
 // --- Platform admin -------------------------------------------------------------
 
 export const adminApi = {
   stats: () => data<PlatformStats>(http.get('/admin/stats')),
+  messageReports: (status?: ReportStatus) => data<MessageReport[]>(http.get('/admin/message-reports', { params: { status } })),
+  resolveMessageReport: (id: string, status: 'reviewed' | 'dismissed') =>
+    data<{ id: string }>(http.patch(`/admin/message-reports/${id}`, { status })),
+  eventReviews: () => data<SyncEvent[]>(http.get('/admin/event-reviews')),
+  reviewEvent: (id: string, approve: boolean, note = '') =>
+    data<SyncEvent>(http.post(`/admin/event-reviews/${id}`, { approve, note })),
+  auditLog: (query: { page?: number; limit?: number } = {}) => page<AuditEntry>(http.get('/admin/audit-log', { params: query })),
   users: (query: { q?: string; role?: Role; status?: UserStatus; page?: number; limit?: number } = {}) =>
     page<User>(http.get('/admin/users', { params: query })),
-  updateUser: (id: string, body: { role?: Role; status?: UserStatus }) => data<User>(http.patch(`/admin/users/${id}`, body)),
+  updateUser: (id: string, body: { role?: Role; status?: UserStatus; reason?: string }) =>
+    data<User>(http.patch(`/admin/users/${id}`, body)),
   applications: (query: { status?: OrganizerApplication['status']; page?: number; limit?: number } = {}) =>
     page<OrganizerApplication>(http.get('/admin/organizer-applications', { params: query })),
   approve: (id: string, note = '') =>
     data<OrganizerApplication>(http.post(`/admin/organizer-applications/${id}/approve`, { note })),
   reject: (id: string, note = '') =>
     data<OrganizerApplication>(http.post(`/admin/organizer-applications/${id}/reject`, { note })),
-    reports: (query: { status?: ReportStatus; page?: number; limit?: number } = {}) =>
-      page<EventReport>(http.get('/admin/reports', { params: query })),
-    /** Marking a report `reviewed` also cancels the event it was about; `reason` goes to attendees and the organiser. */
-    resolveReport: (id: string, status: Exclude<ReportStatus, 'open'>, reason = '') =>
-      data<EventReport>(http.patch(`/admin/reports/${id}`, { status, reason })),
-  };
+  reports: (query: { status?: ReportStatus; page?: number; limit?: number } = {}) =>
+    page<EventReport>(http.get('/admin/reports', { params: query })),
+  /** Marking a report `reviewed` also cancels the event it was about; `reason` goes to attendees and the organiser. */
+  resolveReport: (id: string, status: Exclude<ReportStatus, 'open'>, reason = '') =>
+    data<EventReport>(http.patch(`/admin/reports/${id}`, { status, reason })),
+};
 
 // --- AI assistant -----------------------------------------------------------------
 
@@ -242,6 +383,15 @@ export interface AssistantReply {
   reply: string;
   /** The events the reply links to, for showing as cards. */
   events: SyncEvent[];
+  /** Things the assistant offered to do; each needs the user's tap. */
+  actions?: AssistantAction[];
+}
+
+export interface AssistantAction {
+  type: 'rsvp' | 'cancel_rsvp' | 'interested';
+  eventId: string;
+  title: string;
+  when: string;
 }
 
 export const assistantApi = {

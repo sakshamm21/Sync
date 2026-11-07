@@ -51,7 +51,11 @@ export default function SignInForm({ onSwitchToRegister, onForgotPassword, onNee
 
   return (
     <AuthCard
-      title={<>welcome <em>back</em>.</>}
+      title={
+        <>
+          welcome <em>back</em>.
+        </>
+      }
       subtitle="Your plans missed you. Sign in to see what’s on."
       footer={
         <>
@@ -64,12 +68,26 @@ export default function SignInForm({ onSwitchToRegister, onForgotPassword, onNee
     >
       <form onSubmit={handleSubmit} className="space-y-4" noValidate>
         <Field label="Email" htmlFor="email">
-          <Input id="email" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="you@college.edu" required />
+          <Input
+            id="email"
+            type="email"
+            autoComplete="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            placeholder="you@college.edu"
+            required
+          />
         </Field>
         <div>
           <div className="mb-1.5 flex items-center justify-between">
-            <label htmlFor="password" className="font-mono text-[11px] font-medium uppercase tracking-[0.14em] text-muted">Password</label>
-            <button type="button" onClick={() => onForgotPassword(email)} className="text-xs font-medium text-muted hover:text-foreground">
+            <label htmlFor="password" className="font-mono text-[11px] font-medium uppercase tracking-[0.14em] text-muted">
+              Password
+            </label>
+            <button
+              type="button"
+              onClick={() => onForgotPassword(email)}
+              className="text-xs font-medium text-muted hover:text-foreground"
+            >
               Forgot password?
             </button>
           </div>

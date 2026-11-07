@@ -22,10 +22,20 @@ function DockLink({ item }: { item: NavItem }) {
       className="group relative flex size-12 items-center justify-center rounded-full"
     >
       {active && (
-        <motion.span layoutId="dock-active" className="absolute inset-0 rounded-full bg-primary" transition={{ type: 'spring', bounce: 0.3, duration: 0.5 }} />
+        <motion.span
+          layoutId="dock-active"
+          className="absolute inset-0 rounded-full bg-primary"
+          transition={{ type: 'spring', bounce: 0.3, duration: 0.5 }}
+        />
       )}
       <motion.span whileHover={{ y: -2, scale: 1.08 }} whileTap={{ scale: 0.9 }} className="relative">
-        <Icon className={cn('size-5 transition-colors', active ? 'text-primary-foreground' : 'text-muted group-hover:text-foreground')} strokeWidth={active ? 2.4 : 2} />
+        <Icon
+          className={cn(
+            'size-5 transition-colors',
+            active ? 'text-primary-foreground' : 'text-muted group-hover:text-foreground'
+          )}
+          strokeWidth={active ? 2.4 : 2}
+        />
       </motion.span>
       <span className="pointer-events-none absolute -top-10 whitespace-nowrap rounded-full bg-foreground px-2.5 py-1 text-xs font-semibold text-background opacity-0 transition group-hover:-translate-y-0.5 group-hover:opacity-100 max-md:hidden">
         {item.label}
@@ -39,7 +49,7 @@ export default function Dock() {
   const { user } = useAuth();
   const { openCreateEvent } = useCreateEvent();
   const pathname = usePathname();
-  const secondary = visibleFor(SECONDARY_NAV, user?.role);
+  const secondary = visibleFor(SECONDARY_NAV, user);
   const secondaryActive = secondary.some((item) => isActive(pathname, item.href));
   const [first, second, ...rest] = PRIMARY_NAV;
 
@@ -82,7 +92,10 @@ export default function Dock() {
               onClick={toggle}
               aria-label="More"
               aria-expanded={open}
-              className={cn('relative flex size-12 items-center justify-center rounded-full', secondaryActive ? 'bg-primary text-primary-foreground' : 'text-muted')}
+              className={cn(
+                'relative flex size-12 items-center justify-center rounded-full',
+                secondaryActive ? 'bg-primary text-primary-foreground' : 'text-muted'
+              )}
             >
               <Ellipsis className="size-5" />
             </button>

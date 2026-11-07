@@ -3,6 +3,7 @@
  * Requests go through the API so we can send the identifying User-Agent and
  * cache results, as the Nominatim usage policy asks.
  */
+import mongoose from 'mongoose';
 import env from '../../config/env';
 import logger from '../../lib/logger';
 import { AppError } from '../../lib/errors';
@@ -44,6 +45,44 @@ function remember(key: string, places: Place[]): void {
   cache.set(key, { places, expires: Date.now() + CACHE_TTL_MS });
 }
 
+/** Nominatim allows one request a second from the whole app, not per instance. */
+const MIN_GAP_MS = 1100;
+
+/**
+ * Waits for this request's turn. The next free slot is reserved atomically in
+ * MongoDB, so every API instance (serverless runs many) shares one queue.
+ * Without a database (unit tests) it only spaces requests in this process.
+ */
+let localNext = 0;
+async function waitForTurn(): Promise<void> {
+  const now = Date.now();
+  let slot: number;
+  const db = mongoose.connection.db;
+  if (db && mongoose.connection.readyState === 1) {
+    const row = await db
+      .collection<{ _id: string; next: Date }>('job_locks')
+      .findOneAndUpdate(
+        { _id: 'nominatim' },
+        [{ $set: { next: { $add: [{ $max: [{ $ifNull: ['$next', new Date(now)] }, new Date(now)] }, MIN_GAP_MS] } } }],
+        { upsert: true, returnDocument: 'after' }
+      );
+    slot = (row?.next?.getTime() ?? now + MIN_GAP_MS) - MIN_GAP_MS;
+  } else {
+    slot = Math.max(localNext, now);
+    localNext = slot + MIN_GAP_MS;
+  }
+  const wait = slot - now;
+  if (wait > 4000) throw new AppError(429, 'Place search is busy. Try again in a moment.', 'PLACES_BUSY');
+  if (wait > 0) await new Promise((resolve) => setTimeout(resolve, wait));
+}
+
+/** Prefer results within roughly 50 km of campus (a bias, not a limit). */
+function campusViewbox(): string {
+  const { latitude, longitude } = env.campus;
+  const d = 0.5;
+  return [longitude - d, latitude + d, longitude + d, latitude - d].join(',');
+}
+
 const unavailable = () =>
   new AppError(503, 'Place search is unavailable right now. You can still type the venue name.', 'PLACES_UNAVAILABLE');
 
@@ -52,7 +91,10 @@ export async function search(query: string, { limit = 5 }: { limit?: number } = 
   const cached = fromCache(key);
   if (cached) return cached;
 
-  const url = `${ENDPOINT}?${new URLSearchParams({ q: query, format: 'jsonv2', limit: String(limit) })}`;
+  const params = new URLSearchParams({ q: query, format: 'jsonv2', limit: String(limit), viewbox: campusViewbox() });
+  if (env.campus.countryCodes) params.set('countrycodes', env.campus.countryCodes);
+  const url = `${ENDPOINT}?${params}`;
+  await waitForTurn();
   let response: Response;
   try {
     response = await fetch(url, {

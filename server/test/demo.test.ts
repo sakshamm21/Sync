@@ -36,7 +36,11 @@ describe('nightly demo reset', () => {
 
   it('replaces everything with fresh demo data that has upcoming events', async () => {
     const vandal = await createUser({ role: 'organizer' });
-    await api().post('/api/events').set(vandal.auth).send(eventInput({ title: 'ASDFGHJ' })).expect(201);
+    await api()
+      .post('/api/events')
+      .set(vandal.auth)
+      .send(eventInput({ title: 'ASDFGHJ' }))
+      .expect(201);
 
     const res = await api().get('/api/jobs/demo-reset').set(cron).expect(200);
     assert.equal(res.body.data.users, data.users.length);

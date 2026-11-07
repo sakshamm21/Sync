@@ -78,7 +78,7 @@ Plus notes for Kabir and the organizers, and the two organizer applications abov
 - Rate a finished event (5 stars on *Open Source Contributors Meetup*) or publish the draft.
 
 **As `rahul@syncronify.dev`** (door staff on that meetup)
-- Open the event from your organizer console: you can scan entry codes, but the attendee list and event editing are both hidden.
+- Open the event from your organizer console (**Door check-in**): door mode shows the scanner, a live checked-in count and a check-in-by-name list. Attendee emails, editing and deleting are hidden.
 
 **As `admin@syncronify.dev`**
 - Approve Asha's application, then sign in as `asha@` and publish an event.

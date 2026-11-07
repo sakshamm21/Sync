@@ -11,8 +11,12 @@ const searchQuery = z.object({
 });
 
 // Signed-in only: it proxies a shared free service, so keep it off the open internet.
-router.get('/search', authenticate, validate({ query: searchQuery }, async (req, res) => {
-  res.json({ data: await service.search(req.query.q) });
-}));
+router.get(
+  '/search',
+  authenticate,
+  validate({ query: searchQuery }, async (req, res) => {
+    res.json({ data: await service.search(req.query.q) });
+  })
+);
 
 export default router;

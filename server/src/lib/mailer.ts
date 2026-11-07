@@ -35,8 +35,15 @@ async function sendWithBrevo({ to, subject, text, html }: MailInput): Promise<vo
     }),
     signal: AbortSignal.timeout(10_000),
   });
-  if (!res.ok) throw new Error(`Brevo responded ${res.status}: ${await res.text()}`);
+  if (!res.ok) {
+    const err = new Error(`Brevo responded ${res.status}: ${await res.text()}`) as MailError;
+    // 4xx means the request itself is wrong (bad address, bad sender); retrying won't help.
+    err.permanent = res.status >= 400 && res.status < 500 && res.status !== 429;
+    throw err;
+  }
 }
+
+type MailError = Error & { permanent?: boolean; responseCode?: number };
 
 export interface MailInput {
   to: string;
@@ -45,24 +52,50 @@ export interface MailInput {
   html: string;
 }
 
+/** What happened to one send attempt. */
+export type MailResult =
+  | { ok: true }
+  | { ok: false; notConfigured: true; retryable: false; error: string }
+  | { ok: false; notConfigured?: false; retryable: boolean; error: string };
+
+type Transport = (mail: MailInput) => Promise<void>;
+let testTransport: Transport | null = null;
+
+/** Tests only: route mail through a fake transport (which counts as configured). */
+export function setTestTransport(transport: Transport | null) {
+  testTransport = transport;
+}
+
+export const mailConfigured = () => Boolean(testTransport) || env.mail.enabled;
+
 /**
- * Sends an email. Never throws: email is a side channel and must not break
- * the request that triggered it. Resolves to `true` only if it was delivered
- * to the SMTP server.
+ * Sends an email and reports what happened. Never throws: email is a side
+ * channel and must not break the request that triggered it. A failure is
+ * `retryable` unless the provider rejected the message itself.
  */
-export async function sendMail({ to, subject, text, html }: MailInput): Promise<boolean> {
-  if (!env.mail.enabled) {
-    logger.warn({ to, subject }, 'Email not configured — email not sent');
-    if (!env.isProduction) logger.info(`[mail preview] ${subject}\n${text}`);
-    return false;
+export async function deliver(mail: MailInput): Promise<MailResult> {
+  if (!mailConfigured()) {
+    logger.warn({ to: mail.to, subject: mail.subject }, 'Email not configured — email not sent');
+    if (!env.isProduction) logger.info(`[mail preview] ${mail.subject}\n${mail.text}`);
+    return { ok: false, notConfigured: true, retryable: false, error: 'Email is not configured' };
   }
 
   try {
-    if (env.mail.brevoApiKey) await sendWithBrevo({ to, subject, text, html });
-    else await getTransporter().sendMail({ from: env.mail.from, to, subject, text, html });
-    return true;
+    if (testTransport) await testTransport(mail);
+    else if (env.mail.brevoApiKey) await sendWithBrevo(mail);
+    else await getTransporter().sendMail({ from: env.mail.from, ...mail });
+    return { ok: true };
   } catch (err) {
-    logger.error({ err, to, subject }, 'Failed to send email');
-    return false;
+    const e = err as MailError;
+    // SMTP 5xx replies are permanent rejections; everything else (timeouts,
+    // 4xx "try later", network errors) is worth another go.
+    const permanent = e.permanent ?? (typeof e.responseCode === 'number' && e.responseCode >= 500);
+    logger.error({ err, to: mail.to, subject: mail.subject }, 'Failed to send email');
+    return { ok: false, retryable: !permanent, error: e.message.slice(0, 500) };
   }
+}
+
+/** Sends right away and resolves to whether it was delivered (auth flows show the code otherwise). */
+export async function sendMail(mail: MailInput): Promise<boolean> {
+  return (await deliver(mail)).ok;
 }

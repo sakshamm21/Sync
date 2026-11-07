@@ -32,6 +32,62 @@ Severity labels:
 - **P1**: real users hit it, or data is wrong.
 - **P2**: an edge case, hardening, or polish.
 
+## Status (7 November 2026)
+
+**Merged into `master`:** PR 1 (demo mode, sakshamm21/Sync#2), PR 2 (permissions, #3), and the reset fix with the move to Vercel Schedules (#4).
+
+**Open as a stack of PRs, each based on the one before (merge in order):**
+
+| PR | Covers |
+|---|---|
+| #5 | B8, B23: freed seats go straight to the waitlist |
+| #6 | B6, B7, B12, B24, B32, E5: retries with backoff, mail sent straight away |
+| #7 | B1, B2, B3, B29, B37, B42: scannable tickets, the scanner, door mode |
+| #8 | B9, B13: private plans open; campus time everywhere |
+| #9 | B14, B15, B17, B20, B22, B25–B27, B38, B40, B41, B44: web app fixes |
+| #10 | B19, B28, B30, B31, B33–B36, B39, B45, E6: hardening |
+| #11 | E2, B43, E4 (request ids), E7 (headers), E8 (indexes), E9: tooling |
+| #12 | E1, E10: Playwright flows, a fake-camera scan, axe checks, and contrast fixes |
+| #13 | Now #3, #6 (position): calendar subscription, Google Calendar, waitlist position |
+| #14 | Now #9, #10 (duplicate), #12: link-preview images, WhatsApp, duplicate, campus-only sign-up |
+| #15 | Now #4, #8: Interested, notification centre with per-kind email |
+| #16 | Now #1: installable app and Web Push |
+| #17 | Now #2: Has spots / Online / Free food filters, club search |
+| #18 | Now #5, #7: club pages and Follow, onboarding |
+| #19 | Now #10, #11: sign-up windows, targeted announcements, preview as attendee, offline door scans |
+| #20 | Now #6: waitlist claim window, "take any seat automatically" |
+| #21 | Now #10: cover photo upload (Vercel Blob; off until a store is connected) |
+| #22 | E3: API contract test for shared types |
+| #23 | Next #1: registration questions and organiser approval |
+| #24 | Next #12 (export and delete account), #9 (admin audit log) |
+| #25 | Next #6 (chat moderation), #4 (organiser insights) |
+| #26 | Next #5: certificates, My events history, written feedback |
+| #27 | Next #3: recurring events |
+| #28 | Next #8 (part): room clash warnings |
+| #29 | Next #12 (rest): change email, privacy and terms pages |
+| #30 | Next #9 (rest): platform trends, suspension reasons |
+| #31 | Next #7: friends and "friends going" |
+| #32 | Next #6 (rest): replies, reactions, unread badges |
+| #33 | Next #2: team registration |
+| #34 | Next #11: assistant actions with confirmation |
+| #35 | Next #10: club committees with roles |
+| #36 | Next #6/#7/#5/#11 (rest): @mentions, pins, invite friends, album link, "remind me" |
+| #37 | Next #8/#9 (rest): campus venue list, interactive map, first-event review |
+| #38 | Later #5 (part): club Discord/Slack webhook, Instagram Story image |
+
+**Still open, and why:**
+
+- Now #6 claim window: done in #20 (per-event, off by default; the 12-hour default the roadmap suggests is one of the choices).
+- **Needs a service set up on the account:**
+  - cover photo upload is built (#21) but needs a Vercel Blob store connected to the API project;
+  - E4 Sentry (a DSN);
+  - push notifications need `VAPID_PUBLIC_KEY` and `VAPID_PRIVATE_KEY` on the API project;
+  - typo-tolerant search (an Atlas Search index);
+  - transactions (a replica set; Atlas has one, but the test database doesn't).
+- **Not started:**
+  - E3: a contract test (#22) catches drift between the API's constants and the web app's types; a real shared package is still open because both Vercel projects only build their own folder;
+  - the rest of **Later**: paid tickets (a Razorpay account), several campuses per deployment (a data-model decision), a native app with wallet passes (Apple and Google developer accounts), other languages (translations), two-way Google Calendar (a Google OAuth app), and club operations (volunteer shifts, sponsors, budgets: product decisions).
+
 ---
 
 ## Phase 0: The live demo is empty (do this first)

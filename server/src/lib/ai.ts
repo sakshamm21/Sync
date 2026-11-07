@@ -26,9 +26,7 @@ export interface AssistantMessage {
 }
 
 export type ChatMessage =
-  | { role: 'system' | 'user'; content: string }
-  | AssistantMessage
-  | { role: 'tool'; tool_call_id: string; content: string };
+  { role: 'system' | 'user'; content: string } | AssistantMessage | { role: 'tool'; tool_call_id: string; content: string };
 
 export interface ToolDefinition {
   type: 'function';

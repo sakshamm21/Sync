@@ -2,9 +2,18 @@
  * Who can see and do what with an event, and the per-viewer view of it.
  * Shared by the events, registrations, chat, staff and notes services.
  */
-import { Event, Registration, EventStaff, type EventDocument, type IEvent, type UserDocument } from '../../models';
+import { friendIdsOf } from '../friends/friends.service';
+import { Event, Registration, EventStaff, Interest, type EventDocument, type IEvent, type UserDocument } from '../../models';
 import { forbidden, notFound } from '../../lib/errors';
-import { ROLES, EVENT_VISIBILITY, EVENT_STATUS, STAFF_ROLES, type RegistrationStatus, type StaffRole } from '../../constants';
+import {
+  ROLES,
+  EVENT_VISIBILITY,
+  EVENT_STATUS,
+  STAFF_ROLES,
+  type RegistrationStatus,
+  type StaffRole,
+  REGISTRATION_STATUS,
+} from '../../constants';
 
 export const OWNER_FIELDS = 'name avatarUrl organization role';
 
@@ -122,6 +131,16 @@ export type PresentedEvent = Omit<IEvent, 'owner' | 'organizers'> & {
     /** The viewer's staff role on this event, when they hold one. */
     staffRole: StaffRole | null;
     registration: RegistrationStatus | null;
+    /** 1 = next in line; only on a single event the viewer is waitlisted for. */
+    waitlistPosition?: number;
+    /** Bookmarked as "Interested". */
+    interested: boolean;
+    /** Checked in at the door (the attendance record). */
+    checkedIn: boolean;
+    /** Friends going (first few names) and how many in all. */
+    friendsGoing: { names: string[]; count: number };
+    /** For a held seat: claim it before this. */
+    offerExpiresAt?: Date | null;
   };
 };
 
@@ -134,14 +153,40 @@ export async function withViewerContext(events: EventDocument[], viewer: Viewer)
   if (!events.length) return [];
 
   const registrations = viewer
-    ? await Registration.find({ user: viewer.id, event: { $in: events.map((e) => e._id) } }).select('event status')
+    ? await Registration.find({ user: viewer.id, event: { $in: events.map((e) => e._id) } }).select('event status checkedInAt')
     : [];
   const statusByEvent = new Map(registrations.map((r) => [String(r.event), r.status]));
+  const checkedIn = new Set(registrations.filter((r) => r.checkedInAt).map((r) => String(r.event)));
 
   const staff = viewer
     ? await EventStaff.find({ user: viewer.id, event: { $in: events.map((e) => e._id) } }).select('event role')
     : [];
   const roleByEvent = new Map(staff.map((s) => [String(s.event), s.role]));
+
+  // Friends going to each listed event, in two queries for the whole list.
+  const friendsByEvent = new Map<string, string[]>();
+  if (viewer) {
+    const friendIds = await friendIdsOf(viewer._id);
+    if (friendIds.length) {
+      const going = await Registration.find({
+        user: { $in: friendIds },
+        event: { $in: events.map((e) => e._id) },
+        status: REGISTRATION_STATUS.GOING,
+      })
+        .select('event user')
+        .populate<{ user: { name: string } | null }>('user', 'name');
+      for (const r of going) {
+        if (!r.user) continue;
+        const key = String(r.event);
+        friendsByEvent.set(key, [...(friendsByEvent.get(key) ?? []), r.user.name]);
+      }
+    }
+  }
+
+  const interests = viewer
+    ? await Interest.find({ user: viewer.id, event: { $in: events.map((e) => e._id) } }).select('event')
+    : [];
+  const interestedIn = new Set(interests.map((i) => String(i.event)));
 
   return events.map((event) => {
     const registration = statusByEvent.get(String(event._id)) ?? null;
@@ -159,6 +204,12 @@ export async function withViewerContext(events: EventDocument[], viewer: Viewer)
         canChat: canChat(viewer, event, registration),
         staffRole,
         registration,
+        interested: interestedIn.has(String(event._id)),
+        checkedIn: checkedIn.has(String(event._id)),
+        friendsGoing: {
+          names: (friendsByEvent.get(String(event._id)) ?? []).slice(0, 3),
+          count: friendsByEvent.get(String(event._id))?.length ?? 0,
+        },
       },
     };
   });

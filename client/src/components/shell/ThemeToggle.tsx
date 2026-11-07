@@ -14,7 +14,12 @@ export default function ThemeToggle() {
 
   const isDark = mounted && resolvedTheme === 'dark';
   return (
-    <Button variant="ghost" size="icon" aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'} onClick={() => setTheme(isDark ? 'light' : 'dark')}>
+    <Button
+      variant="ghost"
+      size="icon"
+      aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+      onClick={() => setTheme(isDark ? 'light' : 'dark')}
+    >
       <AnimatePresence mode="wait" initial={false}>
         <motion.span
           key={isDark ? 'moon' : 'sun'}

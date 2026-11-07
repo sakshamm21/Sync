@@ -16,6 +16,14 @@ export interface Venue {
   longitude?: number;
 }
 
+export interface EventQuestion {
+  _id: Types.ObjectId;
+  label: string;
+  kind: 'text' | 'choice';
+  options: string[];
+  required: boolean;
+}
+
 export interface IEvent {
   title: string;
   description: string;
@@ -34,7 +42,26 @@ export interface IEvent {
   organizers: Types.ObjectId[];
   // Registration (public events only). `capacity: null` means unlimited.
   capacity: number | null;
+  /** Optional sign-up window. Waitlist promotion still runs outside it. */
+  registrationOpensAt: Date | null;
+  registrationClosesAt: Date | null;
+  /** Hours a freed seat is held for the next person to claim; null = move them in automatically. */
+  waitlistClaimHours: number | null;
+  /** Extra questions asked when someone RSVPs (roll number, T-shirt size, ...). */
+  questions: EventQuestion[];
+  /** Each RSVP waits for the organiser to approve it. */
+  requiresApproval: boolean;
+  /** Shared by every date of a repeating event (null for one-offs). */
+  seriesId: Types.ObjectId | null;
+  /** A new organiser's first event, held as a draft until an admin approves it. */
+  awaitingReview: boolean;
+  /** Link to the photo album, added after the event. */
+  albumUrl: string;
+  /** For team events: how many people a team may have. Null = individual sign-up. */
+  teamSize: { min: number; max: number } | null;
   attendeeCount: number;
+  /** People who bookmarked it as "Interested" (a cache of Interest rows). */
+  interestedCount: number;
   /** Sum and number of post-event ratings, kept in step with the Rating collection. */
   ratingSum: number;
   ratingCount: number;
@@ -47,6 +74,8 @@ interface EventMethods {
   /** True for the creator and for anyone invited to help run the event. */
   isCoOrganizer(userId: unknown): boolean;
   isOpenForRegistration(): boolean;
+  /** Why a new RSVP can't be taken right now, or null if it can. */
+  registrationWindowProblem(now?: Date): { code: 'REGISTRATION_NOT_OPEN' | 'REGISTRATION_CLOSED'; at: Date } | null;
 }
 
 interface EventVirtuals {
@@ -88,7 +117,34 @@ const eventSchema = new Schema<IEvent, EventModel, EventMethods, {}, EventVirtua
     organizers: [{ type: Schema.Types.ObjectId, ref: 'User', index: true }],
 
     capacity: { type: Number, min: 1, default: null },
+    registrationOpensAt: { type: Date, default: null },
+    registrationClosesAt: { type: Date, default: null },
+    waitlistClaimHours: { type: Number, min: 1, max: 72, default: null },
+    questions: {
+      type: [
+        new Schema(
+          {
+            label: { type: String, required: true, trim: true, maxlength: 200 },
+            kind: { type: String, enum: ['text', 'choice'], default: 'text' },
+            options: { type: [{ type: String, trim: true, maxlength: 80 }], default: [] },
+            required: { type: Boolean, default: false },
+          },
+          { _id: true }
+        ),
+      ],
+      default: [],
+    },
+    requiresApproval: { type: Boolean, default: false },
+    seriesId: { type: Schema.Types.ObjectId, default: null, index: true },
+    albumUrl: { type: String, trim: true, default: '' },
+    awaitingReview: { type: Boolean, default: false, index: true },
+    teamSize: {
+      type: { min: { type: Number, min: 1, max: 20 }, max: { type: Number, min: 1, max: 20 } },
+      default: null,
+      _id: false,
+    },
     attendeeCount: { type: Number, min: 0, default: 0 },
+    interestedCount: { type: Number, min: 0, default: 0 },
     ratingSum: { type: Number, min: 0, default: 0 },
     ratingCount: { type: Number, min: 0, default: 0 },
   },
@@ -98,6 +154,7 @@ const eventSchema = new Schema<IEvent, EventModel, EventMethods, {}, EventVirtua
 eventSchema.index({ visibility: 1, status: 1, startsAt: 1 });
 // Drives the organiser console and "events I help run".
 eventSchema.index({ organizers: 1, startsAt: -1 });
+eventSchema.index({ owner: 1, endsAt: 1 }); // organiser track records for recommendations
 
 eventSchema.virtual('spotsLeft').get(function spotsLeft() {
   if (this.capacity == null) return null;
@@ -129,11 +186,15 @@ eventSchema.method('isCoOrganizer', function isCoOrganizer(userId: unknown) {
 });
 
 eventSchema.method('isOpenForRegistration', function isOpenForRegistration() {
-  return (
-    this.visibility === EVENT_VISIBILITY.PUBLIC &&
-    this.status === EVENT_STATUS.PUBLISHED &&
-    this.endsAt > new Date()
-  );
+  return this.visibility === EVENT_VISIBILITY.PUBLIC && this.status === EVENT_STATUS.PUBLISHED && this.endsAt > new Date();
+});
+
+eventSchema.method('registrationWindowProblem', function registrationWindowProblem(now = new Date()) {
+  if (this.registrationOpensAt && now < this.registrationOpensAt)
+    return { code: 'REGISTRATION_NOT_OPEN', at: this.registrationOpensAt };
+  if (this.registrationClosesAt && now >= this.registrationClosesAt)
+    return { code: 'REGISTRATION_CLOSED', at: this.registrationClosesAt };
+  return null;
 });
 
 export const Event = model<IEvent, EventModel>('Event', eventSchema);

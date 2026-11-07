@@ -1,3 +1,4 @@
+import crypto from 'node:crypto';
 import express, { type Express } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
@@ -19,6 +20,13 @@ import adminRoutes from './modules/admin/admin.routes';
 import assistantRoutes from './modules/assistant/assistant.routes';
 import staffRoutes from './modules/events/staff.routes';
 import reportsRoutes from './modules/reports/reports.routes';
+import clubsRoutes from './modules/clubs/clubs.routes';
+import venuesRoutes from './modules/venues/venues.routes';
+import opsRoutes from './modules/ops/ops.routes';
+import teamsRoutes from './modules/teams/teams.routes';
+import friendsRoutes from './modules/friends/friends.routes';
+import uploadsRoutes from './modules/uploads/uploads.routes';
+import { calendarFeed } from './modules/events/events.service';
 
 export function createApp(): Express {
   const app = express();
@@ -29,6 +37,13 @@ export function createApp(): Express {
   app.use(
     pinoHttp({
       logger,
+      // Reuse Vercel's request id when there is one, and hand the id back in
+      // X-Request-Id so a user's bug report can be matched to the log line.
+      genReqId: (req, res) => {
+        const id = (req.headers['x-vercel-id'] as string | undefined) || crypto.randomUUID();
+        res.setHeader('X-Request-Id', id);
+        return id;
+      },
       autoLogging: { ignore: (req) => req.url === '/api/health' },
       customLogLevel: (_req, res, err) => (err || res.statusCode >= 500 ? 'error' : res.statusCode >= 400 ? 'warn' : 'info'),
     })
@@ -44,14 +59,41 @@ export function createApp(): Express {
 
   // Lets the web app adapt to the host: live sockets or polling, and whether the assistant is on.
   app.get('/api/meta', (_req, res) => {
-    res.json({ data: { realtime: env.realtime, emailDelivery: env.mail.enabled, assistant: env.ai.enabled, demo: env.demoMode } });
+    res.json({
+      data: {
+        realtime: env.realtime,
+        emailDelivery: env.mail.enabled,
+        assistant: env.ai.enabled,
+        demo: env.demoMode,
+        allowedEmailDomains: env.allowedEmailDomains,
+        // The browser needs this to subscribe; null when push isn't set up.
+        pushPublicKey: env.push.enabled ? env.push.publicKey : null,
+        uploads: env.uploads.enabled,
+      },
+    });
   });
 
   app.use('/api/jobs', jobsRoutes);
   app.use('/api', apiLimiter);
   app.use('/api/auth', authRoutes);
   app.use('/api/me', meRoutes);
+  // Calendar apps fetch the subscription with only the secret in the URL.
+  app.get('/api/calendar/:file', async (req, res) => {
+    const token = req.params.file.replace(/\.ics$/, '');
+    const content = /^[\w-]{20,64}$/.test(token) ? await calendarFeed(token) : null;
+    if (!content) {
+      res.status(404).json({ error: { code: 'NOT_FOUND', message: 'This calendar link is no longer valid.' } });
+      return;
+    }
+    res.set('Cache-Control', 'private, max-age=300').type('text/calendar').send(content);
+  });
+  app.use('/api/events/:id/teams', teamsRoutes);
   app.use('/api/events', eventsRoutes);
+  app.use('/api/clubs', clubsRoutes);
+  app.use('/api/venues', venuesRoutes);
+  app.use('/api/ops', opsRoutes);
+  app.use('/api/friends', friendsRoutes);
+  app.use('/api/uploads', uploadsRoutes);
   app.use('/api/event-staff', staffRoutes);
   app.use('/api/reports', reportsRoutes);
   app.use('/api/notes', notesRoutes);

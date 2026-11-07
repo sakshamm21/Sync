@@ -9,3 +9,15 @@ export { EventStaff, type IEventStaff, type EventStaffDocument } from './EventSt
 export { Report, type IReport, type ReportDocument } from './Report';
 export { Rating, type IRating, type RatingDocument } from './Rating';
 export { OutboxEmail, type IOutboxEmail, type OutboxEmailDocument } from './OutboxEmail';
+export { Interest, type IInterest, type InterestDocument } from './Interest';
+export { PushSubscription, type IPushSubscription, type PushSubscriptionDocument } from './PushSubscription';
+export { Follow, type IFollow, type FollowDocument } from './Follow';
+export { AuditLog, type IAuditLog, type AuditLogDocument } from './AuditLog';
+export { MessageReport, type IMessageReport, type MessageReportDocument } from './MessageReport';
+export { Friendship, type IFriendship, type FriendshipDocument } from './Friendship';
+export { ChatRead, type IChatRead, type ChatReadDocument } from './ChatRead';
+export { Team, type ITeam, type TeamDocument } from './Team';
+export { ClubMember, type IClubMember, type ClubMemberDocument, type ClubRole } from './ClubMember';
+export { Reminder, type IReminder, type ReminderDocument } from './Reminder';
+export { CampusVenue, type ICampusVenue, type CampusVenueDocument } from './CampusVenue';
+export { Shift, Sponsor, BudgetLine, type IShift, type ISponsor, type IBudgetLine } from './ClubOps';

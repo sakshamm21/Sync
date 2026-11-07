@@ -5,6 +5,9 @@ import { z, idParams, pagination } from '../../lib/schemas';
 import { ROLES, USER_STATUS, ORGANIZER_APPLICATION_STATUS, REPORT_STATUS } from '../../constants';
 import * as service from './admin.service';
 import * as reports from '../reports/reports.service';
+import * as chat from '../chat/chat.service';
+import * as events from '../events/events.service';
+import { audit } from '../../lib/audit';
 
 const router = Router();
 router.use(authenticate, requireRole(ROLES.ADMIN));
@@ -18,6 +21,8 @@ const usersQuery = z.object({
 
 const userUpdateBody = z
   .object({
+    /** Shown to the person when they try to sign in. */
+    reason: z.string().trim().max(500).optional(),
     role: z.enum(ROLES).optional(),
     status: z.enum(USER_STATUS).optional(),
   })
@@ -41,32 +46,96 @@ const resolveBody = z.object({
   reason: z.string().trim().max(500).default(''),
 });
 
+router.get(
+  '/message-reports',
+  validate({ query: z.object({ status: z.enum(REPORT_STATUS).optional() }) }, async (req, res) => {
+    res.json({ data: await chat.listMessageReports(req.query) });
+  })
+);
+
+router.patch(
+  '/message-reports/:id',
+  validate(
+    { params: idParams, body: z.object({ status: z.enum([REPORT_STATUS.REVIEWED, REPORT_STATUS.DISMISSED]) }) },
+    async (req, res) => {
+      res.json({ data: await chat.resolveMessageReport(currentUser(req), req.params.id, req.body.status) });
+    }
+  )
+);
+
+router.get('/event-reviews', async (_req, res) => {
+  res.json({ data: await events.awaitingReview() });
+});
+
+router.post(
+  '/event-reviews/:id',
+  validate(
+    { params: idParams, body: z.object({ approve: z.boolean(), note: z.string().trim().max(500).default('') }) },
+    async (req, res) => {
+      const result = await events.reviewFirstEvent(currentUser(req), req.params.id, req.body);
+      await audit(
+        currentUser(req),
+        req.body.approve ? 'event.approved' : 'event.sent_back',
+        `${req.body.approve ? 'Approved' : 'Sent back'} "${result.title}"`,
+        {
+          kind: 'event',
+          id: result._id,
+        }
+      );
+      res.json({ data: result });
+    }
+  )
+);
+
+router.get(
+  '/audit-log',
+  validate({ query: z.object({ ...pagination }) }, async (req, res) => {
+    const { items, meta } = await service.auditLog(req.query);
+    res.json({ data: items, meta });
+  })
+);
+
 router.get('/stats', async (_req, res) => {
   res.json({ data: await service.stats() });
 });
 
-router.get('/reports', validate({ query: reportsQuery }, async (req, res) => {
-  const { items, meta } = await reports.listReports(req.query);
-  res.json({ data: items, meta });
-}));
+router.get(
+  '/reports',
+  validate({ query: reportsQuery }, async (req, res) => {
+    const { items, meta } = await reports.listReports(req.query);
+    res.json({ data: items, meta });
+  })
+);
 
-router.patch('/reports/:id', validate({ params: idParams, body: resolveBody }, async (req, res) => {
-  res.json({ data: await reports.resolve(currentUser(req), req.params.id, req.body) });
-}));
+router.patch(
+  '/reports/:id',
+  validate({ params: idParams, body: resolveBody }, async (req, res) => {
+    res.json({ data: await reports.resolve(currentUser(req), req.params.id, req.body) });
+  })
+);
 
-router.get('/users', validate({ query: usersQuery }, async (req, res) => {
-  const { items, meta } = await service.listUsers(req.query);
-  res.json({ data: items, meta });
-}));
+router.get(
+  '/users',
+  validate({ query: usersQuery }, async (req, res) => {
+    const { items, meta } = await service.listUsers(req.query);
+    res.json({ data: items, meta });
+  })
+);
 
-router.patch('/users/:id', validate({ params: idParams, body: userUpdateBody }, async (req, res) => {
-  res.json({ data: await service.updateUser(currentUser(req), req.params.id, req.body) });
-}));
+router.patch(
+  '/users/:id',
+  validate({ params: idParams, body: userUpdateBody }, async (req, res) => {
+    res.json({ data: await service.updateUser(currentUser(req), req.params.id, req.body) });
+  })
+);
 
-router.get('/organizer-applications', validate({ query: applicationsQuery }, async (req, res) => {
-  const { items, meta } = await service.listApplications(req.query);
-  res.json({ data: items, meta });
-}));
+router.get(
+  '/organizer-applications',
+  validate({ query: applicationsQuery }, async (req, res) => {
+    const { items, meta } = await service.listApplications(req.query);
+    res.json({ data: items, meta });
+  })
+);
 
 router.post(
   '/organizer-applications/:id/approve',

@@ -10,7 +10,7 @@ import type { UserDocument } from '../../models';
 import { complete, type ChatMessage } from '../../lib/ai';
 import { CATEGORY_VALUES } from '../../constants';
 import type { PresentedEvent } from '../events/events.policy';
-import { TOOL_DEFINITIONS, runTool, type ToolContext } from './assistant.tools';
+import { TOOL_DEFINITIONS, runTool, type ProposedAction, type ToolContext } from './assistant.tools';
 
 /** How many model ↔ tool round trips one question may take before we ask for a final answer. */
 const MAX_TOOL_ROUNDS = 5;
@@ -25,6 +25,8 @@ export interface AssistantReply {
   reply: string;
   /** Events the reply links to, in the order mentioned, for the client to show as cards. */
   events: PresentedEvent[];
+  /** Things the assistant offered to do; the user confirms each with a button. */
+  actions: ProposedAction[];
 }
 
 function systemPrompt(user: UserDocument, timeZone: string): string {
@@ -44,7 +46,7 @@ How to help:
 - When the user mentions a period ("this weekend", "tomorrow evening"), work out the exact dates from the current time above and pass them to the tools with the user's UTC offset.
 - Event categories are: ${CATEGORY_VALUES.join(', ')}.
 - When you mention an event, link it in Markdown using the "link" the tool gave you, e.g. [Tech Summit 2026](/events/abc123). Use the "when" text the tool gave you for times.
-- You can only read. You cannot register, cancel or change anything: point the user to the event's page for that.
+- You cannot change anything yourself. When the user asks you to RSVP, cancel a place or save an event, call propose_action: they get a button to confirm. Never say it's done.
 - You may also help with general questions (planning, writing an event description, study tips), briefly.
 - Keep answers short and scannable: a sentence or two, or a short bulleted list. Use **bold** sparingly. No tables or headings.
 - If the tools find nothing, say so plainly and suggest a broader search.`;
@@ -57,7 +59,7 @@ function finish(content: string | null, context: ToolContext): AssistantReply {
     .map((id) => context.seen.get(id))
     .filter((event): event is PresentedEvent => Boolean(event))
     .slice(0, MAX_EVENT_CARDS);
-  return { reply, events };
+  return { reply, events, actions: (context.proposals ?? []).slice(0, 3) };
 }
 
 export async function chat(

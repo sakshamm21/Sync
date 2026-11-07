@@ -63,7 +63,11 @@ export async function listStaff(eventId: string) {
 }
 
 /** Adds someone to an event's team and tells them. */
-export async function invite(user: UserDocument, eventId: string, { email, role }: { email: string; role: 'manager' | 'checkin' }) {
+export async function invite(
+  user: UserDocument,
+  eventId: string,
+  { email, role }: { email: string; role: 'manager' | 'checkin' }
+) {
   const { event, access } = await loadEvent(user, eventId);
   if (!access.canManage) throw forbidden('Only the organiser can add people to the team');
   if (role === STAFF_ROLES.MANAGER) assertMayChangeManagers(user, event);

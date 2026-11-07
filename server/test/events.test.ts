@@ -32,14 +32,22 @@ describe('creating events', () => {
 
   it('makes member events private personal entries', async () => {
     const member = await createUser();
-    const res = await api().post('/api/events').set(member.auth).send(eventInput({ capacity: 10 })).expect(201);
+    const res = await api()
+      .post('/api/events')
+      .set(member.auth)
+      .send(eventInput({ capacity: 10 }))
+      .expect(201);
     assert.equal(res.body.data.visibility, 'private');
     assert.equal(res.body.data.capacity, null);
   });
 
   it('tells members how to publish public events', async () => {
     const member = await createUser();
-    const res = await api().post('/api/events').set(member.auth).send(eventInput({ visibility: 'public' })).expect(403);
+    const res = await api()
+      .post('/api/events')
+      .set(member.auth)
+      .send(eventInput({ visibility: 'public' }))
+      .expect(403);
     assert.equal(res.body.error.code, 'ORGANIZER_ONLY');
   });
 
@@ -62,17 +70,26 @@ describe('discovering events', () => {
     await publishEvent(organizer, { title: 'Dance Night', category: 'cultural' });
     await publishEvent(organizer, { title: 'Secret Draft', status: 'draft' });
     await publishEvent(organizer, { title: 'Old Meetup', startsAt: hoursFromNow(-5), endsAt: hoursFromNow(-4) });
-    await api().post('/api/events').set(member.auth).send(eventInput({ title: 'My dentist' }));
+    await api()
+      .post('/api/events')
+      .set(member.auth)
+      .send(eventInput({ title: 'My dentist' }));
 
     const all = await api().get('/api/events').expect(200);
     assert.deepEqual(all.body.data.map((e) => e.title).sort(), ['AI Hackathon', 'Dance Night']);
     assert.equal(all.body.meta.total, 2);
 
     const tech = await api().get('/api/events?category=tech').expect(200);
-    assert.deepEqual(tech.body.data.map((e) => e.title), ['AI Hackathon']);
+    assert.deepEqual(
+      tech.body.data.map((e) => e.title),
+      ['AI Hackathon']
+    );
 
     const search = await api().get('/api/events?q=hack').expect(200);
-    assert.deepEqual(search.body.data.map((e) => e.title), ['AI Hackathon']);
+    assert.deepEqual(
+      search.body.data.map((e) => e.title),
+      ['AI Hackathon']
+    );
 
     const withPast = await api().get('/api/events?includePast=true').expect(200);
     assert.equal(withPast.body.meta.total, 3);
@@ -211,7 +228,10 @@ describe('registration and waitlist', () => {
     await api().post(`/api/events/${sooner.id}/registration`).set(member.auth);
 
     const res = await api().get('/api/me/registrations').set(member.auth).expect(200);
-    assert.deepEqual(res.body.data.map((e) => e.title), ['Sooner', 'Later']);
+    assert.deepEqual(
+      res.body.data.map((e) => e.title),
+      ['Sooner', 'Later']
+    );
   });
 });
 
@@ -235,7 +255,11 @@ describe('managing events', () => {
     await api().patch(`/api/events/${event.id}`).set(organizer.auth).send({ description: 'Now with pizza' }).expect(200);
     assert.equal(await Notification.countDocuments({ user: member.user._id }), 0);
 
-    await api().patch(`/api/events/${event.id}`).set(organizer.auth).send({ venue: { name: 'Main Auditorium' } }).expect(200);
+    await api()
+      .patch(`/api/events/${event.id}`)
+      .set(organizer.auth)
+      .send({ venue: { name: 'Main Auditorium' } })
+      .expect(200);
     const notification = await Notification.findOne({ user: member.user._id });
     assert.equal(notification!.type, 'event_updated');
   });
@@ -243,7 +267,11 @@ describe('managing events', () => {
   it('rejects an edit that would make the event end before it starts', async () => {
     const organizer = await createUser({ role: 'organizer' });
     const event = await publishEvent(organizer);
-    await api().patch(`/api/events/${event.id}`).set(organizer.auth).send({ endsAt: hoursFromNow(1) }).expect(400);
+    await api()
+      .patch(`/api/events/${event.id}`)
+      .set(organizer.auth)
+      .send({ endsAt: hoursFromNow(1) })
+      .expect(400);
   });
 
   it('cancels an event and tells everyone registered', async () => {
@@ -252,7 +280,11 @@ describe('managing events', () => {
     const event = await publishEvent(organizer);
     await api().post(`/api/events/${event.id}/registration`).set(member.auth);
 
-    const res = await api().post(`/api/events/${event.id}/cancel`).set(organizer.auth).send({ reason: 'Venue flooded' }).expect(200);
+    const res = await api()
+      .post(`/api/events/${event.id}/cancel`)
+      .set(organizer.auth)
+      .send({ reason: 'Venue flooded' })
+      .expect(200);
     assert.equal(res.body.data.status, 'cancelled');
 
     const notification = await Notification.findOne({ user: member.user._id });
@@ -288,7 +320,7 @@ describe('managing events', () => {
     await api().get(`/api/events/${event.id}/attendees`).set(a.auth).expect(403);
 
     const list = await api().get(`/api/events/${event.id}/attendees`).set(organizer.auth).expect(200);
-    assert.deepEqual(list.body.data.counts, { going: 1, waitlisted: 1, checkedIn: 0 });
+    assert.deepEqual(list.body.data.counts, { going: 1, waitlisted: 1, offered: 0, pending: 0, checkedIn: 0 });
     assert.equal(list.body.data.items[0].user.name, 'Ada');
     assert.ok(list.body.data.items[0].user.email);
 
@@ -315,7 +347,10 @@ describe('calendar', () => {
     const joined = await publishEvent(organizer, { title: 'Joined' });
     await publishEvent(organizer, { title: 'Not joined' });
     await api().post(`/api/events/${joined.id}/registration`).set(member.auth);
-    await api().post('/api/events').set(member.auth).send(eventInput({ title: 'Study group' }));
+    await api()
+      .post('/api/events')
+      .set(member.auth)
+      .send(eventInput({ title: 'Study group' }));
     await api()
       .post('/api/events')
       .set(member.auth)
@@ -332,7 +367,11 @@ describe('calendar', () => {
   it('requires a valid range', async () => {
     const member = await createUser();
     await api().get('/api/me/calendar').set(member.auth).expect(400);
-    await api().get('/api/me/calendar').query({ from: hoursFromNow(5), to: hoursFromNow(1) }).set(member.auth).expect(400);
+    await api()
+      .get('/api/me/calendar')
+      .query({ from: hoursFromNow(5), to: hoursFromNow(1) })
+      .set(member.auth)
+      .expect(400);
   });
 
   it('exports an event as an iCalendar file', async () => {

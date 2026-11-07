@@ -1,7 +1,8 @@
 import type { Types } from 'mongoose';
-import { Event, Registration, OrganizerApplication, type UserDocument } from '../../models';
-import { badRequest, conflict } from '../../lib/errors';
-import { OWNER_FIELDS, withViewerContext } from '../events/events.policy';
+import { Event, Rating, Registration, OrganizerApplication, type UserDocument } from '../../models';
+import env from '../../config/env';
+import { badRequest, conflict, forbidden } from '../../lib/errors';
+import { OWNER_FIELDS, loadEvent, withViewerContext } from '../events/events.policy';
 import { ROLES, EVENT_VISIBILITY, EVENT_STATUS, REGISTRATION_STATUS, ORGANIZER_APPLICATION_STATUS } from '../../constants';
 
 interface EventCounts {
@@ -69,5 +70,51 @@ export async function overview(user: UserDocument) {
       attendanceRate: pastGoing ? Math.round((pastCheckedIn / pastGoing) * 100) : null,
     },
     events: items,
+  };
+}
+
+/**
+ * Numbers for one event (Roadmap "Next" #4): RSVPs per day on the campus
+ * calendar, where people are now, how many turned up, and how it was rated.
+ */
+export async function insights(user: UserDocument, eventId: string) {
+  const { event, access } = await loadEvent(user, eventId);
+  if (!access.canManage) throw forbidden('Only the organiser can see insights');
+  const [byDay, byStatus, checkedIn, ratings] = await Promise.all([
+    Registration.aggregate<{ _id: string; count: number }>([
+      { $match: { event: event._id } },
+      {
+        $group: {
+          _id: { $dateToString: { format: '%Y-%m-%d', date: '$createdAt', timezone: env.campusTimeZone } },
+          count: { $sum: 1 },
+        },
+      },
+      { $sort: { _id: 1 } },
+    ]),
+    Registration.aggregate<{ _id: string; count: number }>([
+      { $match: { event: event._id } },
+      { $group: { _id: '$status', count: { $sum: 1 } } },
+    ]),
+    Registration.countDocuments({ event: event._id, checkedInAt: { $ne: null } }),
+    Rating.aggregate<{ _id: number; count: number }>([
+      { $match: { event: event._id } },
+      { $group: { _id: '$rating', count: { $sum: 1 } } },
+    ]),
+  ]);
+  const statuses = Object.fromEntries(byStatus.map((s) => [s._id, s.count])) as Record<string, number>;
+  const going = statuses.going ?? 0;
+  const ratingCount = ratings.reduce((n, r) => n + r.count, 0);
+  const ratingSum = ratings.reduce((n, r) => n + r._id * r.count, 0);
+  return {
+    rsvpsByDay: byDay.map((d) => ({ day: d._id, count: d.count })),
+    going,
+    waitlisted: statuses.waitlisted ?? 0,
+    pending: statuses.pending ?? 0,
+    interested: event.interestedCount ?? 0,
+    checkedIn,
+    // Only meaningful once the event has happened.
+    showUpRate: event.endsAt < new Date() && going ? Math.round((checkedIn / going) * 100) : null,
+    averageRating: ratingCount ? Math.round((ratingSum / ratingCount) * 10) / 10 : null,
+    ratingCount,
   };
 }

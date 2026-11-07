@@ -4,7 +4,24 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import { AnimatePresence, motion } from 'motion/react';
-import { Bell, CalendarClock, CalendarX2, CheckCheck, Megaphone, PartyPopper, ShieldCheck, ShieldX, RefreshCw, Users } from 'lucide-react';
+import {
+  Bell,
+  CalendarClock,
+  CalendarX2,
+  CheckCheck,
+  Megaphone,
+  PartyPopper,
+  ShieldCheck,
+  ShieldX,
+  RefreshCw,
+  Users,
+  Sparkles,
+  Ticket,
+  UserCheck,
+  UserPlus,
+  AtSign,
+  Mail,
+} from 'lucide-react';
 import { useAuth, usePolling, useSocketEvent } from '@/context/AuthContext';
 import { notificationsApi, type AppNotification, type NotificationType } from '@/lib/api';
 import { formatRelative } from '@/lib/format';
@@ -14,7 +31,7 @@ import { cn } from '@/lib/cn';
 
 const POLL_MS = 30_000;
 
-const ICONS: Record<NotificationType, React.ComponentType<{ className?: string }>> = {
+export const NOTIFICATION_ICONS: Record<NotificationType, React.ComponentType<{ className?: string }>> = {
   event_updated: RefreshCw,
   event_cancelled: CalendarX2,
   event_reminder: CalendarClock,
@@ -23,6 +40,12 @@ const ICONS: Record<NotificationType, React.ComponentType<{ className?: string }
   organizer_approved: ShieldCheck,
   organizer_rejected: ShieldX,
   staff_invited: Users,
+  club_new_event: Sparkles,
+  waitlist_offer: Ticket,
+  registration_decision: UserCheck,
+  friend_request: UserPlus,
+  mention: AtSign,
+  event_invite: Mail,
 };
 
 export default function NotificationBell() {
@@ -83,7 +106,13 @@ export default function NotificationBell() {
     <Popover
       className="w-[22rem] max-w-[calc(100vw-1.5rem)]"
       trigger={({ toggle }) => (
-        <Button variant="ghost" size="icon" onClick={toggle} aria-label={`Notifications${unread ? `, ${unread} unread` : ''}`} className="relative">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={toggle}
+          aria-label={`Notifications${unread ? `, ${unread} unread` : ''}`}
+          className="relative"
+        >
           <Bell />
           <AnimatePresence>
             {unread > 0 && (
@@ -91,7 +120,7 @@ export default function NotificationBell() {
                 initial={{ scale: 0 }}
                 animate={{ scale: 1 }}
                 exit={{ scale: 0 }}
-                className="absolute right-1.5 top-1.5 flex min-w-4 items-center justify-center rounded-full bg-pink px-1 text-[10px] font-bold leading-4 text-white ring-2 ring-background"
+                className="absolute right-1.5 top-1.5 flex min-w-4 items-center justify-center rounded-full bg-pink px-1 text-[10px] font-bold leading-4 text-[#09090d] ring-2 ring-background"
               >
                 {unread > 9 ? '9+' : unread}
               </motion.span>
@@ -105,7 +134,10 @@ export default function NotificationBell() {
           <div className="flex items-center justify-between border-b border-border px-4 py-3">
             <p className="font-display text-lg font-extrabold">Notifications</p>
             {unread > 0 && (
-              <button onClick={markAllRead} className="flex items-center gap-1 text-xs font-medium text-primary hover:text-primary-hover">
+              <button
+                onClick={markAllRead}
+                className="flex items-center gap-1 text-xs font-medium text-primary hover:text-primary-hover"
+              >
                 <CheckCheck className="size-3.5" /> Mark all read
               </button>
             )}
@@ -118,10 +150,15 @@ export default function NotificationBell() {
               </li>
             )}
             {items.map((n) => {
-              const Icon = ICONS[n.type] ?? Bell;
+              const Icon = NOTIFICATION_ICONS[n.type] ?? Bell;
               const content = (
                 <div className="flex gap-3">
-                  <span className={cn('mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-full', n.readAt ? 'bg-surface-muted text-muted' : 'bg-primary-soft text-primary-soft-foreground')}>
+                  <span
+                    className={cn(
+                      'mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-full',
+                      n.readAt ? 'bg-surface-muted text-muted' : 'bg-primary-soft text-primary-soft-foreground'
+                    )}
+                  >
                     <Icon className="size-4" />
                   </span>
                   <div className="min-w-0 flex-1">
@@ -136,7 +173,14 @@ export default function NotificationBell() {
               return (
                 <li key={n.id}>
                   {n.event ? (
-                    <Link href={`/events/${n.event}`} onClick={() => { markRead(n); close(); }} className={className}>
+                    <Link
+                      href={`/events/${n.event}`}
+                      onClick={() => {
+                        markRead(n);
+                        close();
+                      }}
+                      className={className}
+                    >
                       {content}
                     </Link>
                   ) : (
@@ -148,6 +192,13 @@ export default function NotificationBell() {
               );
             })}
           </ul>
+          <Link
+            href="/notifications"
+            onClick={close}
+            className="block border-t border-border px-4 py-3 text-center text-sm font-medium text-primary hover:text-primary-hover"
+          >
+            All notifications and email settings
+          </Link>
         </div>
       )}
     </Popover>

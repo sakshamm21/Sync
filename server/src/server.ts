@@ -25,14 +25,12 @@ export async function start(): Promise<void> {
 
   const httpServer = http.createServer(createApp());
   const io = createSocketServer(httpServer);
-    // On a long-running host these timers do the work; on serverless the same
-    // functions run from the cron endpoints in modules/jobs.
-    const stopJobs: Array<() => void> = env.enableJobs
-      ? [startEventReminders(), startOutboxDrainer(), startMaintenanceJobs()]
-      : [];
-    const stopAllJobs = () => {
-      for (const stop of stopJobs) stop();
-    };
+  // On a long-running host these timers do the work; on serverless the same
+  // functions run from the cron endpoints in modules/jobs.
+  const stopJobs: Array<() => void> = env.enableJobs ? [startEventReminders(), startOutboxDrainer(), startMaintenanceJobs()] : [];
+  const stopAllJobs = () => {
+    for (const stop of stopJobs) stop();
+  };
 
   httpServer.listen(env.port, () => {
     logger.info(`Sync API listening on http://localhost:${env.port}`);
@@ -40,7 +38,7 @@ export async function start(): Promise<void> {
 
   const shutdown = (signal: NodeJS.Signals) => {
     logger.info({ signal }, 'Shutting down');
-      stopAllJobs();
+    stopAllJobs();
     void io.close();
     httpServer.close(async () => {
       await disconnectDatabase();

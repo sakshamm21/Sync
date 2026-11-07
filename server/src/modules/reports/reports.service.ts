@@ -9,6 +9,7 @@ import { cancelEvent } from '../events/events.service';
 import { paginationMeta, type Page } from '../../lib/schemas';
 import { badRequest, notFound } from '../../lib/errors';
 import { findViewableEvent } from '../events/events.policy';
+import { audit } from '../../lib/audit';
 import { REPORT_STATUS, EVENT_STATUS, NOTIFICATION_TYPES, type ReportReason, type ReportStatus } from '../../constants';
 
 /** Files or updates a member's report on an event. */
@@ -71,7 +72,11 @@ export async function listReports({ status, page, limit }: Page & { status?: Rep
  * since that is the action a report almost always ends in. Attendees are told
  * as for any cancellation, and the organiser is told why.
  */
-export async function resolve(admin: UserDocument, id: string, { status, reason = '' }: { status: ReportStatus; reason?: string }) {
+export async function resolve(
+  admin: UserDocument,
+  id: string,
+  { status, reason = '' }: { status: ReportStatus; reason?: string }
+) {
   const report = await Report.findById(id);
   if (!report) throw notFound('Report not found');
 
@@ -79,11 +84,18 @@ export async function resolve(admin: UserDocument, id: string, { status, reason 
   report.reviewedBy = admin._id;
   report.reviewedAt = new Date();
   await report.save();
+  if (status !== REPORT_STATUS.REVIEWED) {
+    await audit(admin, 'report.dismissed', 'Dismissed a report', { kind: 'report', id: report._id });
+  }
 
   if (status === REPORT_STATUS.REVIEWED && report.event) {
     const event = await Event.findById(report.event);
     if (event && event.status === EVENT_STATUS.PUBLISHED) {
       await cancelEvent(event, { reason, fallback: 'This event has been cancelled by the Sync team.' });
+      await audit(admin, 'event.taken_down', `Took down "${event.title}" after a report${reason ? `: ${reason}` : ''}`, {
+        kind: 'event',
+        id: event._id,
+      });
       await notifications.notify(
         event.organizers?.length ? event.organizers : [event.owner],
         {

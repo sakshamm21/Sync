@@ -17,7 +17,7 @@
   --border-strong: #cbc0ab;
   --foreground: #0b0b10;
   --muted: #5d5866;
-  --subtle: #8b8693;
+  --subtle: #696472;
 
   --primary: #6a3dff;
   --primary-hover: #5a2cf0;
@@ -34,7 +34,7 @@
   --success-soft: rgb(14 159 95 / 0.12);
   --warning: #c27800;
   --warning-soft: rgb(255 176 32 / 0.18);
-  --danger: #e5244a;
+  --danger: #c81e3e;
   --danger-soft: rgb(229 36 74 / 0.1);
 
   --ring: rgb(106 61 255 / 0.4);
@@ -51,7 +51,7 @@
   --border-strong: #34343f;
   --foreground: #f5f2ea;
   --muted: #a4a1ad;
-  --subtle: #6d6a78;
+  --subtle: #8d8a98;
 
   --primary: #d4ff3a;
   --primary-hover: #e3ff78;
@@ -118,12 +118,21 @@
   --animate-spin-slow: spin 14s linear infinite;
 
   @keyframes marquee {
-    from { transform: translateX(0); }
-    to { transform: translateX(-50%); }
+    from {
+      transform: translateX(0);
+    }
+    to {
+      transform: translateX(-50%);
+    }
   }
   @keyframes float {
-    0%, 100% { transform: translateY(0) rotate(var(--r, 0deg)); }
-    50% { transform: translateY(-10px) rotate(var(--r, 0deg)); }
+    0%,
+    100% {
+      transform: translateY(0) rotate(var(--r, 0deg));
+    }
+    50% {
+      transform: translateY(-10px) rotate(var(--r, 0deg));
+    }
   }
 }
 
@@ -138,7 +147,9 @@
     @apply bg-background text-foreground font-sans antialiased;
     font-feature-settings: 'ss01', 'cv11';
   }
-  h1, h2, h3 {
+  h1,
+  h2,
+  h3 {
     @apply font-display tracking-tight;
     font-variation-settings: 'opsz' 96;
   }
@@ -177,21 +188,28 @@ body::after {
 
 /* Squashed / stretched display type via Bricolage's width axis. */
 @utility font-condensed {
-  font-variation-settings: 'wdth' 75, 'opsz' 96;
+  font-variation-settings:
+    'wdth' 75,
+    'opsz' 96;
 }
 
 /* Ticket stubs: half-circle bites where the cover meets the stub. */
 @utility ticket-top {
-  mask-image: radial-gradient(circle at 0 100%, transparent 11px, #000 11.5px), radial-gradient(circle at 100% 100%, transparent 11px, #000 11.5px);
+  mask-image:
+    radial-gradient(circle at 0 100%, transparent 11px, #000 11.5px),
+    radial-gradient(circle at 100% 100%, transparent 11px, #000 11.5px);
   mask-composite: intersect;
 }
 @utility ticket-bottom {
-  mask-image: radial-gradient(circle at 0 0, transparent 11px, #000 11.5px), radial-gradient(circle at 100% 0, transparent 11px, #000 11.5px);
+  mask-image:
+    radial-gradient(circle at 0 0, transparent 11px, #000 11.5px),
+    radial-gradient(circle at 100% 0, transparent 11px, #000 11.5px);
   mask-composite: intersect;
 }
 
 /* OpenStreetMap tiles are light-only; invert them for the dark theme. */
-.dark .map-frame {
+.dark .map-frame,
+.dark .leaflet-tile-pane {
   filter: invert(0.92) hue-rotate(180deg) saturate(0.7) brightness(0.95) contrast(0.9);
 }
 
@@ -265,7 +283,13 @@ body::after {
   padding: 0.2rem 0.45rem;
 }
 .calendar-theme .fc .fc-day-other .fc-daygrid-day-number {
-  opacity: 0.35;
+  /* Days from the next or previous month: quieter, but still readable. */
+  color: var(--subtle);
+  font-weight: 500;
+}
+/* FullCalendar fades the whole cell top to 30%, too faint to read. */
+.calendar-theme .fc .fc-day-other .fc-daygrid-day-top {
+  opacity: 1;
 }
 .calendar-theme .fc .fc-daygrid-day {
   cursor: pointer;
