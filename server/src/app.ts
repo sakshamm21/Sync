@@ -22,6 +22,7 @@ import staffRoutes from './modules/events/staff.routes';
 import reportsRoutes from './modules/reports/reports.routes';
 import clubsRoutes from './modules/clubs/clubs.routes';
 import venuesRoutes from './modules/venues/venues.routes';
+import opsRoutes from './modules/ops/ops.routes';
 import teamsRoutes from './modules/teams/teams.routes';
 import friendsRoutes from './modules/friends/friends.routes';
 import uploadsRoutes from './modules/uploads/uploads.routes';
@@ -90,6 +91,7 @@ export function createApp(): Express {
   app.use('/api/events', eventsRoutes);
   app.use('/api/clubs', clubsRoutes);
   app.use('/api/venues', venuesRoutes);
+  app.use('/api/ops', opsRoutes);
   app.use('/api/friends', friendsRoutes);
   app.use('/api/uploads', uploadsRoutes);
   app.use('/api/event-staff', staffRoutes);
