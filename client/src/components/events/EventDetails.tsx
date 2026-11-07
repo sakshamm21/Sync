@@ -458,7 +458,10 @@ export default function EventDetails({
                   {event.viewer.registration === 'waitlisted' && (
                     <p className="flex gap-2 rounded-2xl bg-warning-soft p-3 text-sm text-warning">
                       <Hourglass className="mt-0.5 size-4 shrink-0" />
-                      You&apos;re on the waitlist. If a spot opens, you&apos;re in automatically.
+                      {event.viewer.waitlistPosition
+                        ? `You're #${event.viewer.waitlistPosition} on the waitlist.`
+                        : "You're on the waitlist."}{' '}
+                      If a spot opens, you&apos;re in automatically.
                     </p>
                   )}
                   <RsvpButton event={event} onChange={setEvent} size="xl" className="w-full" />

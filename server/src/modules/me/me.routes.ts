@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router, type Request } from 'express';
 import { authenticate, currentUser } from '../../middleware/auth';
 import validate from '../../middleware/validate';
 import { z, password, optionalUrl, queryBoolean } from '../../lib/schemas';
@@ -59,6 +59,21 @@ router.post('/sign-out-everywhere', async (req, res) => {
   user.sessionsRevokedAt = new Date();
   await user.save();
   res.json({ data: { ok: true } });
+});
+
+/** The secret calendar subscription URL ("Subscribe in Google/Apple/Outlook Calendar"). */
+const feedUrls = (req: Request, token: string) => {
+  const url = `${req.protocol}://${req.get('host')}/api/calendar/${token}.ics`;
+  return { url, webcalUrl: url.replace(/^https?:/, 'webcal:') };
+};
+
+router.get('/calendar-feed', async (req, res) => {
+  res.json({ data: feedUrls(req, await events.calendarTokenFor(currentUser(req))) });
+});
+
+/** Replaces the secret, so an old shared link stops working. */
+router.post('/calendar-feed/reset', async (req, res) => {
+  res.json({ data: feedUrls(req, await events.calendarTokenFor(currentUser(req), { reset: true })) });
 });
 
 router.get(

@@ -20,6 +20,7 @@ import adminRoutes from './modules/admin/admin.routes';
 import assistantRoutes from './modules/assistant/assistant.routes';
 import staffRoutes from './modules/events/staff.routes';
 import reportsRoutes from './modules/reports/reports.routes';
+import { calendarFeed } from './modules/events/events.service';
 
 export function createApp(): Express {
   const app = express();
@@ -61,6 +62,16 @@ export function createApp(): Express {
   app.use('/api', apiLimiter);
   app.use('/api/auth', authRoutes);
   app.use('/api/me', meRoutes);
+  // Calendar apps fetch the subscription with only the secret in the URL.
+  app.get('/api/calendar/:file', async (req, res) => {
+    const token = req.params.file.replace(/\.ics$/, '');
+    const content = /^[\w-]{20,64}$/.test(token) ? await calendarFeed(token) : null;
+    if (!content) {
+      res.status(404).json({ error: { code: 'NOT_FOUND', message: 'This calendar link is no longer valid.' } });
+      return;
+    }
+    res.set('Cache-Control', 'private, max-age=300').type('text/calendar').send(content);
+  });
   app.use('/api/events', eventsRoutes);
   app.use('/api/event-staff', staffRoutes);
   app.use('/api/reports', reportsRoutes);

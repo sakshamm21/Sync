@@ -83,6 +83,8 @@ export interface EventViewer {
   canChat: boolean;
   staffRole: StaffRole | null;
   registration: RegistrationStatus | null;
+  /** 1 = next in line; only present on a single event you're waitlisted for. */
+  waitlistPosition?: number;
 }
 
 export interface SyncEvent {

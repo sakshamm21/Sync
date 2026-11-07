@@ -11,6 +11,7 @@ import { errorMessage, eventsApi, type SyncEvent } from '@/lib/api';
 import { Button, ButtonLink } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/overlay';
 import { TicketQr } from '@/components/events/QrTicket';
+import { googleCalendarUrl } from '@/lib/calendarLinks';
 
 interface RsvpButtonProps {
   event: SyncEvent;
@@ -159,11 +160,27 @@ export default function RsvpButton({ event, onChange, size = 'sm', className }: 
               </div>
             )}
             {registration === 'waitlisted' && (
-              <p className="text-sm text-muted">If a spot opens you&apos;ll be moved in automatically and notified.</p>
+              <p className="text-sm text-muted">
+                {event.viewer.waitlistPosition ? (
+                  <strong className="text-foreground">You&apos;re #{event.viewer.waitlistPosition} in line. </strong>
+                ) : null}
+                If a spot opens you&apos;ll be moved in automatically and notified.
+              </p>
             )}
-            <Button variant="secondary" className="w-full" onClick={addToCalendar}>
-              <CalendarPlus /> Add to calendar
-            </Button>
+            <div className="grid grid-cols-2 gap-2">
+              <Button variant="secondary" className="w-full" onClick={addToCalendar}>
+                <CalendarPlus /> Download .ics
+              </Button>
+              <ButtonLink
+                variant="secondary"
+                className="w-full"
+                href={googleCalendarUrl(event, typeof window === 'undefined' ? '' : window.location.origin)}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <CalendarPlus /> Google Calendar
+              </ButtonLink>
+            </div>
             {confirmingLeave ? (
               <div className="space-y-3 rounded-2xl bg-danger-soft p-4">
                 <p className="text-sm text-danger">
