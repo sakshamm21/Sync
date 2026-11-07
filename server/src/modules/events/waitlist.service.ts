@@ -47,30 +47,18 @@ export async function clashesWith(user: UserDocument, event: EventDocument): Pro
   }));
 }
 
-/**
- * Moves people off the waitlist, first come first served, while seats are free.
- * Returns the users who were promoted so the caller can tell them.
- */
-export async function fillFromWaitlist(event: EventDocument): Promise<Types.ObjectId[]> {
-  if (!event.isOpenForRegistration()) return [];
-  const promoted: Types.ObjectId[] = [];
+/** Moves the longest-waiting person to `going`, or returns null if nobody is waiting. */
+async function promoteNext(event: EventDocument): Promise<Types.ObjectId | null> {
+  const next = await Registration.findOneAndUpdate(
+    { event: event._id, status: REGISTRATION_STATUS.WAITLISTED },
+    { $set: { status: REGISTRATION_STATUS.GOING } },
+    { sort: { createdAt: 1, _id: 1 }, new: true }
+  );
+  return next ? next.user : null;
+}
 
-  while (await Registration.exists({ event: event._id, status: REGISTRATION_STATUS.WAITLISTED })) {
-    if (!(await claimSeat(event._id))) break;
-    const next = await Registration.findOneAndUpdate(
-      { event: event._id, status: REGISTRATION_STATUS.WAITLISTED },
-      { $set: { status: REGISTRATION_STATUS.GOING } },
-      { sort: { createdAt: 1 }, new: true }
-    );
-    if (!next) {
-      await releaseSeat(event._id);
-      break;
-    }
-    promoted.push(next.user);
-  }
-
-  if (!promoted.length) return promoted;
-
+async function tellPromoted(event: EventDocument, promoted: Types.ObjectId[]) {
+  if (!promoted.length) return;
   await notifications.notify(
     promoted,
     {
@@ -81,7 +69,51 @@ export async function fillFromWaitlist(event: EventDocument): Promise<Types.Obje
     },
     { email: true }
   );
+}
+
+/**
+ * A confirmed attendee has left. Their seat goes straight to the first person
+ * on the waitlist, so the seat is never "free" in between and a brand-new RSVP
+ * can't take it first. Only if nobody is waiting does the seat become free.
+ *
+ * This runs on the request path (not in the background) because on serverless
+ * the function may be frozen as soon as the response is sent.
+ */
+export async function handOverSeat(event: EventDocument): Promise<Types.ObjectId | null> {
+  const promoted = event.isOpenForRegistration() ? await promoteNext(event) : null;
+  if (!promoted) {
+    await releaseSeat(event._id);
+    return null;
+  }
+  await tellPromoted(event, [promoted]);
   return promoted;
 }
+
+/**
+ * Moves people off the waitlist, first come first served, while seats are free.
+ * Used when capacity grows and by the maintenance job after a recount.
+ * Returns the users who were promoted.
+ */
+export async function fillFromWaitlist(event: EventDocument): Promise<Types.ObjectId[]> {
+  if (!event.isOpenForRegistration()) return [];
+  const promoted: Types.ObjectId[] = [];
+
+  while (await Registration.exists({ event: event._id, status: REGISTRATION_STATUS.WAITLISTED })) {
+    if (!(await claimSeat(event._id))) break;
+    const next = await promoteNext(event);
+    if (!next) {
+      await releaseSeat(event._id);
+      break;
+    }
+    promoted.push(next);
+  }
+
+  await tellPromoted(event, promoted);
+  return promoted;
+}
+
+/** True while anyone is waiting, in which case a new RSVP must join the queue too. */
+export const hasWaitlist = (eventId: Types.ObjectId) =>
+  Registration.exists({ event: eventId, status: REGISTRATION_STATUS.WAITLISTED }).then(Boolean);
 
 export type { RegistrationStatus };
