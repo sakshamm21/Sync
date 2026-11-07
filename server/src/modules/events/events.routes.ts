@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { authenticate, currentUser, optionalAuth } from '../../middleware/auth';
 import validate from '../../middleware/validate';
-import { z, idParams } from '../../lib/schemas';
+import { z, idParams, objectId } from '../../lib/schemas';
 import { REGISTRATION_STATUS, MAX_RATING } from '../../constants';
 import * as schemas from './events.schemas';
 import * as events from './events.service';
@@ -125,9 +125,11 @@ router.post(
 
 // --- Discussion ------------------------------------------------------------
 
+// A message id, or a timestamp from clients that predate id cursors.
+const messageCursor = z.union([objectId, z.coerce.date()]);
 const messagesQuery = z.object({
-  before: z.coerce.date().optional(),
-  after: z.coerce.date().optional(),
+  before: messageCursor.optional(),
+  after: messageCursor.optional(),
   limit: z.coerce.number().int().min(1).max(100).default(50),
 });
 

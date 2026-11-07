@@ -23,19 +23,20 @@ export default function ChatWorkspace() {
   const [showThread, setShowThread] = useState(false);
 
   useEffect(() => {
-    const isOrganizer = user?.role === 'organizer' || user?.role === 'admin';
-    Promise.all([
-      meApi.registrations(true),
-      isOrganizer ? organizerApi.overview().then((o) => o.events.filter((e) => !e.isPast)) : Promise.resolve([]),
-    ])
+    // Events you're going to, plus every event you help run (owners and
+    // invited team members alike), past ones included.
+    const runsEvents = user?.role === 'organizer' || user?.role === 'admin' || user?.isEventStaff;
+    Promise.all([meApi.registrations(false), runsEvents ? organizerApi.overview().then((o) => o.events) : Promise.resolve([])])
       .then(([joined, organized]) => {
         const all = [...organized, ...joined].filter((e) => e.viewer.canChat);
-        const unique = all.filter((e, i) => all.findIndex((x) => x.id === e.id) === i).sort((a, b) => a.startsAt.localeCompare(b.startsAt));
-        setChannels(unique);
-        setActiveId((current) => current ?? unique[0]?.id ?? null);
+        const unique = all.filter((e, i) => all.findIndex((x) => x.id === e.id) === i);
+        const upcoming = unique.filter((e) => !e.isPast).sort((a, b) => a.startsAt.localeCompare(b.startsAt));
+        const past = unique.filter((e) => e.isPast).sort((a, b) => b.startsAt.localeCompare(a.startsAt));
+        setChannels([...upcoming, ...past]);
+        setActiveId((current) => current ?? upcoming[0]?.id ?? past[0]?.id ?? null);
       })
       .catch(() => setChannels([]));
-  }, [user?.role, version]);
+  }, [user?.role, user?.isEventStaff, version]);
 
   if (channels === null) return <div className="h-[70vh] animate-pulse rounded-2xl bg-surface-muted" />;
 
@@ -57,8 +58,11 @@ export default function ChatWorkspace() {
       <nav className={cn('flex min-h-0 flex-col border-r border-border', showThread && 'hidden md:flex')}>
         <p className="border-b border-border px-5 py-4 font-display text-lg font-extrabold">Event chats</p>
         <ul className="flex-1 space-y-0.5 overflow-y-auto p-2">
-          {channels.map((channel) => (
+          {channels.map((channel, i) => (
             <li key={channel.id}>
+              {channel.isPast && !channels[i - 1]?.isPast && (
+                <p className="px-3 pb-1 pt-4 font-mono text-[10px] uppercase tracking-[0.16em] text-muted">Past</p>
+              )}
               <button
                 onClick={() => {
                   setActiveId(channel.id);

@@ -14,6 +14,7 @@ export function usePlaceSearch(query: string) {
     if (q.length < 3) {
       setResults([]);
       setError(null);
+      setSearching(false);
       return;
     }
     let cancelled = false;
@@ -32,6 +33,8 @@ export function usePlaceSearch(query: string) {
     return () => {
       cancelled = true;
       clearTimeout(timer);
+      // A cancelled request never reaches its finally, so don't stay "Searching…".
+      setSearching(false);
     };
   }, [query]);
 

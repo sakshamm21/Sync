@@ -1,11 +1,13 @@
 'use client';
 
-import { Suspense, useEffect, useState } from 'react';
+import { Suspense, useEffect, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Search } from 'lucide-react';
 import { useEventsSync } from '@/context/EventContext';
 import { errorMessage, eventsApi, type CategoryValue, type EventQuery, type SyncEvent } from '@/lib/api';
-import { CATEGORIES, CATEGORY_EMOJI, CATEGORY_LABELS } from '@/lib/format';
+import { CATEGORIES, CATEGORY_EMOJI, CATEGORY_LABELS, campusDateKey } from '@/lib/format';
+import { DATE_PRESET_LABELS, rangeFor, type DatePreset } from '@/lib/dateRanges';
+import { toast } from 'sonner';
 import EventCard, { EventCardSkeleton } from '@/components/events/EventCard';
 import { Button } from '@/components/ui/button';
 import { EmptyState, PageHeader } from '@/components/ui/surface';
@@ -15,6 +17,11 @@ import { Stagger, StaggerItem } from '@/components/ui/motion';
 
 const PAGE_SIZE = 12;
 type Sort = NonNullable<EventQuery['sort']>;
+const SORTS: Sort[] = ['soonest', 'popular', 'newest'];
+const PRESETS = Object.keys(DATE_PRESET_LABELS) as DatePreset[];
+/** A preset name or a picked day (YYYY-MM-DD). */
+type When = DatePreset | string;
+const isWhen = (v: string | null): v is When => !!v && (PRESETS.includes(v as DatePreset) || /^\d{4}-\d{2}-\d{2}$/.test(v));
 
 function useDebounced<T>(value: T, delay = 300) {
   const [debounced, setDebounced] = useState(value);
@@ -30,8 +37,17 @@ function Explore() {
   const router = useRouter();
   const { version } = useEventsSync();
   const [search, setSearch] = useState(params.get('q') ?? '');
-  const [category, setCategory] = useState<CategoryValue | null>((params.get('category') as CategoryValue) || null);
-  const [sort, setSort] = useState<Sort>('soonest');
+  const [category, setCategory] = useState<CategoryValue | null>(() => {
+    const c = params.get('category') as CategoryValue | null;
+    return c && CATEGORIES.includes(c) ? c : null;
+  });
+  const [sort, setSort] = useState<Sort>(() => {
+    const s = params.get('sort') as Sort | null;
+    return s && SORTS.includes(s) ? s : 'soonest';
+  });
+  const [when, setWhen] = useState<When | null>(() => (isWhen(params.get('when')) ? params.get('when') : null));
+  // Bumped whenever the filters change, so a slow "Load more" for old filters is dropped.
+  const generation = useRef(0);
   const [events, setEvents] = useState<SyncEvent[] | null>(null);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -40,14 +56,37 @@ function Explore() {
   const q = useDebounced(search.trim());
 
   // The top bar search navigates here with ?q=…
+  const urlQ = params.get('q') ?? '';
   useEffect(() => {
-    setSearch(params.get('q') ?? '');
-  }, [params]);
+    setSearch(urlQ);
+  }, [urlQ]);
+
+  // Keep every filter in the URL so a filtered view can be shared.
+  useEffect(() => {
+    const next = new URLSearchParams();
+    if (q) next.set('q', q);
+    if (category) next.set('category', category);
+    if (when) next.set('when', when);
+    if (sort !== 'soonest') next.set('sort', sort);
+    const qs = next.toString();
+    if (qs !== params.toString()) router.replace(qs ? `/explore?${qs}` : '/explore', { scroll: false });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [q, category, when, sort]);
+
+  const query = (pageNumber: number): EventQuery => ({
+    q: q || undefined,
+    category: category ?? undefined,
+    ...(when ? rangeFor(when) : {}),
+    sort,
+    page: pageNumber,
+    limit: PAGE_SIZE,
+  });
 
   useEffect(() => {
     let cancelled = false;
+    generation.current += 1;
     eventsApi
-      .list({ q: q || undefined, category: category ?? undefined, sort, page: 1, limit: PAGE_SIZE })
+      .list(query(1))
       .then(({ items, meta }) => {
         if (cancelled) return;
         setEvents(items);
@@ -59,19 +98,30 @@ function Explore() {
     return () => {
       cancelled = true;
     };
-  }, [q, category, sort, version]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [q, category, when, sort, version]);
 
   async function loadMore() {
+    const started = generation.current;
     setLoadingMore(true);
     try {
       const next = page + 1;
-      const { items } = await eventsApi.list({ q: q || undefined, category: category ?? undefined, sort, page: next, limit: PAGE_SIZE });
-      setEvents((prev) => [...(prev ?? []), ...items]);
+      const { items } = await eventsApi.list(query(next));
+      if (started !== generation.current) return; // The filters changed meanwhile.
+      // Skip anything already shown (a new event can shift the pages).
+      setEvents((prev) => {
+        const seen = new Set((prev ?? []).map((e) => e.id));
+        return [...(prev ?? []), ...items.filter((e) => !seen.has(e.id))];
+      });
       setPage(next);
+    } catch (err) {
+      toast.error(errorMessage(err));
     } finally {
       setLoadingMore(false);
     }
   }
+
+  const filtered = Boolean(q || category || when);
 
   const replace = (updated: SyncEvent) => setEvents((prev) => prev?.map((e) => (e.id === updated.id ? updated : e)) ?? prev);
 
@@ -107,6 +157,25 @@ function Explore() {
           onChange={setCategory}
           options={CATEGORIES.map((c) => ({ value: c, label: CATEGORY_LABELS[c], emoji: CATEGORY_EMOJI[c] }))}
         />
+        <div className="flex flex-wrap items-center gap-2">
+          <FilterChips<DatePreset>
+            value={when && PRESETS.includes(when as DatePreset) ? (when as DatePreset) : null}
+            onChange={(v) => setWhen(v)}
+            allLabel="Any day"
+            options={PRESETS.map((p) => ({ value: p, label: DATE_PRESET_LABELS[p] }))}
+          />
+          <label className="flex h-10 items-center gap-2 rounded-full border border-border bg-surface px-4 text-sm font-semibold text-muted">
+            <span>Pick a date</span>
+            <input
+              type="date"
+              value={when && !PRESETS.includes(when as DatePreset) ? when : ''}
+              min={campusDateKey(new Date())}
+              onChange={(e) => setWhen(e.target.value || null)}
+              aria-label="Pick a date"
+              className="bg-transparent text-foreground outline-none"
+            />
+          </label>
+        </div>
       </div>
 
       <FormAlert message={error} />
@@ -121,15 +190,15 @@ function Explore() {
         <EmptyState
           emoji="🔍"
           title="Nothing matches… yet"
-          description={q || category ? 'Try a different search or category.' : 'Nothing is scheduled yet. Check back soon.'}
+          description={filtered ? 'Try a different search, category or day.' : 'Nothing is scheduled yet. Check back soon.'}
           action={
-            (q || category) && (
+            filtered && (
               <Button
                 variant="secondary"
                 onClick={() => {
                   setSearch('');
                   setCategory(null);
-                  router.replace('/explore');
+                  setWhen(null);
                 }}
               >
                 Clear filters
@@ -142,7 +211,7 @@ function Explore() {
           <p className="mb-6 font-mono text-xs uppercase tracking-[0.16em] text-muted">
             {total} event{total === 1 ? '' : 's'}
           </p>
-          <Stagger key={`${q}-${category}-${sort}`} className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          <Stagger key={`${q}-${category}-${when}-${sort}`} className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {events.map((event) => (
               <StaggerItem key={event.id}>
                 <EventCard event={event} onChange={replace} />

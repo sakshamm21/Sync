@@ -25,7 +25,7 @@ function toCalendarEvent(event: SyncEvent): EventInput {
       ? 'cancelled'
       : event.visibility === 'private'
         ? 'personal'
-        : event.viewer.isOwner
+        : event.viewer.isOrganizer
           ? 'organizing'
           : event.viewer.registration === 'waitlisted'
             ? 'waitlisted'

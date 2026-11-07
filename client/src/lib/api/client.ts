@@ -76,7 +76,11 @@ http.interceptors.response.use(
     }
     const { status, data } = error.response;
     const body = data?.error;
-    if (status === 401 && body?.code === 'INVALID_TOKEN' && typeof window !== 'undefined') {
+    // An expired or revoked session, or an account suspended mid-session: sign out
+    // rather than leaving the user facing endless errors.
+    const sessionOver =
+      (status === 401 && body?.code === 'INVALID_TOKEN') || (status === 403 && body?.code === 'ACCOUNT_SUSPENDED');
+    if (sessionOver && typeof window !== 'undefined') {
       window.dispatchEvent(new Event(SESSION_EXPIRED_EVENT));
     }
     return Promise.reject(

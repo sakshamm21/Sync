@@ -11,6 +11,7 @@ import ForgotPassword from '@/components/auth/ForgotPassword';
 import { useAuth } from '@/context/AuthContext';
 import { APP_HOME } from '@/lib/format';
 import type { User } from '@/lib/api';
+import { safeNextPath } from '@/lib/redirect';
 
 type Step =
   | { name: 'login' }
@@ -24,9 +25,8 @@ function AuthenticationFlow() {
   const { user, status } = useAuth();
   const [step, setStep] = useState<Step>(params.get('mode') === 'register' ? { name: 'register' } : { name: 'login' });
 
-  // Only follow same-site relative paths to avoid open redirects.
-  const next = params.get('next');
-  const destination = next && next.startsWith('/') && !next.startsWith('//') ? next : APP_HOME;
+  // Only same-site paths are followed, to avoid open redirects.
+  const destination = safeNextPath(params.get('next'), typeof window === 'undefined' ? 'http://localhost' : window.location.origin, APP_HOME);
 
   useEffect(() => {
     if (status === 'authenticated' && user && step.name !== 'verify') router.replace(destination);
