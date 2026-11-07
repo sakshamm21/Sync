@@ -35,6 +35,8 @@ export interface IEvent {
   // Registration (public events only). `capacity: null` means unlimited.
   capacity: number | null;
   attendeeCount: number;
+  /** People who bookmarked it as "Interested" (a cache of Interest rows). */
+  interestedCount: number;
   /** Sum and number of post-event ratings, kept in step with the Rating collection. */
   ratingSum: number;
   ratingCount: number;
@@ -89,6 +91,7 @@ const eventSchema = new Schema<IEvent, EventModel, EventMethods, {}, EventVirtua
 
     capacity: { type: Number, min: 1, default: null },
     attendeeCount: { type: Number, min: 0, default: 0 },
+    interestedCount: { type: Number, min: 0, default: 0 },
     ratingSum: { type: Number, min: 0, default: 0 },
     ratingCount: { type: Number, min: 0, default: 0 },
   },

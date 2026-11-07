@@ -2,7 +2,7 @@ import { Router, type Request } from 'express';
 import { authenticate, currentUser } from '../../middleware/auth';
 import validate from '../../middleware/validate';
 import { z, password, optionalUrl, queryBoolean } from '../../lib/schemas';
-import { CATEGORY_VALUES } from '../../constants';
+import { CATEGORY_VALUES, NOTIFICATION_TYPES, type NotificationType } from '../../constants';
 import * as service from './me.service';
 import { assertNotDemoAccount } from '../../demo/accounts';
 import * as events from '../events/events.service';
@@ -19,7 +19,12 @@ const profileBody = z
     bio: z.string().trim().max(500),
     avatarUrl: optionalUrl,
     interests: z.array(z.enum(CATEGORY_VALUES)).max(CATEGORY_VALUES.length),
-    preferences: z.object({ emailNotifications: z.boolean() }).partial(),
+    preferences: z
+      .object({
+        emailNotifications: z.boolean(),
+        mutedEmailTypes: z.array(z.enum(Object.values(NOTIFICATION_TYPES) as [NotificationType, ...NotificationType[]])).max(20),
+      })
+      .partial(),
   })
   .partial()
   .refine((body) => Object.keys(body).length > 0, 'Nothing to update');

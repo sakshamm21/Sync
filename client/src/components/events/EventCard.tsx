@@ -22,13 +22,20 @@ export function DateStamp({ iso, className }: { iso: string; className?: string 
 
 export function CapacityBar({ event }: { event: SyncEvent }) {
   if (event.capacity == null) {
-    return <span className="font-mono text-[11px] uppercase tracking-wider text-muted">🔥 {event.attendeeCount} going</span>;
+    return (
+      <span className="font-mono text-[11px] uppercase tracking-wider text-muted">
+        🔥 {event.attendeeCount} going{event.interestedCount ? ` · ${event.interestedCount} interested` : ''}
+      </span>
+    );
   }
   const ratio = Math.min(event.attendeeCount / event.capacity, 1);
   return (
     <div className="min-w-0 flex-1">
       <div className="flex justify-between font-mono text-[11px] uppercase tracking-wider text-muted">
-        <span>{event.spotsLeft === 0 ? 'Full' : `${event.spotsLeft} spots`}</span>
+        <span>
+          {event.spotsLeft === 0 ? 'Full' : `${event.spotsLeft} spots`}
+          {event.interestedCount ? ` · ${event.interestedCount} interested` : ''}
+        </span>
         <span className="tabular-nums">
           {event.attendeeCount}/{event.capacity}
         </span>

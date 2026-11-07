@@ -8,6 +8,7 @@ import * as events from './events.service';
 import * as registrations from './registrations.service';
 import * as ratings from './ratings.service';
 import * as checkin from './checkin.service';
+import * as interest from './interest.service';
 import * as chat from '../chat/chat.service';
 
 const router = Router();
@@ -45,6 +46,22 @@ router.get(
   validate({ params: idParams }, async (req, res) => {
     const { filename, content } = await events.toCalendarFile(req.user, req.params.id);
     res.type('text/calendar').attachment(filename).send(content);
+  })
+);
+
+/** Bookmark ("Interested") or un-bookmark an event. */
+router.put(
+  '/:id/interest',
+  authenticate,
+  validate({ params: idParams }, async (req, res) => {
+    res.json({ data: await interest.markInterested(currentUser(req), req.params.id, true) });
+  })
+);
+router.delete(
+  '/:id/interest',
+  authenticate,
+  validate({ params: idParams }, async (req, res) => {
+    res.json({ data: await interest.markInterested(currentUser(req), req.params.id, false) });
   })
 );
 

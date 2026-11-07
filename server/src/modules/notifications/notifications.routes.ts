@@ -3,11 +3,16 @@ import { authenticate, currentUser } from '../../middleware/auth';
 import validate from '../../middleware/validate';
 import { z, idParams, pagination, queryBoolean } from '../../lib/schemas';
 import * as service from './notifications.service';
+import { NOTIFICATION_TYPES, type NotificationType } from '../../constants';
 
 const router = Router();
 router.use(authenticate);
 
-const listQuery = z.object({ ...pagination, unreadOnly: queryBoolean.default(false) });
+const listQuery = z.object({
+  ...pagination,
+  unreadOnly: queryBoolean.default(false),
+  type: z.enum(Object.values(NOTIFICATION_TYPES) as [NotificationType, ...NotificationType[]]).optional(),
+});
 
 router.get(
   '/',

@@ -41,14 +41,19 @@ export async function notify(
   const users = await User.find({
     _id: { $in: recipients },
     'preferences.emailNotifications': true,
+    // Types the user chose to keep in the app only.
+    'preferences.mutedEmailTypes': { $ne: type },
     status: { $ne: 'suspended' },
   }).select('name email');
   const url = eventId ? `${env.clientUrl}/events/${eventId}` : env.clientUrl;
   await queueMail(...users.map((u) => ({ to: u.email, ...emails.notification({ name: u.name, title, body, url }) })));
 }
 
-export async function list(user: UserDocument, { unreadOnly, page, limit }: Page & { unreadOnly: boolean }) {
-  const filter = { user: user.id, ...(unreadOnly ? { readAt: null } : {}) };
+export async function list(
+  user: UserDocument,
+  { unreadOnly, type, page, limit }: Page & { unreadOnly: boolean; type?: NotificationType }
+) {
+  const filter = { user: user.id, ...(unreadOnly ? { readAt: null } : {}), ...(type ? { type } : {}) };
   const [items, total, unread] = await Promise.all([
     Notification.find(filter)
       .sort({ createdAt: -1 })

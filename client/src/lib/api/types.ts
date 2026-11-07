@@ -21,7 +21,8 @@ export interface User {
   avatarUrl: string;
   organization: string;
   interests: CategoryValue[];
-  preferences: { emailNotifications: boolean };
+  /** `mutedEmailTypes`: kinds of notification kept in the app and never emailed. */
+  preferences: { emailNotifications: boolean; mutedEmailTypes?: NotificationType[] };
   lastLoginAt?: string;
   /** On the team of an event someone else owns (only on the signed-in user). */
   isEventStaff?: boolean;
@@ -85,6 +86,8 @@ export interface EventViewer {
   registration: RegistrationStatus | null;
   /** 1 = next in line; only present on a single event you're waitlisted for. */
   waitlistPosition?: number;
+  /** Bookmarked as "Interested". */
+  interested?: boolean;
 }
 
 export interface SyncEvent {
@@ -103,6 +106,8 @@ export interface SyncEvent {
   owner: UserSummary;
   capacity: number | null;
   attendeeCount: number;
+  /** People who bookmarked it as "Interested". */
+  interestedCount?: number;
   spotsLeft: number | null;
   isPast: boolean;
   averageRating: number | null;

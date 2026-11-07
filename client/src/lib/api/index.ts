@@ -1,6 +1,7 @@
 import { saveBlob } from '../download';
 import { http } from './client';
 import type {
+  NotificationType,
   AppNotification,
   AttendeeList,
   CategoryValue,
@@ -85,7 +86,7 @@ export interface ProfileUpdate {
   bio?: string;
   avatarUrl?: string;
   interests?: CategoryValue[];
-  preferences?: { emailNotifications?: boolean };
+  preferences?: { emailNotifications?: boolean; mutedEmailTypes?: NotificationType[] };
 }
 
 export const meApi = {
@@ -125,6 +126,9 @@ export const eventsApi = {
   cancel: (id: string, reason = '') => data<SyncEvent>(http.post(`/events/${id}/cancel`, { reason })),
   remove: (id: string) => http.delete(`/events/${id}`).then(() => undefined),
   register: (id: string) => data<RegistrationResponse>(http.post(`/events/${id}/registration`)),
+  /** Bookmark ("Interested") or un-bookmark; takes no seat. */
+  setInterested: (id: string, interested: boolean) =>
+    data<SyncEvent>(interested ? http.put(`/events/${id}/interest`) : http.delete(`/events/${id}/interest`)),
   unregister: (id: string) => data<SyncEvent>(http.delete(`/events/${id}/registration`)),
   attendees: (id: string, status?: RegistrationStatus) =>
     data<AttendeeList>(http.get(`/events/${id}/attendees`, { params: { status } })),
@@ -181,7 +185,7 @@ export const notesApi = {
 // --- Notifications --------------------------------------------------------------
 
 export const notificationsApi = {
-  list: (query: { unreadOnly?: boolean; page?: number; limit?: number } = {}) =>
+  list: (query: { unreadOnly?: boolean; type?: NotificationType; page?: number; limit?: number } = {}) =>
     http
       .get<{ data: AppNotification[]; meta: PageMeta & { unread: number } }>('/notifications', { params: query })
       .then((r) => ({ items: r.data.data, meta: r.data.meta })),

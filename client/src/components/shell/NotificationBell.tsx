@@ -25,7 +25,7 @@ import { cn } from '@/lib/cn';
 
 const POLL_MS = 30_000;
 
-const ICONS: Record<NotificationType, React.ComponentType<{ className?: string }>> = {
+export const NOTIFICATION_ICONS: Record<NotificationType, React.ComponentType<{ className?: string }>> = {
   event_updated: RefreshCw,
   event_cancelled: CalendarX2,
   event_reminder: CalendarClock,
@@ -138,7 +138,7 @@ export default function NotificationBell() {
               </li>
             )}
             {items.map((n) => {
-              const Icon = ICONS[n.type] ?? Bell;
+              const Icon = NOTIFICATION_ICONS[n.type] ?? Bell;
               const content = (
                 <div className="flex gap-3">
                   <span
@@ -180,6 +180,13 @@ export default function NotificationBell() {
               );
             })}
           </ul>
+          <Link
+            href="/notifications"
+            onClick={close}
+            className="block border-t border-border px-4 py-3 text-center text-sm font-medium text-primary hover:text-primary-hover"
+          >
+            All notifications and email settings
+          </Link>
         </div>
       )}
     </Popover>

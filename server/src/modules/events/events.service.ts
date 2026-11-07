@@ -4,6 +4,7 @@ import {
   Event,
   User,
   Registration,
+  Interest,
   Message,
   Note,
   Notification,
@@ -397,6 +398,7 @@ export async function remove(user: UserDocument, id: string): Promise<void> {
     // Notifications stay in people's history but no longer link to a missing page.
     Notification.updateMany({ event: event._id }, { $set: { event: null } }),
     Registration.deleteMany({ event: event._id }),
+    Interest.deleteMany({ event: event._id }),
     Message.deleteMany({ event: event._id }),
     EventStaff.deleteMany({ event: event._id }),
     Report.deleteMany({ event: event._id }),
