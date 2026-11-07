@@ -28,6 +28,7 @@ export default function EventChat({ eventId, canAnnounce = false, className }: E
   const [loading, setLoading] = useState(true);
   const [text, setText] = useState('');
   const [announcement, setAnnouncement] = useState(false);
+  const [audience, setAudience] = useState<'all' | 'going' | 'waitlisted'>('all');
   const [sending, setSending] = useState(false);
   const [typing, setTyping] = useState<Record<string, string>>({});
   const feedRef = useRef<HTMLDivElement>(null);
@@ -127,7 +128,11 @@ export default function EventChat({ eventId, canAnnounce = false, className }: E
     if (!text.trim()) return;
     setSending(true);
     try {
-      const sent = await eventsApi.sendMessage(eventId, { text: text.trim(), announcement });
+      const sent = await eventsApi.sendMessage(eventId, {
+        text: text.trim(),
+        announcement,
+        ...(announcement ? { audience } : {}),
+      });
       appendMessages([sent]);
       setText('');
       setAnnouncement(false);
@@ -245,7 +250,22 @@ export default function EventChat({ eventId, canAnnounce = false, className }: E
               onChange={(e) => setAnnouncement(e.target.checked)}
               className="size-3.5 accent-[var(--primary)]"
             />
-            <Megaphone className="size-3.5" /> Send as an announcement (notifies every attendee)
+            <Megaphone className="size-3.5" /> Send as an announcement (notifies people by email and push)
+          </label>
+        )}
+        {canAnnounce && announcement && (
+          <label className="mb-2 flex w-fit items-center gap-2 text-xs text-muted">
+            To
+            <select
+              value={audience}
+              onChange={(e) => setAudience(e.target.value as typeof audience)}
+              aria-label="Who the announcement goes to"
+              className="rounded-lg border border-border bg-surface-muted px-2 py-1 text-xs text-foreground outline-none focus:border-primary"
+            >
+              <option value="all">Everyone registered</option>
+              <option value="going">Only people going</option>
+              <option value="waitlisted">Only the waitlist</option>
+            </select>
           </label>
         )}
         <div className="flex items-center gap-2">

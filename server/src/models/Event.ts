@@ -34,6 +34,9 @@ export interface IEvent {
   organizers: Types.ObjectId[];
   // Registration (public events only). `capacity: null` means unlimited.
   capacity: number | null;
+  /** Optional sign-up window. Waitlist promotion still runs outside it. */
+  registrationOpensAt: Date | null;
+  registrationClosesAt: Date | null;
   attendeeCount: number;
   /** People who bookmarked it as "Interested" (a cache of Interest rows). */
   interestedCount: number;
@@ -49,6 +52,8 @@ interface EventMethods {
   /** True for the creator and for anyone invited to help run the event. */
   isCoOrganizer(userId: unknown): boolean;
   isOpenForRegistration(): boolean;
+  /** Why a new RSVP can't be taken right now, or null if it can. */
+  registrationWindowProblem(now?: Date): { code: 'REGISTRATION_NOT_OPEN' | 'REGISTRATION_CLOSED'; at: Date } | null;
 }
 
 interface EventVirtuals {
@@ -90,6 +95,8 @@ const eventSchema = new Schema<IEvent, EventModel, EventMethods, {}, EventVirtua
     organizers: [{ type: Schema.Types.ObjectId, ref: 'User', index: true }],
 
     capacity: { type: Number, min: 1, default: null },
+    registrationOpensAt: { type: Date, default: null },
+    registrationClosesAt: { type: Date, default: null },
     attendeeCount: { type: Number, min: 0, default: 0 },
     interestedCount: { type: Number, min: 0, default: 0 },
     ratingSum: { type: Number, min: 0, default: 0 },
@@ -134,6 +141,14 @@ eventSchema.method('isCoOrganizer', function isCoOrganizer(userId: unknown) {
 
 eventSchema.method('isOpenForRegistration', function isOpenForRegistration() {
   return this.visibility === EVENT_VISIBILITY.PUBLIC && this.status === EVENT_STATUS.PUBLISHED && this.endsAt > new Date();
+});
+
+eventSchema.method('registrationWindowProblem', function registrationWindowProblem(now = new Date()) {
+  if (this.registrationOpensAt && now < this.registrationOpensAt)
+    return { code: 'REGISTRATION_NOT_OPEN', at: this.registrationOpensAt };
+  if (this.registrationClosesAt && now >= this.registrationClosesAt)
+    return { code: 'REGISTRATION_CLOSED', at: this.registrationClosesAt };
+  return null;
 });
 
 export const Event = model<IEvent, EventModel>('Event', eventSchema);

@@ -50,10 +50,12 @@ export async function listMessages(
   return { items: messages.reverse(), hasMore: messages.length === limit };
 }
 
+export type AnnouncementAudience = 'all' | 'going' | 'waitlisted';
+
 export async function postMessage(
   user: UserDocument,
   eventId: string,
-  { text, announcement }: { text: string; announcement: boolean }
+  { text, announcement, audience = 'all' }: { text: string; announcement: boolean; audience?: AnnouncementAudience }
 ) {
   const event = await findChatEvent(user, eventId);
   // Announcements notify and email everyone, so door staff may not send them.
@@ -67,7 +69,9 @@ export async function postMessage(
   emitToEvent(event._id, 'message:new', json);
 
   if (announcement) {
-    const attendees = await Registration.find({ event: event._id, user: { $ne: user._id } }).distinct('user');
+    // "Going only" for door times, "waitlist only" for "a few spots may open".
+    const status = audience === 'all' ? {} : { status: audience };
+    const attendees = await Registration.find({ event: event._id, user: { $ne: user._id }, ...status }).distinct('user');
     await notifications.notify(
       attendees,
       { type: NOTIFICATION_TYPES.ANNOUNCEMENT, title: `${event.title}: announcement`, body: text, eventId: event._id },

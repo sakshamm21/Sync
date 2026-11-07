@@ -159,7 +159,7 @@ export const eventsApi = {
     http
       .get<{ data: ChatMessage[]; meta: { hasMore: boolean } }>(`/events/${id}/messages`, { params })
       .then((r) => ({ items: r.data.data, hasMore: r.data.meta.hasMore })),
-  sendMessage: (id: string, body: { text: string; announcement?: boolean }) =>
+  sendMessage: (id: string, body: { text: string; announcement?: boolean; audience?: 'all' | 'going' | 'waitlisted' }) =>
     data<ChatMessage>(http.post(`/events/${id}/messages`, body)),
 
   /** Downloads the event as an .ics file ("Add to calendar"). */

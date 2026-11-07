@@ -72,6 +72,9 @@ interface FormState {
   tags: string;
   coverImageUrl: string;
   capacity: string;
+  /** Optional sign-up window, as campus wall-clock datetime-local values. */
+  registrationOpensAt: string;
+  registrationClosesAt: string;
   isPublic: boolean;
 }
 
@@ -108,6 +111,8 @@ function initialState(event: SyncEvent | undefined, canPublish: boolean, date?: 
       tags: event.tags.join(', '),
       coverImageUrl: event.coverImageUrl,
       capacity: event.capacity ? String(event.capacity) : '',
+      registrationOpensAt: event.registrationOpensAt ? toDateTimeInput(new Date(event.registrationOpensAt)) : '',
+      registrationClosesAt: event.registrationClosesAt ? toDateTimeInput(new Date(event.registrationClosesAt)) : '',
       isPublic: event.visibility === 'public',
     };
   }
@@ -126,6 +131,8 @@ function initialState(event: SyncEvent | undefined, canPublish: boolean, date?: 
     tags: '',
     coverImageUrl: '',
     capacity: '',
+    registrationOpensAt: '',
+    registrationClosesAt: '',
     isPublic: canPublish,
   };
 }
@@ -289,6 +296,8 @@ function EventForm({
     };
     if (form.isPublic) {
       body.capacity = form.capacity ? Number(form.capacity) : null;
+      body.registrationOpensAt = form.registrationOpensAt ? fromDateTimeInput(form.registrationOpensAt).toISOString() : null;
+      body.registrationClosesAt = form.registrationClosesAt ? fromDateTimeInput(form.registrationClosesAt).toISOString() : null;
       // Editing keeps the current status unless the user explicitly saves a draft or publishes one.
       if (!isEdit || isDraft) body.status = asDraft ? 'draft' : 'published';
     }
@@ -509,6 +518,32 @@ function EventForm({
                 placeholder="https://…"
                 value={form.coverImageUrl}
                 onChange={(e) => set('coverImageUrl', e.target.value)}
+              />
+            </Field>
+            <Field
+              label="Registration opens"
+              htmlFor="event-reg-opens"
+              hint="Optional. Leave empty to open now."
+              error={errors.registrationOpensAt}
+            >
+              <Input
+                id="event-reg-opens"
+                type="datetime-local"
+                value={form.registrationOpensAt}
+                onChange={(e) => set('registrationOpensAt', e.target.value)}
+              />
+            </Field>
+            <Field
+              label="Registration closes"
+              htmlFor="event-reg-closes"
+              hint="Optional. Leave empty to stay open until it starts."
+              error={errors.registrationClosesAt}
+            >
+              <Input
+                id="event-reg-closes"
+                type="datetime-local"
+                value={form.registrationClosesAt}
+                onChange={(e) => set('registrationClosesAt', e.target.value)}
               />
             </Field>
           </div>

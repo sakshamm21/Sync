@@ -12,6 +12,7 @@ import { Button, ButtonLink } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/overlay';
 import { TicketQr } from '@/components/events/QrTicket';
 import { SITE_URL, googleCalendarUrl } from '@/lib/calendarLinks';
+import { formatDay, formatTime } from '@/lib/format';
 
 interface RsvpButtonProps {
   event: SyncEvent;
@@ -209,6 +210,23 @@ export default function RsvpButton({ event, onChange, size = 'sm', className }: 
           </div>
         </Dialog>
       </div>
+    );
+  }
+
+  // Outside the organiser's sign-up window: say when, rather than failing on tap.
+  const now = Date.now();
+  if (event.registrationOpensAt && new Date(event.registrationOpensAt).getTime() > now) {
+    return (
+      <Button variant="secondary" size={size} disabled className={className}>
+        Opens {formatDay(event.registrationOpensAt)}, {formatTime(event.registrationOpensAt)}
+      </Button>
+    );
+  }
+  if (event.registrationClosesAt && new Date(event.registrationClosesAt).getTime() <= now) {
+    return (
+      <Button variant="secondary" size={size} disabled className={className}>
+        Registration closed
+      </Button>
     );
   }
 

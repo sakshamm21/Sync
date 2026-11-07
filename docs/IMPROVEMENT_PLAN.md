@@ -32,6 +32,43 @@ Severity labels:
 - **P1**: real users hit it, or data is wrong.
 - **P2**: an edge case, hardening, or polish.
 
+## Status (7 November 2026)
+
+**Merged into `master`:** PR 1 (demo mode, sakshamm21/Sync#2), PR 2 (permissions, #3), and the reset fix with the move to Vercel Schedules (#4).
+
+**Open as a stack of PRs, each based on the one before (merge in order):**
+
+| PR | Covers |
+|---|---|
+| #5 | B8, B23: freed seats go straight to the waitlist |
+| #6 | B6, B7, B12, B24, B32, E5: retries with backoff, mail sent straight away |
+| #7 | B1, B2, B3, B29, B37, B42: scannable tickets, the scanner, door mode |
+| #8 | B9, B13: private plans open; campus time everywhere |
+| #9 | B14, B15, B17, B20, B22, B25–B27, B38, B40, B41, B44: web app fixes |
+| #10 | B19, B28, B30, B31, B33–B36, B39, B45, E6: hardening |
+| #11 | E2, B43, E4 (request ids), E7 (headers), E8 (indexes), E9: tooling |
+| #12 | E1, E10: Playwright flows, a fake-camera scan, axe checks, and contrast fixes |
+| #13 | Now #3, #6 (position): calendar subscription, Google Calendar, waitlist position |
+| #14 | Now #9, #10 (duplicate), #12: link-preview images, WhatsApp, duplicate, campus-only sign-up |
+| #15 | Now #4, #8: Interested, notification centre with per-kind email |
+| #16 | Now #1: installable app and Web Push |
+| #17 | Now #2: Has spots / Online / Free food filters, club search |
+| #18 | Now #5, #7: club pages and Follow, onboarding |
+| #19 | Now #10, #11: sign-up windows, targeted announcements, preview as attendee, offline door scans |
+
+**Still open, and why:**
+
+- **Needs a decision:** Now #6, a claim window for waitlist offers (how long, and what happens to "take any seat automatically").
+- **Needs a service set up on the account:**
+  - Now #10 cover photo upload (Vercel Blob or Cloudinary);
+  - E4 Sentry (a DSN);
+  - push notifications need `VAPID_PUBLIC_KEY` and `VAPID_PRIVATE_KEY` on the API project;
+  - typo-tolerant search (an Atlas Search index);
+  - transactions (a replica set; Atlas has one, but the test database doesn't).
+- **Not started:**
+  - E3 (shared types package);
+  - everything under **Next** and **Later**.
+
 ---
 
 ## Phase 0: The live demo is empty (do this first)

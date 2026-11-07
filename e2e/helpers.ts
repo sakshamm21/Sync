@@ -4,12 +4,19 @@ export const API = 'http://localhost:4100';
 /** Every seeded account uses this password (TEST_ACCOUNTS.md). */
 export const PASSWORD = 'syncronify123';
 
+// One session per account for the whole run: signing in for every test would
+// trip the API's sign-in rate limit (30 per 15 minutes), as it should.
+const sessions = new Map<string, string>();
+
 export async function tokenFor(email: string): Promise<string> {
+  const cached = sessions.get(email);
+  if (cached) return cached;
   const api = await request.newContext({ baseURL: API });
   const res = await api.post('/api/auth/login', { data: { email, password: PASSWORD } });
   if (!res.ok()) throw new Error(`Sign-in failed for ${email}: ${res.status()}`);
   const token = (await res.json()).data.token as string;
   await api.dispose();
+  sessions.set(email, token);
   return token;
 }
 

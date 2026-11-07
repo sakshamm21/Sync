@@ -1,7 +1,7 @@
 // The flows the review found broken, exercised in a real browser
 // (docs/IMPROVEMENT_PLAN.md, E1). Each test names the bug it guards.
 import { expect, test } from '@playwright/test';
-import { API, PASSWORD, apiGet, signInAs, type Ev } from './helpers';
+import { API, PASSWORD, apiGet, signInAs, tokenFor, type Ev } from './helpers';
 
 test('a demo account can sign in through the form', async ({ page }) => {
   await page.goto('/authentication');
@@ -195,4 +195,32 @@ test('new members get an onboarding step that suggests clubs', async ({ page }) 
   await expect(page.getByRole('button', { name: 'Follow' }).first()).toBeVisible();
   await page.getByRole('button', { name: "Let's go" }).click();
   await expect(page).toHaveURL(/\/dashboard/);
+});
+
+test('an event with a future sign-up window says when registration opens', async ({ page }) => {
+  const organizer = await tokenFor('organizer@syncronify.dev');
+  const api = await page.request;
+  const start = new Date(Date.now() + 5 * 864e5).toISOString();
+  const end = new Date(Date.now() + 5 * 864e5 + 2 * 36e5).toISOString();
+  const opens = new Date(Date.now() + 2 * 864e5).toISOString();
+  const created = await api.post(`${API}/api/events`, {
+    headers: { Authorization: `Bearer ${organizer}` },
+    data: { title: 'Window Test', category: 'tech', startsAt: start, endsAt: end, registrationOpensAt: opens },
+  });
+  expect(created.ok()).toBe(true);
+  const { id } = (await created.json()).data;
+  await signInAs(page, 'tester1@syncronify.dev');
+  await page.goto(`/events/${id}`);
+  await expect(page.getByRole('button', { name: /^Opens / })).toBeDisabled();
+});
+
+test('organisers can preview their event as an attendee sees it', async ({ page }) => {
+  const token = await signInAs(page, 'organizer@syncronify.dev');
+  const overview = await apiGet<{ events: (Ev & { viewer: { canManage: boolean } })[] }>(token, '/api/organizer/overview');
+  const mine = overview.events.find((e) => e.status === 'published' && !e.isPast && e.viewer.canManage)!;
+  await page.goto(`/events/${mine.id}`);
+  await expect(page.getByRole('link', { name: 'Manage' })).toBeVisible();
+  await page.getByRole('button', { name: 'Preview as attendee' }).click();
+  await expect(page.getByRole('link', { name: 'Manage' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: /I'm in|Join waitlist/ }).first()).toBeVisible();
 });

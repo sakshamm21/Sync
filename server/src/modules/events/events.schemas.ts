@@ -22,7 +22,14 @@ const fields = {
   // Cancelling has its own endpoint so attendees are always notified.
   status: z.enum([EVENT_STATUS.DRAFT, EVENT_STATUS.PUBLISHED]),
   capacity: z.number().int().min(1).max(100_000).nullable(),
+  // Optional sign-up window; null means "from publishing" / "until the start".
+  registrationOpensAt: z.coerce.date().nullable(),
+  registrationClosesAt: z.coerce.date().nullable(),
 };
+
+const windowInOrder = (e: { registrationOpensAt?: Date | null; registrationClosesAt?: Date | null }) =>
+  !e.registrationOpensAt || !e.registrationClosesAt || e.registrationClosesAt > e.registrationOpensAt;
+const windowMessage = { message: 'Registration must close after it opens', path: ['registrationClosesAt'] };
 
 const endsAfterStart = (e: { startsAt?: Date; endsAt?: Date }) => !e.startsAt || !e.endsAt || e.endsAt > e.startsAt;
 const endsAfterStartMessage = { message: 'The event must end after it starts', path: ['endsAt'] };
@@ -41,15 +48,19 @@ export const create = z
     visibility: fields.visibility.optional(),
     status: fields.status.optional(),
     capacity: fields.capacity.optional(),
+    registrationOpensAt: fields.registrationOpensAt.optional(),
+    registrationClosesAt: fields.registrationClosesAt.optional(),
   })
-  .refine(endsAfterStart, endsAfterStartMessage);
+  .refine(endsAfterStart, endsAfterStartMessage)
+  .refine(windowInOrder, windowMessage);
 export type CreateEventInput = z.output<typeof create>;
 
 export const update = z
   .object(fields)
   .partial()
   .refine((body) => Object.keys(body).length > 0, 'Nothing to update')
-  .refine(endsAfterStart, endsAfterStartMessage);
+  .refine(endsAfterStart, endsAfterStartMessage)
+  .refine(windowInOrder, windowMessage);
 export type UpdateEventInput = z.output<typeof update>;
 
 export const list = z.object({
