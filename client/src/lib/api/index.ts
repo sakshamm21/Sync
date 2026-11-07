@@ -52,6 +52,8 @@ export interface ServerMeta {
   assistant: boolean;
   /** A public demo with shared accounts that resets nightly (DEMO_MODE). */
   demo?: boolean;
+  /** Only these email domains may sign up; empty means anyone. */
+  allowedEmailDomains?: string[];
 }
 
 export const metaApi = {

@@ -1,8 +1,8 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { ApiError, errorMessage, type RegisterResult } from '@/lib/api';
+import { ApiError, errorMessage, metaApi, type RegisterResult } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Field, FormAlert, Input } from '@/components/ui/field';
 import AuthCard, { linkClass } from './AuthCard';
@@ -33,6 +33,15 @@ export default function RegisterForm({ onSwitchToLogin, onRegistered }: Register
   const [fieldErrors, setFieldErrors] = useState<Partial<Record<FieldName, string>>>({});
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [domains, setDomains] = useState<string[]>([]);
+
+  // Campus-only deployments say up front which email to use.
+  useEffect(() => {
+    metaApi
+      .get()
+      .then((meta) => setDomains(meta.allowedEmailDomains ?? []))
+      .catch(() => {});
+  }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -74,7 +83,13 @@ export default function RegisterForm({ onSwitchToLogin, onRegistered }: Register
     >
       <form onSubmit={handleSubmit} className="space-y-4" noValidate>
         {FIELDS.map((f) => (
-          <Field key={f.key} label={f.label} htmlFor={f.key} error={fieldErrors[f.key]} hint={f.hint}>
+          <Field
+            key={f.key}
+            label={f.label}
+            htmlFor={f.key}
+            error={fieldErrors[f.key]}
+            hint={f.key === 'email' && domains.length ? `Use your ${domains.map((d) => `@${d}`).join(' or ')} email.` : f.hint}
+          >
             <Input
               id={f.key}
               type={f.type}

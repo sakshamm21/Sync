@@ -1,5 +1,8 @@
 import type { SyncEvent } from './api/types.ts';
 
+/** The web app's public address, the same on the server and in the browser (so links don't cause hydration mismatches). */
+export const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000').replace(/\/$/, '');
+
 const stamp = (iso: string) =>
   new Date(iso)
     .toISOString()
@@ -20,4 +23,9 @@ export function googleCalendarUrl(
     location,
   });
   return `https://calendar.google.com/calendar/render?${params}`;
+}
+
+/** A WhatsApp message with the event's name, campus time and link, ready to send to a group. */
+export function whatsappShareUrl(event: Pick<SyncEvent, 'id' | 'title'>, when: string, siteUrl: string): string {
+  return `https://wa.me/?text=${encodeURIComponent(`${event.title} · ${when}\nYou in? ${siteUrl}/events/${event.id}`)}`;
 }

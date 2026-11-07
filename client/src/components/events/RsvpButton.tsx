@@ -11,7 +11,7 @@ import { errorMessage, eventsApi, type SyncEvent } from '@/lib/api';
 import { Button, ButtonLink } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/overlay';
 import { TicketQr } from '@/components/events/QrTicket';
-import { googleCalendarUrl } from '@/lib/calendarLinks';
+import { SITE_URL, googleCalendarUrl } from '@/lib/calendarLinks';
 
 interface RsvpButtonProps {
   event: SyncEvent;
@@ -174,7 +174,7 @@ export default function RsvpButton({ event, onChange, size = 'sm', className }: 
               <ButtonLink
                 variant="secondary"
                 className="w-full"
-                href={googleCalendarUrl(event, typeof window === 'undefined' ? '' : window.location.origin)}
+                href={googleCalendarUrl(event, SITE_URL)}
                 target="_blank"
                 rel="noopener noreferrer"
               >

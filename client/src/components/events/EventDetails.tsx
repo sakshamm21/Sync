@@ -9,7 +9,19 @@ import React, { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
-import { ArrowLeft, CalendarPlus, Flag, Hourglass, Link2, MapPin, Navigation, Share2, Star, Users } from 'lucide-react';
+import {
+  ArrowLeft,
+  CalendarPlus,
+  Flag,
+  Hourglass,
+  Link2,
+  MapPin,
+  MessageCircle,
+  Navigation,
+  Share2,
+  Star,
+  Users,
+} from 'lucide-react';
 import RsvpButton from './RsvpButton';
 import EventCover, { statusOf } from './EventCover';
 import { CapacityBar, DateStamp } from './EventCard';
@@ -17,6 +29,7 @@ import EventChat from '@/components/chat/EventChat';
 import { useAuth } from '@/context/AuthContext';
 import { errorMessage, eventsApi, type EventRating, type ReportReason, type SyncEvent } from '@/lib/api';
 import { CATEGORY_EMOJI, formatEventWhen, formatVenue } from '@/lib/format';
+import { SITE_URL, whatsappShareUrl } from '@/lib/calendarLinks';
 import { Button, ButtonLink } from '@/components/ui/button';
 import { Avatar, Card, EmptyState, Kicker, Sticker } from '@/components/ui/surface';
 import { FadeIn } from '@/components/ui/motion';
@@ -472,6 +485,11 @@ export default function EventDetails({
                     <RoundAction label="Share" onClick={event.visibility === 'public' ? share : undefined}>
                       <Share2 />
                     </RoundAction>
+                    {event.visibility === 'public' && (
+                      <RoundAction label="WhatsApp" href={whatsappShareUrl(event, formatEventWhen(event), SITE_URL)}>
+                        <MessageCircle />
+                      </RoundAction>
+                    )}
                     <RoundAction label="Directions" href={directionsUrl(event)} onClick={undefined}>
                       <Navigation />
                     </RoundAction>

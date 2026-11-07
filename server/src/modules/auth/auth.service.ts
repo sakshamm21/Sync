@@ -69,7 +69,20 @@ async function sendVerificationCode(user: UserDocument) {
   return { delivered, code };
 }
 
+/** True when sign-up is open to this address (see ALLOWED_EMAIL_DOMAINS). */
+export function emailDomainAllowed(email: string, allowed = env.allowedEmailDomains): boolean {
+  if (!allowed.length) return true;
+  const domain = email.split('@').pop()?.toLowerCase() ?? '';
+  return allowed.some((d) => domain === d || domain.endsWith(`.${d}`));
+}
+
 export async function register({ name, email, password }: { name: string; email: string; password: string }) {
+  if (!emailDomainAllowed(email)) {
+    throw forbidden(
+      `Sign-up is for ${env.allowedEmailDomains.map((d) => `@${d}`).join(' or ')} addresses. Use your college email.`,
+      'EMAIL_DOMAIN_NOT_ALLOWED'
+    );
+  }
   let user = await User.findOne({ email }).select('+emailVerification');
 
   if (user?.emailVerified) {
