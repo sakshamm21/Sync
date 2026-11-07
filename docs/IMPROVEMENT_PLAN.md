@@ -65,6 +65,7 @@ Severity labels:
 | #27 | Next #3: recurring events |
 | #28 | Next #8 (part): room clash warnings |
 | #29 | Next #12 (rest): change email, privacy and terms pages |
+| #30 | Next #9 (rest): platform trends, suspension reasons |
 
 **Still open, and why:**
 

@@ -101,6 +101,42 @@ function Overview({ onOpen }: { onOpen: (tab: Tab) => void }) {
           </StaggerItem>
         ))}
       </Stagger>
+      {stats.trends && <Trends trends={stats.trends} />}
+    </div>
+  );
+}
+
+/** Four small bar charts: the last 8 weeks of sign-ups, RSVPs, events and active clubs. */
+function Trends({ trends }: { trends: NonNullable<PlatformStats['trends']> }) {
+  const charts: [string, number[]][] = [
+    ['New people', trends.newUsers],
+    ['RSVPs', trends.rsvps],
+    ['Events created', trends.events],
+    ['Active clubs', trends.activeClubs],
+  ];
+  return (
+    <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      {charts.map(([label, values]) => {
+        const max = Math.max(1, ...values);
+        const total = values.reduce((a, b) => a + b, 0);
+        return (
+          <Card key={label} className="p-4">
+            <p className="text-sm font-medium">{label}</p>
+            <p className="text-xs text-muted">
+              {total} in 8 weeks · {values[values.length - 1]} this week
+            </p>
+            <div className="mt-3 flex h-16 items-end gap-1" role="img" aria-label={`${label} per week: ${values.join(', ')}`}>
+              {values.map((v, i) => (
+                <div
+                  key={i}
+                  className={i === values.length - 1 ? 'flex-1 rounded-t bg-primary' : 'flex-1 rounded-t bg-primary/40'}
+                  style={{ height: `${Math.max((v / max) * 100, 4)}%` }}
+                />
+              ))}
+            </div>
+          </Card>
+        );
+      })}
     </div>
   );
 }
@@ -114,6 +150,7 @@ function People() {
   const [users, setUsers] = useState<User[] | null>(null);
   const [meta, setMeta] = useState<PageMeta | null>(null);
   const [suspending, setSuspending] = useState<User | null>(null);
+  const [suspendReason, setSuspendReason] = useState('');
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -128,7 +165,7 @@ function People() {
     return () => clearTimeout(timer);
   }, [query, role, status, page]);
 
-  async function update(target: User, change: { role?: Role; status?: UserStatus }) {
+  async function update(target: User, change: { role?: Role; status?: UserStatus; reason?: string }) {
     try {
       const updated = await adminApi.updateUser(target.id, change);
       setUsers((prev) => prev?.map((u) => (u.id === updated.id ? updated : u)) ?? prev);
@@ -271,12 +308,25 @@ function People() {
         open={Boolean(suspending)}
         onClose={() => setSuspending(null)}
         onConfirm={async () => {
-          if (suspending) await update(suspending, { status: 'suspended' });
+          if (suspending) await update(suspending, { status: 'suspended', reason: suspendReason.trim() });
+          setSuspendReason('');
         }}
         title={`Suspend ${suspending?.name ?? ''}?`}
-        description="They'll be signed out immediately and can't sign in until reinstated."
+        description="They'll be signed out immediately and can't sign in until reinstated. The reason is shown to them when they try."
         confirmLabel="Suspend"
-      />
+      >
+        <label htmlFor="suspend-reason" className="mb-1.5 block text-sm font-medium">
+          Reason (optional)
+        </label>
+        <Textarea
+          id="suspend-reason"
+          rows={3}
+          maxLength={500}
+          value={suspendReason}
+          onChange={(e) => setSuspendReason(e.target.value)}
+          placeholder="e.g. Repeated spam in event chats."
+        />
+      </ConfirmDialog>
     </Card>
   );
 }

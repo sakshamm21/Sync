@@ -28,6 +28,8 @@ export interface IUser {
   passwordReset?: { tokenHash?: string; expiresAt?: Date; sentAt?: Date };
   /** Tokens issued before this are refused ("sign out of all devices"). */
   sessionsRevokedAt?: Date;
+  /** Why the account was suspended, shown when they try to sign in. */
+  suspensionReason?: string;
   /** Secret in the user's calendar subscription URL. */
   calendarToken?: string;
   // Tokens issued before this instant are rejected (password change / reset).
@@ -87,6 +89,7 @@ const userSchema = new Schema<IUser, UserModel, UserMethods>(
     passwordChangedAt: { type: Date, select: false },
     sessionsRevokedAt: { type: Date, select: false },
     calendarToken: { type: String, select: false, index: { unique: true, sparse: true } },
+    suspensionReason: { type: String, trim: true, maxlength: 500, default: '' },
 
     bio: { type: String, trim: true, maxlength: 500, default: '' },
     avatarUrl: { type: String, trim: true, default: '' },
