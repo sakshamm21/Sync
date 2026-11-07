@@ -24,6 +24,7 @@ import * as notifications from '../notifications/notifications.service';
 import { fillFromWaitlist } from './waitlist.service';
 import * as clubs from '../clubs/clubs.service';
 import * as clubMembers from '../clubs/members.service';
+import * as ops from '../ops/ops.service';
 import {
   OWNER_FIELDS,
   canPublishPublicEvents,
@@ -534,6 +535,7 @@ export async function remove(user: UserDocument, id: string): Promise<void> {
     Notification.updateMany({ event: event._id }, { $set: { event: null } }),
     Registration.deleteMany({ event: event._id }),
     Interest.deleteMany({ event: event._id }),
+    ops.forgetEvent(event._id),
     Message.deleteMany({ event: event._id }),
     EventStaff.deleteMany({ event: event._id }),
     Report.deleteMany({ event: event._id }),

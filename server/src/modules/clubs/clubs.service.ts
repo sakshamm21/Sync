@@ -4,7 +4,7 @@
  * and how it was rated, and members can follow it to hear about new events.
  */
 import type { Types } from 'mongoose';
-import { Event, Follow, User, type EventDocument, type UserDocument } from '../../models';
+import { Event, Follow, Sponsor, User, type EventDocument, type UserDocument } from '../../models';
 import { notFound, badRequest } from '../../lib/errors';
 import { isAllowedWebhook, postEventWebhook } from '../../lib/webhooks';
 import { runInBackground } from '../../lib/background';
@@ -58,6 +58,13 @@ export async function profile(viewer: Viewer, id: string) {
     following: Boolean(following),
     averageRating: totals?.count ? Math.round((totals.sum / totals.count) * 10) / 10 : null,
     ratingCount: totals?.count ?? 0,
+    sponsors: (await Sponsor.find({ club: club._id }).sort({ tier: 1, name: 1 })).map((s) => ({
+      id: s.id as string,
+      name: s.name,
+      url: s.url,
+      logoUrl: s.logoUrl,
+      tier: s.tier,
+    })),
     upcoming: await withViewerContext(upcoming, viewer),
     past: await withViewerContext(past, viewer),
   };
