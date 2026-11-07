@@ -25,7 +25,9 @@ const schema = z
     JWT_EXPIRES_IN: z.string().default('7d'),
     // Comma-separated list of allowed browser origins.
     CLIENT_URL: z.string().default('http://localhost:3000'),
-    TRUST_PROXY: z.coerce.number().int().min(0).default(0),
+    // Vercel puts exactly one proxy in front of the function, so trust it there;
+    // otherwise every visitor would share the proxy's IP (and its rate limits).
+    TRUST_PROXY: z.coerce.number().int().min(0).default(process.env.VERCEL ? 1 : 0),
     LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).optional(),
     // 'socket' for long-running hosts; 'polling' for serverless (Vercel), which can't hold WebSockets.
     REALTIME: z.enum(['socket', 'polling']).default(process.env.VERCEL ? 'polling' : 'socket'),
@@ -38,6 +40,10 @@ const schema = z
     // A public demo with shared accounts: reset the demo data nightly and stop
     // visitors from changing the shared accounts' passwords or roles.
     DEMO_MODE: booleanFlag('false'),
+    // Where the campus is: place search prefers results near here and in these countries.
+    CAMPUS_LATITUDE: z.coerce.number().min(-90).max(90).default(26.5123),
+    CAMPUS_LONGITUDE: z.coerce.number().min(-180).max(180).default(80.2329),
+    PLACES_COUNTRY_CODES: z.string().default('in'),
     // IANA time zone of the campus; used for demo dates and server-side formatting.
     CAMPUS_TIMEZONE: z
       .string()
@@ -120,6 +126,7 @@ const env = Object.freeze({
   cronSecret: raw.CRON_SECRET,
   demoMode: raw.DEMO_MODE,
   campusTimeZone: raw.CAMPUS_TIMEZONE,
+  campus: { latitude: raw.CAMPUS_LATITUDE, longitude: raw.CAMPUS_LONGITUDE, countryCodes: raw.PLACES_COUNTRY_CODES },
   exposeVerificationCodes: raw.NODE_ENV !== 'production' || raw.EXPOSE_VERIFICATION_CODES,
   mail: {
     brevoApiKey: raw.BREVO_API_KEY,

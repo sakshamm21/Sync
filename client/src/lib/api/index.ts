@@ -93,6 +93,8 @@ export const meApi = {
   update: (body: ProfileUpdate) => data<User>(http.patch('/me', body)),
   changePassword: (body: { currentPassword: string; newPassword: string }) =>
     data<Session>(http.post('/me/password', body)),
+  /** Ends every session for this account, this device included. */
+  signOutEverywhere: () => data<{ ok: true }>(http.post('/me/sign-out-everywhere')),
   calendar: (range: { from: string; to: string }) => data<SyncEvent[]>(http.get('/me/calendar', { params: range })),
   registrations: (upcoming = true) => data<SyncEvent[]>(http.get('/me/registrations', { params: { upcoming } })),
 };

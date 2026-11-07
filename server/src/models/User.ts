@@ -14,7 +14,9 @@ export interface IUser {
   status: UserStatus;
   emailVerified: boolean;
   emailVerification?: { codeHash?: string; expiresAt?: Date; attempts: number; sentAt?: Date };
-  passwordReset?: { tokenHash?: string; expiresAt?: Date };
+  passwordReset?: { tokenHash?: string; expiresAt?: Date; sentAt?: Date };
+  /** Tokens issued before this are refused ("sign out of all devices"). */
+  sessionsRevokedAt?: Date;
   // Tokens issued before this instant are rejected (password change / reset).
   passwordChangedAt?: Date;
   bio: string;
@@ -61,10 +63,11 @@ const userSchema = new Schema<IUser, UserModel, UserMethods>(
       select: false,
     },
     passwordReset: {
-      type: { tokenHash: String, expiresAt: Date },
+      type: { tokenHash: String, expiresAt: Date, sentAt: Date },
       select: false,
     },
     passwordChangedAt: { type: Date, select: false },
+    sessionsRevokedAt: { type: Date, select: false },
 
     bio: { type: String, trim: true, maxlength: 500, default: '' },
     avatarUrl: { type: String, trim: true, default: '' },
@@ -85,6 +88,7 @@ const userSchema = new Schema<IUser, UserModel, UserMethods>(
         delete ret.passwordHash;
         delete ret.emailVerification;
         delete ret.passwordReset;
+        delete ret.sessionsRevokedAt;
         delete ret.passwordChangedAt;
         return ret;
       },
@@ -100,10 +104,14 @@ userSchema.method('checkPassword', function checkPassword(plain: string) {
   return bcrypt.compare(plain, this.passwordHash);
 });
 
+/** True if a token issued at `issuedAt` predates a password change or a "sign out everywhere". */
 userSchema.method('tokenIssuedBeforePasswordChange', function tokenIssuedBeforePasswordChange(issuedAt: number) {
-  if (!this.passwordChangedAt) return false;
-  return issuedAt < Math.floor(this.passwordChangedAt.getTime() / 1000);
+  const cutoffs = [this.passwordChangedAt, this.sessionsRevokedAt].filter((d): d is Date => Boolean(d));
+  return cutoffs.some((d) => issuedAt < Math.floor(d.getTime() / 1000));
 });
+
+/** A real hash of nothing, so checking a password for an unknown email takes as long as for a real one. */
+export const DUMMY_PASSWORD_HASH = bcrypt.hashSync('not-a-real-password', BCRYPT_ROUNDS);
 
 userSchema.method('toSummary', function toSummary(): UserSummary {
   return { id: this.id, name: this.name, avatarUrl: this.avatarUrl, organization: this.organization, role: this.role };

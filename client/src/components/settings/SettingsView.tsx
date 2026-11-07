@@ -12,6 +12,7 @@ import { Button, ButtonLink } from '@/components/ui/button';
 import { Field, Input, Textarea } from '@/components/ui/field';
 import { Avatar, Badge, Card, PageHeader } from '@/components/ui/surface';
 import { Segmented } from '@/components/ui/tabs';
+import { ConfirmDialog } from '@/components/ui/overlay';
 import { cn } from '@/lib/cn';
 
 function Section({ title, description, children }: { title: string; description: string; children: React.ReactNode }) {
@@ -264,6 +265,35 @@ function PasswordSection() {
   );
 }
 
+function SessionsSection() {
+  const { logout } = useAuth();
+  const [confirming, setConfirming] = useState(false);
+
+  return (
+    <Section title="Devices" description="Lost a phone or signed in on a shared computer? End every session at once.">
+      <Button variant="secondary" onClick={() => setConfirming(true)}>
+        Sign out of all devices
+      </Button>
+      <ConfirmDialog
+        open={confirming}
+        onClose={() => setConfirming(false)}
+        onConfirm={async () => {
+          try {
+            await meApi.signOutEverywhere();
+            toast.success('Signed out everywhere');
+            logout();
+          } catch (err) {
+            toast.error(errorMessage(err));
+          }
+        }}
+        title="Sign out of all devices?"
+        description="Every device signed in to this account, including this one, will need to sign in again."
+        confirmLabel="Sign out everywhere"
+      />
+    </Section>
+  );
+}
+
 export default function SettingsView() {
   return (
     <>
@@ -273,6 +303,7 @@ export default function SettingsView() {
         <AppearanceSection />
         <OrganizerSection />
         <PasswordSection />
+        <SessionsSection />
       </div>
     </>
   );

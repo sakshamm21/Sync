@@ -1,5 +1,12 @@
 import { ipKeyGenerator, rateLimit } from 'express-rate-limit';
 import env from '../config/env';
+import { MongoRateLimitStore } from './rateLimitStore';
+
+/**
+ * In production the counts live in MongoDB so every instance shares them
+ * (serverless runs many); elsewhere memory is fine and needs no database.
+ */
+const store = (name: string) => (env.isProduction ? { store: new MongoRateLimitStore(`${name}:`) } : {});
 
 const tooManyRequests = (message: string) => ({
   error: { code: 'TOO_MANY_REQUESTS', message },
@@ -12,6 +19,7 @@ export const authLimiter = rateLimit({
   standardHeaders: 'draft-8',
   legacyHeaders: false,
   skip: () => env.isTest,
+  ...store('auth'),
   message: tooManyRequests('Too many attempts. Please wait a few minutes and try again.'),
 });
 
@@ -22,6 +30,7 @@ export const apiLimiter = rateLimit({
   standardHeaders: 'draft-8',
   legacyHeaders: false,
   skip: () => env.isTest,
+  ...store('api'),
   message: tooManyRequests('You are making requests too quickly. Please slow down.'),
 });
 
@@ -35,6 +44,7 @@ export const assistantLimiter = rateLimit({
   standardHeaders: 'draft-8',
   legacyHeaders: false,
   skip: () => env.isTest,
+  ...store('assistant'),
   keyGenerator: (req) => (req.user ? `user:${req.user.id}` : ipKeyGenerator(req.ip ?? '')),
   message: tooManyRequests('You have asked the assistant a lot of questions. Please try again in a few minutes.'),
 });

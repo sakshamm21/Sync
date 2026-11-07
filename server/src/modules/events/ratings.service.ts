@@ -36,40 +36,43 @@ async function syncTotals(eventId: string) {
 export async function summaryFor(user: UserDocument, eventId: string): Promise<EventRating> {
   const { event } = await loadEvent(user, eventId);
   const [rows, mine] = await Promise.all([
-      Rating.aggregate([
-        { $match: { event: new Types.ObjectId(String(event._id)) } },
-        { $group: { _id: '$rating', count: { $sum: 1 } } },
-      ]),
-      Rating.findOne({ event: event._id, user: user.id }).select('rating'),
-    ]);
+    Rating.aggregate([
+      { $match: { event: new Types.ObjectId(String(event._id)) } },
+      { $group: { _id: '$rating', count: { $sum: 1 } } },
+    ]),
+    Rating.findOne({ event: event._id, user: user.id }).select('rating'),
+  ]);
 
-  const breakdown = Array.from({ length: MAX_RATING }, (_, i) => 0);
+  // Average and count both come from this one aggregation, so they always agree.
+  const breakdown = Array.from({ length: MAX_RATING }, () => 0);
   let count = 0;
+  let sum = 0;
   for (const row of rows) {
     const stars = Number(row._id);
     if (stars >= 1 && stars <= MAX_RATING) {
       breakdown[stars - 1] = row.count as number;
       count += row.count as number;
+      sum += stars * (row.count as number);
     }
   }
 
   return {
-    average: count ? Math.round((event.ratingSum / count) * 10) / 10 : null,
-    count: event.ratingCount,
+    average: count ? Math.round((sum / count) * 10) / 10 : null,
+    count,
     mine: mine?.rating ?? null,
     breakdown,
   };
 }
 
-/** Records or updates the viewer's score. Anyone who went may rate. */
+/** Records or updates the viewer's score. Only people checked in at the door may rate. */
 export async function rate(user: UserDocument, eventId: string, value: number) {
   const { event } = await loadEvent(user, eventId);
   if (event.visibility !== EVENT_VISIBILITY.PUBLIC) throw badRequest('Only public events can be rated');
   if (event.status === EVENT_STATUS.CANCELLED) throw badRequest('This event was cancelled');
 
   const registration = await Registration.findOne({ event: event._id, user: user.id });
-  if (!registration || registration.status !== REGISTRATION_STATUS.GOING) {
-    throw forbidden('Only people who went to the event can rate it', 'NOT_ATTENDED');
+  if (!registration || registration.status !== REGISTRATION_STATUS.GOING || !registration.checkedInAt) {
+    throw forbidden('Only people checked in at the event can rate it', 'NOT_ATTENDED');
   }
   // A score is feedback on something that happened, so the event must be over.
   if (!event.isPast) throw badRequest('You can rate this once it has finished');

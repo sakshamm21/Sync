@@ -1,5 +1,5 @@
-import type { FilterQuery, SortOrder, Types } from 'mongoose';
-import { Event, Registration, Message, Note, EventStaff, Report, Rating, type EventDocument, type IEvent, type UserDocument } from '../../models';
+import { Types, type FilterQuery, type SortOrder } from 'mongoose';
+import { Event, Registration, Message, Note, Notification, EventStaff, Report, Rating, type EventDocument, type IEvent, type UserDocument } from '../../models';
 import env from '../../config/env';
 import { forbidden, badRequest } from '../../lib/errors';
 import { paginationMeta, escapeRegex } from '../../lib/schemas';
@@ -33,7 +33,8 @@ export async function listPublic(viewer: Viewer, { q, category, organizer, from,
   const filter = publicListing();
   if (!includePast) filter.endsAt = { $gte: new Date() };
   if (category) filter.category = category;
-  if (organizer) filter.owner = organizer;
+  // Co-organisers count: an event someone helps run is one of theirs too.
+  if (organizer) filter.$and = [{ $or: [{ organizers: organizer }, { owner: organizer }] }];
   if (from || to) filter.startsAt = { ...(from && { $gte: from }), ...(to && { $lte: to }) };
   if (q) {
     const pattern = new RegExp(escapeRegex(q), 'i');
@@ -53,30 +54,56 @@ export async function listPublic(viewer: Viewer, { q, category, organizer, from,
   return { items: await withViewerContext(events, viewer), meta: paginationMeta({ page, limit }, total) };
 }
 
-/** Upcoming public events matching the user's interests that they haven't joined yet. */
-export async function recommendedFor(user: UserDocument, limit = 6) {
-  const joined: (string | Types.ObjectId)[] = await Registration.find({ user: user.id }).distinct('event');
-  const filter: FilterQuery<IEvent> = { ...publicListing(), startsAt: { $gte: new Date() }, owner: { $ne: user._id } };
-  // Well-rated events outrank merely popular ones, so a club cannot hold the
-  // top slot forever on attendance alone.
-  const byQuality = { ratingSum: -1, ratingCount: -1, attendeeCount: -1, startsAt: 1 } as const;
+/** How many upcoming events are scored before the best are picked. */
+const RECOMMENDATION_POOL = 200;
 
-  let events: EventDocument[] = [];
-  if (user.interests?.length) {
-    events = await Event.find({ ...filter, _id: { $nin: joined }, category: { $in: user.interests } })
-      .sort(byQuality)
-      .limit(limit)
-      .populate('owner', OWNER_FIELDS);
-  }
-  // Top up with other popular events so new users without interests still get suggestions.
-  if (events.length < limit) {
-    const more = await Event.find({ ...filter, _id: { $nin: [...joined, ...events.map((e) => e._id)] } })
-      .sort(byQuality)
-      .limit(limit - events.length)
-      .populate('owner', OWNER_FIELDS);
-    events = events.concat(more);
-  }
-  return withViewerContext(events, user);
+/**
+ * Upcoming public events the user hasn't joined and doesn't help run, best first.
+ *
+ * An upcoming event has no ratings of its own yet, so quality comes from its
+ * organiser's track record: the average rating across their past events.
+ * The score adds that to interest match, a little for attendance (social
+ * proof) and a little for being soon.
+ */
+export async function recommendedFor(user: UserDocument, limit = 6) {
+  const now = new Date();
+  const joined: (string | Types.ObjectId)[] = await Registration.find({ user: user.id }).distinct('event');
+  const candidates = await Event.find({
+    ...publicListing(),
+    startsAt: { $gte: now },
+    _id: { $nin: joined },
+    owner: { $ne: user._id },
+    organizers: { $ne: user._id },
+  })
+    .sort({ startsAt: 1 })
+    .limit(RECOMMENDATION_POOL)
+    .populate('owner', OWNER_FIELDS);
+  if (!candidates.length) return [];
+
+  const ownerIds = [...new Set(candidates.map((e) => String((e.owner as unknown as { _id: unknown })?._id ?? e.owner)))];
+  const records = await Event.aggregate<{ _id: Types.ObjectId; sum: number; count: number }>([
+    { $match: { owner: { $in: ownerIds.map((id) => new Types.ObjectId(id)) }, endsAt: { $lt: now }, ratingCount: { $gt: 0 } } },
+    { $group: { _id: '$owner', sum: { $sum: '$ratingSum' }, count: { $sum: '$ratingCount' } } },
+  ]);
+  const organiserAverage = new Map(records.map((r) => [String(r._id), r.sum / r.count]));
+  const interests = new Set(user.interests ?? []);
+
+  const score = (e: EventDocument) => {
+    const ownerId = String((e.owner as unknown as { _id: unknown })?._id ?? e.owner);
+    const quality = organiserAverage.get(ownerId) ?? 3; // an unrated organiser counts as average
+    const interest = interests.has(e.category) ? 3 : 0;
+    const popularity = Math.log2(1 + e.attendeeCount);
+    const daysAway = (e.startsAt.getTime() - now.getTime()) / (24 * 60 * 60 * 1000);
+    const soon = Math.max(0, 2 - daysAway / 7); // up to 2 points, fading over two weeks
+    return interest + quality + popularity + soon;
+  };
+
+  const best = candidates
+    .map((e) => ({ e, s: score(e) }))
+    .sort((a, b) => b.s - a.s || a.e.startsAt.getTime() - b.e.startsAt.getTime())
+    .slice(0, limit)
+    .map(({ e }) => e);
+  return withViewerContext(best, user);
 }
 
 interface VenueListing {
@@ -256,6 +283,11 @@ export async function remove(user: UserDocument, id: string): Promise<void> {
   // Deleting destroys registrations and history, so co-organisers may not.
   const isAdmin = user.role === ROLES.ADMIN && event.visibility === EVENT_VISIBILITY.PUBLIC;
   if (!event.isOwnedBy(user.id) && !isAdmin) throw forbidden('Only the event owner can delete this event', 'OWNER_ONLY');
+  // Once an event has started its registrations are its attendance record;
+  // a public event that happened stays (cancel it instead if it is wrong).
+  if (event.visibility === EVENT_VISIBILITY.PUBLIC && event.status !== EVENT_STATUS.DRAFT && event.startsAt <= new Date()) {
+    throw badRequest('Events that have already started cannot be deleted', 'EVENT_STARTED');
+  }
 
   if (event.visibility === EVENT_VISIBILITY.PUBLIC && event.status === EVENT_STATUS.PUBLISHED && !event.isPast) {
     await notifyAttendees(event, {
@@ -265,7 +297,12 @@ export async function remove(user: UserDocument, id: string): Promise<void> {
     });
   }
 
+  // The event goes first, so a failure part-way leaves only unreachable
+  // leftovers rather than an event with half its data.
+  await event.deleteOne();
   await Promise.all([
+    // Notifications stay in people's history but no longer link to a missing page.
+    Notification.updateMany({ event: event._id }, { $set: { event: null } }),
     Registration.deleteMany({ event: event._id }),
     Message.deleteMany({ event: event._id }),
     EventStaff.deleteMany({ event: event._id }),
@@ -273,7 +310,6 @@ export async function remove(user: UserDocument, id: string): Promise<void> {
     Rating.deleteMany({ event: event._id }),
     Note.updateMany({ event: event._id }, { $set: { event: null } }),
   ]);
-  await event.deleteOne();
 }
 
 export async function toCalendarFile(viewer: Viewer, id: string) {

@@ -1,5 +1,7 @@
 import crypto from 'node:crypto';
+import bcrypt from 'bcryptjs';
 import { User, type UserDocument } from '../../models';
+import { DUMMY_PASSWORD_HASH } from '../../models/User';
 import env from '../../config/env';
 import { AppError, badRequest, conflict, forbidden, unauthenticated } from '../../lib/errors';
 import { signAccessToken, generateOtp, generateUrlToken, sha256 } from '../../lib/tokens';
@@ -11,6 +13,7 @@ const CODE_TTL_MINUTES = 10;
 const CODE_MAX_ATTEMPTS = 5;
 const CODE_RESEND_COOLDOWN_SECONDS = 30;
 const RESET_TTL_MINUTES = 30;
+const RESET_COOLDOWN_MS = 60 * 1000;
 
 export interface Session {
   token: string;
@@ -125,7 +128,10 @@ export async function verifyEmail({ email, code }: { email: string; code: string
 
 export async function login({ email, password }: { email: string; password: string }) {
   const user = await User.findOne({ email }).select('+passwordHash');
-  if (!user || !(await user.checkPassword(password))) {
+  // Compare against a dummy hash for unknown emails too, so the response time
+  // doesn't reveal whether an account exists.
+  const matches = user ? await user.checkPassword(password) : await bcrypt.compare(password, DUMMY_PASSWORD_HASH);
+  if (!user || !matches) {
     throw unauthenticated('Incorrect email or password.', 'INVALID_CREDENTIALS');
   }
   if (!user.emailVerified) {
@@ -139,11 +145,18 @@ export async function login({ email, password }: { email: string; password: stri
 }
 
 export async function forgotPassword({ email }: { email: string }) {
-  const user = await User.findOne({ email });
+  const user = await User.findOne({ email }).select('+passwordReset');
   if (!user) return {};
+  // One email a minute per account, so the form can't be used to flood an inbox.
+  const lastSent = user.passwordReset?.sentAt?.getTime() ?? 0;
+  if (Date.now() - lastSent < RESET_COOLDOWN_MS) return {};
 
   const token = generateUrlToken();
-  user.passwordReset = { tokenHash: sha256(token), expiresAt: new Date(Date.now() + RESET_TTL_MINUTES * 60 * 1000) };
+  user.passwordReset = {
+    tokenHash: sha256(token),
+    expiresAt: new Date(Date.now() + RESET_TTL_MINUTES * 60 * 1000),
+    sentAt: new Date(),
+  };
   await user.save();
 
   const resetUrl = `${env.clientUrl}/reset-password?token=${token}`;

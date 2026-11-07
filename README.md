@@ -120,7 +120,7 @@ Every account, and a script of things to try with each, is in [TEST_ACCOUNTS.md]
 |---|---|
 | **Home** | Your tickets, recommendations from your interests and what's popular, and unread notifications. |
 | **Explore** | Search and filter public events by category and date, sorted by soonest or most popular. RSVP in one tap; a full event puts you on the waitlist instead of turning you away. |
-| **Event page** | Details, venue map, seats left, organizer, an "Add to calendar" file, the event chat and, once it has ended, a rating. Server-rendered, so a shared link shows a real preview. |
+| **Event page** | Details, venue map, seats left, organizer, an "Add to calendar" file, the event chat and, once it has ended, a rating from people who were checked in. Server-rendered, so a shared link shows a real preview. |
 | **Schedule** | A calendar of everything you are attending, waitlisted for, organising or planned privately. Click a day to add a private plan. Your QR entry code lives here. |
 | **Chats** | One chat per event, open to its attendees. Organizer announcements notify everyone going. |
 | **Notes** | Personal sticky notes, optionally linked to an event; pin the ones that matter. |
@@ -171,7 +171,7 @@ flowchart LR
 | Email | A transactional outbox, delivered through Brevo's HTTP API or any SMTP server |
 | AI | Any OpenAI-compatible Chat Completions API, in Ask Sync only |
 | Maps | OpenStreetMap, with place search through Nominatim |
-| Security | helmet, a CORS allowlist, three rate limiters (sign-in, the whole API, the assistant per user) |
+| Security | helmet, a CORS allowlist, three rate limiters (sign-in, the whole API, the assistant per user) whose counts are shared through MongoDB in production |
 | Jobs | Vercel Schedules in production, in-process timers elsewhere |
 | Testing | Node's built-in test runner with supertest, against an in-memory MongoDB |
 | Hosting | Vercel (web app and API as two projects), GitHub Actions for CI |
