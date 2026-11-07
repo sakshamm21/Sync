@@ -6,6 +6,10 @@
 import type { Types } from 'mongoose';
 import { Event, Follow, User, type EventDocument, type UserDocument } from '../../models';
 import { notFound, badRequest } from '../../lib/errors';
+import { isAllowedWebhook, postEventWebhook } from '../../lib/webhooks';
+import { runInBackground } from '../../lib/background';
+import { formatCampusTime } from '../../lib/campusTime';
+import env from '../../config/env';
 import * as notifications from '../notifications/notifications.service';
 import { OWNER_FIELDS, withViewerContext, type Viewer } from '../events/events.policy';
 import { EVENT_STATUS, EVENT_VISIBILITY, NOTIFICATION_TYPES, ROLES, USER_STATUS, type Category } from '../../constants';
@@ -105,13 +109,40 @@ export async function announceNewEvent(event: EventDocument) {
   if (event.visibility !== EVENT_VISIBILITY.PUBLIC || event.status !== EVENT_STATUS.PUBLISHED) return;
   // `owner` may be populated or a bare id depending on how the event was loaded.
   const ownerId = (event.owner as unknown as { _id?: Types.ObjectId })?._id ?? event.owner;
+  const owner = await User.findById(ownerId).select('name organization +announceWebhookUrl');
+  // The club's own Discord or Slack hears about it too, in the background.
+  if (owner?.announceWebhookUrl) {
+    const url = owner.announceWebhookUrl;
+    runInBackground('club-webhook', () =>
+      postEventWebhook(url, {
+        title: event.title,
+        when: formatCampusTime(event.startsAt),
+        where: event.venue?.name ?? '',
+        link: `${env.clientUrl}/events/${event.id}`,
+        host: owner.organization || owner.name,
+      })
+    );
+  }
   const followers = await Follow.find({ club: ownerId }).distinct('user');
   if (!followers.length) return;
-  const owner = await User.findById(ownerId).select('name organization');
   await notifications.notify(followers, {
     type: NOTIFICATION_TYPES.CLUB_NEW_EVENT,
     title: `New from ${owner?.organization || owner?.name || 'a club you follow'}: ${event.title}`,
     body: 'Tap to see the details and grab a spot.',
     eventId: event._id,
   });
+}
+
+/** Sets or clears the club's Discord/Slack webhook. */
+export async function setWebhook(user: UserDocument, url: string) {
+  if (user.role !== ROLES.ORGANIZER && user.role !== ROLES.ADMIN) throw badRequest('Only club accounts can connect a channel');
+  if (url && !isAllowedWebhook(url)) throw badRequest('Paste a Discord or Slack incoming-webhook URL', 'BAD_WEBHOOK');
+  await User.updateOne({ _id: user._id }, { $set: { announceWebhookUrl: url } });
+  return { connected: Boolean(url) };
+}
+
+export async function webhookStatus(user: UserDocument) {
+  const me = await User.findById(user._id).select('+announceWebhookUrl');
+  const url = me?.announceWebhookUrl ?? '';
+  return { connected: Boolean(url), kind: url.includes('slack') ? 'slack' : url ? 'discord' : null };
 }

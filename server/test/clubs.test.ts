@@ -2,6 +2,8 @@
 import { describe, it, before, after, beforeEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { startDatabase, stopDatabase, resetDatabase, api, createUser, eventInput, hoursFromNow } from './helpers';
+import { setTestWebhookSender } from '../src/lib/webhooks';
+import { settleBackground } from '../src/lib/background';
 import { Event, Notification } from '../src/models';
 
 before(startDatabase);
@@ -148,5 +150,33 @@ describe('club committees', () => {
   it('is only for club accounts', async () => {
     const member = await createUser();
     await api().get('/api/clubs/me/members').set(member.auth).expect(403);
+  });
+});
+
+describe('club webhooks', () => {
+  it('posts new events to a connected Discord channel, and only accepts real webhook URLs', async () => {
+    const posts: { url: string; body: { content?: string } }[] = [];
+    setTestWebhookSender(async (url, body) => {
+      posts.push({ url, body: body as { content?: string } });
+    });
+    try {
+      const club = await createUser({ role: 'organizer', organization: 'Robotics Club' });
+      await api().put('/api/clubs/me/webhook').set(club.auth).send({ url: 'http://169.254.169.254/latest' }).expect(400);
+      const hook = 'https://discord.com/api/webhooks/123/abc-DEF';
+      await api().put('/api/clubs/me/webhook').set(club.auth).send({ url: hook }).expect(200);
+      assert.deepEqual((await api().get('/api/clubs/me/webhook').set(club.auth)).body.data, { connected: true, kind: 'discord' });
+
+      await api()
+        .post('/api/events')
+        .set(club.auth)
+        .send(eventInput({ title: 'Bot Wars' }))
+        .expect(201);
+      await settleBackground();
+      assert.equal(posts.length, 1);
+      assert.equal(posts[0].url, hook);
+      assert.match(posts[0].body.content!, /\*\*Bot Wars\*\*[\s\S]*by Robotics Club/);
+    } finally {
+      setTestWebhookSender(null);
+    }
   });
 });

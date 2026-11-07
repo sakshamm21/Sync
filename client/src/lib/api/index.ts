@@ -271,6 +271,9 @@ export interface CommitteeMember {
 
 export const clubsApi = {
   committee: () => data<CommitteeMember[]>(http.get('/clubs/me/members')),
+  /** The club's Discord/Slack channel for new events. */
+  webhook: () => data<{ connected: boolean; kind: 'discord' | 'slack' | null }>(http.get('/clubs/me/webhook')),
+  setWebhook: (url: string) => data<{ connected: boolean }>(http.put('/clubs/me/webhook', { url })),
   addMember: (email: string, role: CommitteeMember['role']) =>
     data<CommitteeMember[]>(http.post('/clubs/me/members', { email, role })),
   setMemberRole: (id: string, role: CommitteeMember['role']) =>

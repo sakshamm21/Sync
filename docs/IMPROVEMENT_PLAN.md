@@ -73,6 +73,7 @@ Severity labels:
 | #35 | Next #10: club committees with roles |
 | #36 | Next #6/#7/#5/#11 (rest): @mentions, pins, invite friends, album link, "remind me" |
 | #37 | Next #8/#9 (rest): campus venue list, interactive map, first-event review |
+| #38 | Later #5 (part): club Discord/Slack webhook, Instagram Story image |
 
 **Still open, and why:**
 
@@ -85,7 +86,7 @@ Severity labels:
   - transactions (a replica set; Atlas has one, but the test database doesn't).
 - **Not started:**
   - E3: a contract test (#22) catches drift between the API's constants and the web app's types; a real shared package is still open because both Vercel projects only build their own folder;
-  - all of **Later** (paid tickets, several campuses, a native app, other languages, integrations, club operations). Each needs an outside account or a product decision.
+  - the rest of **Later**: paid tickets (a Razorpay account), several campuses per deployment (a data-model decision), a native app with wallet passes (Apple and Google developer accounts), other languages (translations), two-way Google Calendar (a Google OAuth app), and club operations (volunteer shifts, sponsors, budgets: product decisions).
 
 ---
 
