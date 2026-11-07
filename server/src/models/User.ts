@@ -28,6 +28,8 @@ export interface IUser {
   passwordReset?: { tokenHash?: string; expiresAt?: Date; sentAt?: Date };
   /** Tokens issued before this are refused ("sign out of all devices"). */
   sessionsRevokedAt?: Date;
+  /** Clubs: a Discord or Slack incoming-webhook URL that hears about new events. */
+  announceWebhookUrl?: string;
   /** Why the account was suspended, shown when they try to sign in. */
   suspensionReason?: string;
   /** Secret in the user's calendar subscription URL. */
@@ -90,6 +92,7 @@ const userSchema = new Schema<IUser, UserModel, UserMethods>(
     sessionsRevokedAt: { type: Date, select: false },
     calendarToken: { type: String, select: false, index: { unique: true, sparse: true } },
     suspensionReason: { type: String, trim: true, maxlength: 500, default: '' },
+    announceWebhookUrl: { type: String, trim: true, select: false, default: '' },
 
     bio: { type: String, trim: true, maxlength: 500, default: '' },
     avatarUrl: { type: String, trim: true, default: '' },
@@ -116,6 +119,7 @@ const userSchema = new Schema<IUser, UserModel, UserMethods>(
         delete ret.passwordReset;
         delete ret.sessionsRevokedAt;
         delete ret.calendarToken;
+        delete ret.announceWebhookUrl;
         delete ret.passwordChangedAt;
         return ret;
       },

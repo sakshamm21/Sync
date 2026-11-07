@@ -18,6 +18,7 @@ import {
   MapPin,
   MessageCircle,
   Navigation,
+  ImageDown,
   Share2,
   Star,
   Users,
@@ -665,6 +666,11 @@ export default function EventDetails({
                     <RoundAction label="Share" onClick={event.visibility === 'public' ? share : undefined}>
                       <Share2 />
                     </RoundAction>
+                    {event.visibility === 'public' && (
+                      <RoundAction label="Story" href={`/events/${event.id}/story`}>
+                        <ImageDown />
+                      </RoundAction>
+                    )}
                     {event.visibility === 'public' && (
                       <RoundAction label="WhatsApp" href={whatsappShareUrl(event, formatEventWhen(event), SITE_URL)}>
                         <MessageCircle />

@@ -550,3 +550,12 @@ test('admins add a campus venue, which appears as a pin on the interactive map',
   await expect(page.locator('.leaflet-container')).toBeVisible();
   await expect(page.locator('path.leaflet-interactive').first()).toBeVisible();
 });
+
+test('every public event has a Stories image', async ({ page, request }) => {
+  const events = (await (await request.get(`${API}/api/events?limit=1`)).json()).data as Ev[];
+  await page.goto(`/events/${events[0].id}`);
+  await expect(page.getByRole('link', { name: 'Story' })).toHaveAttribute('href', `/events/${events[0].id}/story`);
+  const image = await request.get(`/events/${events[0].id}/story`);
+  expect(image.status()).toBe(200);
+  expect(image.headers()['content-type']).toBe('image/png');
+});

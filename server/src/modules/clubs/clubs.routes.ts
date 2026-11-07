@@ -29,6 +29,17 @@ router.get(
 
 const memberRole = z.enum(['core', 'volunteer']);
 
+router.get('/me/webhook', authenticate, async (req, res) => {
+  res.json({ data: await clubs.webhookStatus(currentUser(req)) });
+});
+router.put(
+  '/me/webhook',
+  authenticate,
+  validate({ body: z.object({ url: z.string().trim().max(500) }) }, async (req, res) => {
+    res.json({ data: await clubs.setWebhook(currentUser(req), req.body.url) });
+  })
+);
+
 router.get('/me/members', authenticate, async (req, res) => {
   res.json({ data: await members.list(currentUser(req)) });
 });

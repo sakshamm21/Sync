@@ -103,6 +103,62 @@ export default function Committee() {
           <UserPlus /> Add
         </Button>
       </form>
+      <ChannelLink />
     </Card>
+  );
+}
+
+/** Posts each new event to the club's Discord server or Slack channel. */
+function ChannelLink() {
+  const [status, setStatus] = useState<{ connected: boolean; kind: string | null } | null>(null);
+  const [url, setUrl] = useState('');
+  useEffect(() => {
+    clubsApi
+      .webhook()
+      .then(setStatus)
+      .catch(() => setStatus(null));
+  }, []);
+  if (!status) return null;
+  const save = async (next: string) => {
+    try {
+      await clubsApi.setWebhook(next);
+      setStatus(await clubsApi.webhook());
+      setUrl('');
+      toast.success(next ? 'Connected. New events will be posted there.' : 'Disconnected');
+    } catch (err) {
+      toast.error(errorMessage(err));
+    }
+  };
+  return (
+    <div className="mt-6 border-t border-border pt-5">
+      <h3 className="font-semibold">Post new events to your community</h3>
+      {status.connected ? (
+        <p className="mt-1 flex items-center gap-3 text-sm text-muted">
+          Connected to {status.kind === 'slack' ? 'Slack' : 'Discord'}.
+          <button type="button" className="underline underline-offset-2 hover:text-danger" onClick={() => save('')}>
+            Disconnect
+          </button>
+        </p>
+      ) : (
+        <form
+          className="mt-2 flex flex-col gap-2 sm:flex-row"
+          onSubmit={(e) => {
+            e.preventDefault();
+            void save(url.trim());
+          }}
+        >
+          <Input
+            aria-label="Discord or Slack webhook URL"
+            placeholder="https://discord.com/api/webhooks/…"
+            value={url}
+            onChange={(e) => setUrl(e.target.value)}
+            required
+          />
+          <Button type="submit" variant="secondary">
+            Connect
+          </Button>
+        </form>
+      )}
+    </div>
   );
 }
