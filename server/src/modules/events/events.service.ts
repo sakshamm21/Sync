@@ -22,6 +22,7 @@ import { buildCalendar, buildEventCalendar } from '../../lib/ics';
 import * as notifications from '../notifications/notifications.service';
 import { fillFromWaitlist } from './waitlist.service';
 import * as clubs from '../clubs/clubs.service';
+import * as clubMembers from '../clubs/members.service';
 import {
   OWNER_FIELDS,
   canPublishPublicEvents,
@@ -327,6 +328,11 @@ export async function create(user: UserDocument, input: CreateEventInput) {
         };
       })
     );
+  }
+  // The club's committee joins the team of every new event (and of each date in a series).
+  if (isPublic) {
+    const dates = seriesId ? await Event.find({ seriesId }).select('_id owner') : [event];
+    for (const date of dates) await clubMembers.staffNewEvent(date);
   }
   await event.populate('owner', OWNER_FIELDS);
   if (isPublic && event.status === EVENT_STATUS.PUBLISHED) await clubs.announceNewEvent(event);

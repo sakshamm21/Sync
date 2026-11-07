@@ -17,3 +17,4 @@ export { MessageReport, type IMessageReport, type MessageReportDocument } from '
 export { Friendship, type IFriendship, type FriendshipDocument } from './Friendship';
 export { ChatRead, type IChatRead, type ChatReadDocument } from './ChatRead';
 export { Team, type ITeam, type TeamDocument } from './Team';
+export { ClubMember, type IClubMember, type ClubMemberDocument, type ClubRole } from './ClubMember';

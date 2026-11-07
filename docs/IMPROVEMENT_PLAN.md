@@ -70,6 +70,7 @@ Severity labels:
 | #32 | Next #6 (rest): replies, reactions, unread badges |
 | #33 | Next #2: team registration |
 | #34 | Next #11: assistant actions with confirmation |
+| #35 | Next #10: club committees with roles |
 
 **Still open, and why:**
 
@@ -82,7 +83,8 @@ Severity labels:
   - transactions (a replica set; Atlas has one, but the test database doesn't).
 - **Not started:**
   - E3: a contract test (#22) catches drift between the API's constants and the web app's types; a real shared package is still open because both Vercel projects only build their own folder;
-  - everything under **Next** and **Later**.
+  - **Next**, partly: venue list and interactive map (#8), @mentions and pins (#6), "going with" invites (#7), photo albums (#5), a first-event review step (#9), "remind me an hour before" (#11);
+  - all of **Later** (paid tickets, several campuses, a native app, other languages, integrations, club operations). Each needs an outside account or a product decision.
 
 ---
 
