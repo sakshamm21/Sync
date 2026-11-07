@@ -4,7 +4,18 @@ import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
 import { signInAs } from './helpers';
 
-const pages = ['/', '/authentication', '/dashboard', '/explore', '/schedule', '/chat', '/settings', '/notifications', '/welcome'];
+const pages = [
+  '/',
+  '/authentication',
+  '/dashboard',
+  '/explore',
+  '/schedule',
+  '/chat',
+  '/settings',
+  '/notifications',
+  '/welcome',
+  '/history',
+];
 
 for (const theme of ['dark', 'light']) {
   for (const path of pages) {

@@ -1,6 +1,7 @@
 import { saveBlob } from '../download';
 import { http } from './client';
 import type {
+  Certificate,
   EventInsights,
   MessageReport,
   AuditEntry,
@@ -170,7 +171,12 @@ export const eventsApi = {
   /** Checks a scanned ticket in. Throws with a friendly message if it is not valid. */
   scan: (id: string, token: string) => data<ScanResult>(http.post(`/events/${id}/scan`, { token })),
   ratings: (id: string) => data<EventRating>(http.get(`/events/${id}/ratings`)),
-  rate: (id: string, rating: number) => data<EventRating>(http.put(`/events/${id}/ratings`, { rating })),
+  rate: (id: string, rating: number, comment?: string) =>
+    data<EventRating>(http.put(`/events/${id}/ratings`, { rating, ...(comment !== undefined ? { comment } : {}) })),
+  /** Written feedback for organisers (no names). */
+  feedback: (id: string) => data<{ rating: number; comment: string; at: string }[]>(http.get(`/events/${id}/feedback`)),
+  /** What the printable participation certificate needs. */
+  certificate: (id: string) => data<Certificate>(http.get(`/events/${id}/certificate`)),
   report: (id: string, body: { reason: ReportReason; details?: string }) =>
     data<{ id: string; status: ReportStatus }>(http.post(`/reports/${id}/report`, body)),
   messages: (id: string, params: { before?: string; after?: string; limit?: number } = {}) =>

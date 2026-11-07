@@ -177,13 +177,32 @@ router.get(
   })
 );
 
-const ratingBody = z.object({ rating: z.number().int().min(1).max(MAX_RATING) });
+const ratingBody = z.object({
+  rating: z.number().int().min(1).max(MAX_RATING),
+  comment: z.string().trim().max(1000).optional(),
+});
 
 router.put(
   '/:id/ratings',
   authenticate,
   validate({ params: idParams, body: ratingBody }, async (req, res) => {
-    res.json({ data: await ratings.rate(currentUser(req), req.params.id, req.body.rating) });
+    res.json({ data: await ratings.rate(currentUser(req), req.params.id, req.body.rating, req.body.comment) });
+  })
+);
+
+router.get(
+  '/:id/feedback',
+  authenticate,
+  validate({ params: idParams }, async (req, res) => {
+    res.json({ data: await ratings.feedbackFor(currentUser(req), req.params.id) });
+  })
+);
+
+router.get(
+  '/:id/certificate',
+  authenticate,
+  validate({ params: idParams }, async (req, res) => {
+    res.json({ data: await ratings.certificate(currentUser(req), req.params.id) });
   })
 );
 

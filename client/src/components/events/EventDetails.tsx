@@ -109,12 +109,16 @@ function RatingPanel({ event, onRated }: { event: SyncEvent; onRated: (r: EventR
   }, [event.id]);
 
   if (!rating) return null;
-  const canRate = event.viewer.registration === 'going' && event.isPast;
+  // Only people checked in at the door may rate (the server checks too).
+  const canRate = event.viewer.registration === 'going' && event.isPast && Boolean(event.viewer.checkedIn);
 
-  async function give(value: number) {
+  async function give(value: number, comment?: string) {
     setPending(true);
     try {
-      onRated(await eventsApi.rate(event.id, value));
+      const updated = await eventsApi.rate(event.id, value, comment);
+      setRating(updated);
+      onRated(updated);
+      if (comment !== undefined) toast.success('Thanks for the feedback', { description: 'Only the organisers see it.' });
     } catch (err) {
       toast.error(errorMessage(err));
     } finally {
@@ -163,8 +167,43 @@ function RatingPanel({ event, onRated }: { event: SyncEvent; onRated: (r: EventR
         ) : (
           rating.average === null && <p className="text-sm text-muted">No ratings yet.</p>
         )}
+        {canRate && rating.mine && <FeedbackBox initial={rating.myComment ?? ''} onSave={(c) => give(rating.mine!, c)} />}
+        {canRate && (
+          <ButtonLink href={`/certificates/${event.id}`} variant="secondary" size="sm" className="mt-4">
+            Get your certificate
+          </ButtonLink>
+        )}
       </Card>
     </section>
+  );
+}
+
+/** Written feedback after rating: seen only by the organisers. */
+function FeedbackBox({ initial, onSave }: { initial: string; onSave: (comment: string) => void }) {
+  const [text, setText] = useState(initial);
+  return (
+    <form
+      className="mt-4 space-y-2"
+      onSubmit={(e) => {
+        e.preventDefault();
+        onSave(text.trim());
+      }}
+    >
+      <label htmlFor="feedback" className="block text-sm text-muted">
+        Anything the organisers should know? (only they see it)
+      </label>
+      <textarea
+        id="feedback"
+        rows={3}
+        maxLength={1000}
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        className="w-full rounded-2xl border border-border bg-surface-muted p-3 text-sm outline-none focus:border-primary"
+      />
+      <Button type="submit" size="sm" variant="secondary" disabled={text.trim() === initial.trim()}>
+        Send feedback
+      </Button>
+    </form>
   );
 }
 

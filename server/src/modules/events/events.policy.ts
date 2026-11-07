@@ -126,6 +126,8 @@ export type PresentedEvent = Omit<IEvent, 'owner' | 'organizers'> & {
     waitlistPosition?: number;
     /** Bookmarked as "Interested". */
     interested: boolean;
+    /** Checked in at the door (the attendance record). */
+    checkedIn: boolean;
     /** For a held seat: claim it before this. */
     offerExpiresAt?: Date | null;
   };
@@ -140,9 +142,10 @@ export async function withViewerContext(events: EventDocument[], viewer: Viewer)
   if (!events.length) return [];
 
   const registrations = viewer
-    ? await Registration.find({ user: viewer.id, event: { $in: events.map((e) => e._id) } }).select('event status')
+    ? await Registration.find({ user: viewer.id, event: { $in: events.map((e) => e._id) } }).select('event status checkedInAt')
     : [];
   const statusByEvent = new Map(registrations.map((r) => [String(r.event), r.status]));
+  const checkedIn = new Set(registrations.filter((r) => r.checkedInAt).map((r) => String(r.event)));
 
   const staff = viewer
     ? await EventStaff.find({ user: viewer.id, event: { $in: events.map((e) => e._id) } }).select('event role')
@@ -171,6 +174,7 @@ export async function withViewerContext(events: EventDocument[], viewer: Viewer)
         staffRole,
         registration,
         interested: interestedIn.has(String(event._id)),
+        checkedIn: checkedIn.has(String(event._id)),
       },
     };
   });

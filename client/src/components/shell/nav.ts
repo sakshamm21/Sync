@@ -1,5 +1,6 @@
 import {
   CalendarDays,
+  History as HistoryIcon,
   Compass,
   Home,
   Map,
@@ -32,6 +33,7 @@ export const PRIMARY_NAV: NavItem[] = [
 /** Inline on larger screens, inside "More" on phones. */
 export const SECONDARY_NAV: NavItem[] = [
   { href: '/notes', label: 'Notes', icon: StickyNote },
+  { href: '/history', label: 'My events', icon: HistoryIcon },
   { href: '/map', label: 'Map', icon: Map },
   // Organisers manage their own events here, and a member invited to help run
   // an event finds it here too. Other members would only see an empty console.

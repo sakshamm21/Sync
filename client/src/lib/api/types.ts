@@ -89,6 +89,8 @@ export interface EventViewer {
   waitlistPosition?: number;
   /** Bookmarked as "Interested". */
   interested?: boolean;
+  /** Checked in at the door. */
+  checkedIn?: boolean;
   /** For a held seat: claim it before this. */
   offerExpiresAt?: string | null;
 }
@@ -294,6 +296,8 @@ export interface EventRating {
   average: number | null;
   count: number;
   mine: number | null;
+  /** The viewer's own written feedback. */
+  myComment?: string;
   /** Star-by-star breakdown; index 0 is one star. */
   breakdown: number[];
 }
@@ -391,4 +395,13 @@ export interface EventInsights {
   showUpRate: number | null;
   averageRating: number | null;
   ratingCount: number;
+}
+
+/** A participation certificate for a checked-in attendee of a finished event. */
+export interface Certificate {
+  name: string;
+  event: { id: string; title: string; startsAt: string; endsAt: string; venue: string };
+  host: string;
+  checkedInAt: string;
+  reference: string;
 }
