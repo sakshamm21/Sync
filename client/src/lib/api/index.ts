@@ -286,7 +286,8 @@ export const adminApi = {
   auditLog: (query: { page?: number; limit?: number } = {}) => page<AuditEntry>(http.get('/admin/audit-log', { params: query })),
   users: (query: { q?: string; role?: Role; status?: UserStatus; page?: number; limit?: number } = {}) =>
     page<User>(http.get('/admin/users', { params: query })),
-  updateUser: (id: string, body: { role?: Role; status?: UserStatus }) => data<User>(http.patch(`/admin/users/${id}`, body)),
+  updateUser: (id: string, body: { role?: Role; status?: UserStatus; reason?: string }) =>
+    data<User>(http.patch(`/admin/users/${id}`, body)),
   applications: (query: { status?: OrganizerApplication['status']; page?: number; limit?: number } = {}) =>
     page<OrganizerApplication>(http.get('/admin/organizer-applications', { params: query })),
   approve: (id: string, note = '') =>

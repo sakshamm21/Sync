@@ -109,3 +109,21 @@ describe('changing email', () => {
       .expect(200);
   });
 });
+
+describe('admin tools', () => {
+  it('shows the suspension reason at sign-in, and reports weekly trends', async () => {
+    const admin = await createUser({ role: 'admin' });
+    const member = await createUser({ email: 'spammer@example.com' });
+    await api()
+      .patch(`/api/admin/users/${member.user.id}`)
+      .set(admin.auth)
+      .send({ status: 'suspended', reason: 'Posting spam in event chats' })
+      .expect(200);
+    const res = await api().post('/api/auth/login').send({ email: 'spammer@example.com', password: 'password123' }).expect(403);
+    assert.match(res.body.error.message, /Reason: Posting spam in event chats/);
+
+    const stats = (await api().get('/api/admin/stats').set(admin.auth).expect(200)).body.data;
+    assert.equal(stats.trends.newUsers.length, 8);
+    assert.equal(stats.trends.newUsers[7], 2, 'both accounts were created this week');
+  });
+});

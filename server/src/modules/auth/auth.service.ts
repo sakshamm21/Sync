@@ -22,7 +22,8 @@ export interface Session {
 
 function assertNotSuspended(user: UserDocument) {
   if (user.status === USER_STATUS.SUSPENDED) {
-    throw forbidden('This account has been suspended. Contact an administrator.', 'ACCOUNT_SUSPENDED');
+    const why = user.suspensionReason ? ` Reason: ${user.suspensionReason}` : '';
+    throw forbidden(`This account has been suspended.${why} Contact an administrator.`, 'ACCOUNT_SUSPENDED');
   }
 }
 

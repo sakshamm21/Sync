@@ -269,6 +269,8 @@ export interface OrganizerOverview {
 }
 
 export interface PlatformStats {
+  /** Last 8 weeks, oldest first. */
+  trends?: { weekStarts: string[]; newUsers: number[]; rsvps: number[]; events: number[]; activeClubs: number[] };
   users: { total: number; byRole: Record<Role, number>; suspended: number };
   events: { total: number; upcoming: number };
   registrations: number;

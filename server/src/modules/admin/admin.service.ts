@@ -28,6 +28,41 @@ import {
   type UserStatus,
 } from '../../constants';
 
+/** New sign-ups, RSVPs and events per week for the last 8 weeks (Roadmap "Next" #9). */
+async function weeklyTrends(now: Date) {
+  const WEEK = 7 * 24 * 60 * 60 * 1000;
+  const since = new Date(now.getTime() - 8 * WEEK);
+  const bucket = (field: string) => ({ $floor: { $divide: [{ $subtract: [field, since] }, WEEK] } });
+  const count = (model: typeof User | typeof Registration | typeof Event, match: Record<string, unknown> = {}) =>
+    (model as typeof User).aggregate<{ _id: number; count: number }>([
+      { $match: { createdAt: { $gte: since }, ...match } },
+      { $group: { _id: bucket('$createdAt'), count: { $sum: 1 } } },
+    ]);
+  const [users, rsvps, events, activeClubs] = await Promise.all([
+    count(User),
+    count(Registration),
+    count(Event, { visibility: EVENT_VISIBILITY.PUBLIC }),
+    // Clubs that published at least one event that week.
+    Event.aggregate<{ _id: number; count: number }>([
+      { $match: { createdAt: { $gte: since }, visibility: EVENT_VISIBILITY.PUBLIC } },
+      { $group: { _id: { week: bucket('$createdAt'), owner: '$owner' } } },
+      { $group: { _id: '$_id.week', count: { $sum: 1 } } },
+    ]),
+  ]);
+  const series = (rows: { _id: number; count: number }[]) => {
+    const out = Array.from({ length: 8 }, () => 0);
+    for (const r of rows) if (r._id >= 0 && r._id < 8) out[r._id] = r.count;
+    return out;
+  };
+  return {
+    weekStarts: Array.from({ length: 8 }, (_, i) => new Date(since.getTime() + i * WEEK)),
+    newUsers: series(users),
+    rsvps: series(rsvps),
+    events: series(events),
+    activeClubs: series(activeClubs),
+  };
+}
+
 export async function stats() {
   const now = new Date();
   const publicEvents = { visibility: EVENT_VISIBILITY.PUBLIC };
@@ -46,6 +81,7 @@ export async function stats() {
   for (const { _id, count } of usersByRole) roles[_id] = count;
 
   return {
+    trends: await weeklyTrends(now),
     users: { total: Object.values(roles).reduce((a, b) => a + b, 0), byRole: roles, suspended },
     events: { total: totalEvents, upcoming: upcomingEvents },
     registrations,
@@ -72,7 +108,11 @@ export async function listUsers({ q, role, status, page, limit }: Page & { q?: s
   return { items, meta: paginationMeta({ page, limit }, total) };
 }
 
-export async function updateUser(admin: UserDocument, userId: string, { role, status }: { role?: Role; status?: UserStatus }) {
+export async function updateUser(
+  admin: UserDocument,
+  userId: string,
+  { role, status, reason }: { role?: Role; status?: UserStatus; reason?: string }
+) {
   // Prevents an admin from accidentally locking themselves (or everyone) out.
   if (String(admin._id) === String(userId)) throw badRequest('You cannot change your own role or status');
 
@@ -82,6 +122,7 @@ export async function updateUser(admin: UserDocument, userId: string, { role, st
   const before = { role: user.role, status: user.status };
   if (role) user.role = role;
   if (status) user.status = status;
+  if (status) user.suspensionReason = status === USER_STATUS.SUSPENDED ? (reason ?? '') : '';
   await user.save();
   if (role && role !== before.role) {
     await audit(admin, 'user.role_changed', `Changed ${user.name}'s role from ${before.role} to ${role}`, {
@@ -93,7 +134,7 @@ export async function updateUser(admin: UserDocument, userId: string, { role, st
     await audit(
       admin,
       status === 'suspended' ? 'user.suspended' : 'user.reactivated',
-      `${status === 'suspended' ? 'Suspended' : 'Reactivated'} ${user.name}`,
+      `${status === 'suspended' ? 'Suspended' : 'Reactivated'} ${user.name}${status === 'suspended' && reason ? `: ${reason}` : ''}`,
       {
         kind: 'user',
         id: user._id,

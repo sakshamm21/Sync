@@ -375,3 +375,10 @@ test('a member can change their email with a code sent to the new address', asyn
   await page.getByRole('button', { name: 'Confirm new email' }).click();
   await expect(page.getByText('You sign in with asha.new@example.com.')).toBeVisible();
 });
+
+test('the admin overview shows weekly trends', async ({ page }) => {
+  await signInAs(page, 'admin@syncronify.dev');
+  await page.goto('/admin');
+  await expect(page.getByText('New people')).toBeVisible();
+  await expect(page.getByRole('img', { name: /^RSVPs per week:/ })).toBeVisible();
+});

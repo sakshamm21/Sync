@@ -19,6 +19,8 @@ const usersQuery = z.object({
 
 const userUpdateBody = z
   .object({
+    /** Shown to the person when they try to sign in. */
+    reason: z.string().trim().max(500).optional(),
     role: z.enum(ROLES).optional(),
     status: z.enum(USER_STATUS).optional(),
   })
