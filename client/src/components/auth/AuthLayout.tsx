@@ -7,7 +7,7 @@ import ThemeToggle from '@/components/shell/ThemeToggle';
 
 const STICKERS = [
   { text: "you're in ✓", className: 'bg-[#d4ff3a] text-black', style: { left: '8%', top: '14%' }, rotate: -9 },
-  { text: '🔥 24 going', className: 'bg-[#ff4fd8] text-white', style: { right: '10%', top: '24%' }, rotate: 7 },
+  { text: '🔥 24 going', className: 'bg-[#ff4fd8] text-[#09090d]', style: { right: '10%', top: '24%' }, rotate: 7 },
   { text: 'waitlist → in 🎉', className: 'bg-[#3df5ff] text-black', style: { left: '14%', top: '40%' }, rotate: 4 },
   { text: 'tmrw · 10am', className: 'bg-white text-black', style: { right: '16%', top: '50%' }, rotate: -5 },
 ];

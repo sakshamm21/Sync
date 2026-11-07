@@ -27,7 +27,7 @@ function Ticker({ events }: { events: SyncEvent[] }) {
           >
             <span aria-hidden="true">{CATEGORY_EMOJI[e.category]}</span>
             {e.title}
-            <span className="font-mono text-xs font-medium normal-case opacity-70">
+            <span className="font-mono text-xs font-medium normal-case opacity-90">
               {formatDay(e.startsAt)} · {formatTime(e.startsAt)}
             </span>
             <span aria-hidden="true" className="ml-3">
@@ -73,7 +73,7 @@ function RoleShortcuts() {
       icon: <ShieldCheck />,
       title: 'Admin',
       line: `${platform.pendingApplications} organizer request${platform.pendingApplications === 1 ? '' : 's'} · ${platform.users.total} people`,
-      className: 'bg-pink text-white',
+      className: 'bg-pink text-[#09090d]',
     },
   ].filter(Boolean) as { href: string; icon: React.ReactNode; title: string; line: string; className: string }[];
 

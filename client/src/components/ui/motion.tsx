@@ -80,7 +80,8 @@ export function Marquee({
         style={{ ['--marquee-duration' as string]: `${duration}s`, animationDirection: reverse ? 'reverse' : 'normal' }}
       >
         <div className="flex shrink-0 items-center">{children}</div>
-        <div className="flex shrink-0 items-center" aria-hidden="true">
+        {/* The copy only fills the loop: hidden from screen readers and out of the tab order. */}
+        <div className="flex shrink-0 items-center" aria-hidden="true" inert>
           {children}
         </div>
       </div>

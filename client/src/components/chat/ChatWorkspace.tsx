@@ -80,7 +80,7 @@ export default function ChatWorkspace() {
                 <EventCover event={channel} stickers={false} className="size-12 shrink-0 rounded-2xl" />
                 <span className="min-w-0">
                   <span className="block truncate text-sm font-medium">{channel.title}</span>
-                  <span className="font-mono text-[10px] uppercase tracking-wider opacity-70">{formatDay(channel.startsAt)}</span>
+                  <span className="font-mono text-[10px] uppercase tracking-wider opacity-90">{formatDay(channel.startsAt)}</span>
                 </span>
               </button>
             </li>

@@ -17,7 +17,7 @@
   --border-strong: #cbc0ab;
   --foreground: #0b0b10;
   --muted: #5d5866;
-  --subtle: #8b8693;
+  --subtle: #696472;
 
   --primary: #6a3dff;
   --primary-hover: #5a2cf0;
@@ -51,7 +51,7 @@
   --border-strong: #34343f;
   --foreground: #f5f2ea;
   --muted: #a4a1ad;
-  --subtle: #6d6a78;
+  --subtle: #8d8a98;
 
   --primary: #d4ff3a;
   --primary-hover: #e3ff78;
@@ -282,7 +282,13 @@ body::after {
   padding: 0.2rem 0.45rem;
 }
 .calendar-theme .fc .fc-day-other .fc-daygrid-day-number {
-  opacity: 0.35;
+  /* Days from the next or previous month: quieter, but still readable. */
+  color: var(--subtle);
+  font-weight: 500;
+}
+/* FullCalendar fades the whole cell top to 30%, too faint to read. */
+.calendar-theme .fc .fc-day-other .fc-daygrid-day-top {
+  opacity: 1;
 }
 .calendar-theme .fc .fc-daygrid-day {
   cursor: pointer;

@@ -84,7 +84,7 @@ export function WaitlistDemo() {
 export function NotifyDemo() {
   const items = [
     { icon: <Bell />, title: 'Tomorrow: Tech Summit', body: 'Starts at 10:00 · Main Auditorium', tone: 'bg-surface-raised' },
-    { icon: <Megaphone />, title: 'Venue changed', body: 'Moved to the Open Air Theatre', tone: 'bg-pink text-white' },
+    { icon: <Megaphone />, title: 'Venue changed', body: 'Moved to the Open Air Theatre', tone: 'bg-pink text-[#09090d]' },
     {
       icon: <PartyPopper />,
       title: "You're off the waitlist",

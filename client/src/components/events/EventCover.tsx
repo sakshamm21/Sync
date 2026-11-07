@@ -12,7 +12,7 @@ export function statusOf(event: SyncEvent) {
   if (event.viewer.registration === 'waitlisted')
     return { label: 'Waitlisted', icon: <Hourglass />, className: 'bg-warning text-black' };
   if (event.isPast) return { label: 'Ended', className: 'bg-black text-white' };
-  if (event.spotsLeft === 0) return { label: 'Sold out 🔥', className: 'bg-pink text-white' };
+  if (event.spotsLeft === 0) return { label: 'Sold out 🔥', className: 'bg-pink text-[#09090d]' };
   if (event.spotsLeft != null && event.spotsLeft <= 5)
     return { label: `${event.spotsLeft} left`, className: 'bg-orange text-black' };
   return null;

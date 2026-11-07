@@ -1,7 +1,7 @@
 {
   "name": "sync",
   "version": "1.0.0",
-  "description": "Sync \u2014 Event Management Software OS",
+  "description": "Sync — Event Management Software OS",
   "private": true,
   "scripts": {
     "install:all": "npm install && npm --prefix server install && npm --prefix client install",
@@ -11,10 +11,13 @@
     "test": "npm --prefix server test",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "lint": "eslint ."
+    "lint": "eslint .",
+    "e2e": "playwright test"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.14.0",
     "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.64.0",
     "concurrently": "^8.2.2",
     "eslint": "^10.14.0",
     "eslint-plugin-react-hooks": "^7.1.1",

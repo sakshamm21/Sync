@@ -18,7 +18,7 @@ import { cn } from '@/lib/cn';
 
 const STICKERS = [
   { text: "you're in ✓", className: 'bg-primary text-primary-foreground', pos: 'left-[4%] top-[8%]', rotate: -10 },
-  { text: '🔥 selling out', className: 'bg-pink text-white', pos: 'right-[6%] top-[2%]', rotate: 8 },
+  { text: '🔥 selling out', className: 'bg-pink text-[#09090d]', pos: 'right-[6%] top-[2%]', rotate: 8 },
   { text: 'group chat unlocked 💬', className: 'bg-cyan text-black', pos: 'left-[30%] -bottom-4', rotate: 4 },
   { text: 'no more FOMO', className: 'bg-orange text-black', pos: 'right-[18%] bottom-[12%]', rotate: -6 },
 ];
@@ -162,7 +162,7 @@ export default function LandingPage() {
             ))}
           </Marquee>
         </div>
-        <div className="-mx-4 -mt-3 rotate-[1.5deg] bg-pink py-3 text-white">
+        <div className="-mx-4 -mt-3 rotate-[1.5deg] bg-pink py-3 text-[#09090d]">
           <Marquee duration={34} reverse>
             {MARQUEE_WORDS.map((w) => (
               <span key={w} className="mx-6 flex items-center gap-6 whitespace-nowrap font-serif text-3xl italic">

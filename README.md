@@ -274,6 +274,7 @@ Every variable is documented in `server/.env.example` and `client/.env.example`.
 | `npm run lint` | ESLint for the API and the web app |
 | `npm run format` / `npm run format:check` | Prettier |
 | `npm --prefix client test` | Web app unit tests (time zones, date filters, redirects) |
+| `npm run e2e` | Browser tests with Playwright: key flows, a fake-camera QR scan and axe accessibility checks (run `npx playwright install chromium` once) |
 | `npm --prefix server run seed` | Load the demo data; add `-- --reset` to wipe everything first (refuses to run in production unless `DEMO_MODE=true`) |
 | `npm --prefix server run create-admin -- --email you@example.com` | Create the first admin, or promote an existing account |
 
