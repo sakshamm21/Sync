@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import React, { useEffect, useRef, useState } from 'react';
 import { motion } from 'motion/react';
 import { ArrowRight, Move } from 'lucide-react';
@@ -279,6 +280,14 @@ export default function LandingPage() {
         <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-3 px-4 font-mono text-[11px] uppercase tracking-[0.14em] text-subtle sm:flex-row sm:px-6 lg:px-8">
           <span className="flex items-center gap-2">
             <LogoMark className="size-6" /> sync
+          </span>
+          <span className="flex gap-4">
+            <Link href="/privacy" className="hover:text-foreground">
+              Privacy
+            </Link>
+            <Link href="/terms" className="hover:text-foreground">
+              Terms
+            </Link>
           </span>
           <span>made by Saksham Malhotra · {new Date().getFullYear()}</span>
         </div>

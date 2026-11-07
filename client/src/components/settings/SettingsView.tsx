@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { useTheme } from 'next-themes';
 import { toast } from 'sonner';
 import { Check, Clock, Megaphone, Monitor, Moon, Sun, XCircle } from 'lucide-react';
@@ -298,6 +299,105 @@ function OrganizerSection() {
           </form>
         )}
       </div>
+    </Section>
+  );
+}
+
+/** Change the sign-in email: nothing changes until a code from the new inbox comes back. */
+function EmailSection() {
+  const { user, startSession } = useAuth();
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [pending, setPending] = useState<{ email: string; devCode?: string } | null>(null);
+  const [code, setCode] = useState('');
+  const [busy, setBusy] = useState(false);
+
+  async function start(e: React.FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    try {
+      const result = await meApi.startEmailChange(email.trim(), password);
+      setPending({ email: result.pendingEmail, devCode: result.devCode });
+      setPassword('');
+    } catch (err) {
+      toast.error(errorMessage(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function confirm(e: React.FormEvent) {
+    e.preventDefault();
+    setBusy(true);
+    try {
+      startSession(await meApi.confirmEmailChange(code.trim()));
+      toast.success('Email changed', { description: 'Use the new address to sign in from now on.' });
+      setPending(null);
+      setEmail('');
+      setCode('');
+    } catch (err) {
+      toast.error(errorMessage(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <Section title="Email" description={`You sign in with ${user?.email ?? 'your email'}.`}>
+      {pending ? (
+        <form onSubmit={confirm} className="space-y-3">
+          <p className="text-sm text-muted">
+            We sent a 6-digit code to <span className="font-medium text-foreground">{pending.email}</span>.
+            {pending.devCode && <> (Email isn&apos;t set up here, so the code is {pending.devCode}.)</>}
+          </p>
+          <Field label="Code" htmlFor="email-code">
+            <Input
+              id="email-code"
+              inputMode="numeric"
+              maxLength={6}
+              value={code}
+              onChange={(e) => setCode(e.target.value)}
+              required
+            />
+          </Field>
+          <div className="flex gap-2">
+            <Button type="submit" loading={busy}>
+              Confirm new email
+            </Button>
+            <Button type="button" variant="ghost" onClick={() => setPending(null)}>
+              Cancel
+            </Button>
+          </div>
+        </form>
+      ) : (
+        <form onSubmit={start} className="space-y-4">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <Field label="New email" htmlFor="new-email">
+              <Input
+                id="new-email"
+                type="email"
+                autoComplete="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+              />
+            </Field>
+            <Field label="Confirm with your password" htmlFor="email-password">
+              <Input
+                id="email-password"
+                type="password"
+                autoComplete="current-password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+              />
+            </Field>
+          </div>
+          <Button type="submit" variant="secondary" loading={busy}>
+            Send a code
+          </Button>
+        </form>
+      )}
     </Section>
   );
 }
@@ -605,9 +705,19 @@ export default function SettingsView() {
         <OrganizerSection />
         <DeviceSection />
         <CalendarFeedSection />
+        <EmailSection />
         <PasswordSection />
         <SessionsSection />
         <DataSection />
+        <p className="text-center text-sm text-muted">
+          <Link href="/privacy" className="underline underline-offset-2">
+            Privacy
+          </Link>{' '}
+          ·{' '}
+          <Link href="/terms" className="underline underline-offset-2">
+            Terms
+          </Link>
+        </p>
       </div>
     </>
   );

@@ -64,6 +64,7 @@ Severity labels:
 | #26 | Next #5: certificates, My events history, written feedback |
 | #27 | Next #3: recurring events |
 | #28 | Next #8 (part): room clash warnings |
+| #29 | Next #12 (rest): change email, privacy and terms pages |
 
 **Still open, and why:**
 

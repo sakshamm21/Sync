@@ -21,7 +21,7 @@ for (const theme of ['dark', 'light']) {
   for (const path of pages) {
     test(`${path} (${theme}) has no serious accessibility problems`, async ({ page }) => {
       await page.addInitScript((t) => window.localStorage.setItem('theme', t), theme);
-      if (!['/', '/authentication'].includes(path)) await signInAs(page, 'member@syncronify.dev');
+      if (!['/', '/authentication', '/privacy', '/terms'].includes(path)) await signInAs(page, 'member@syncronify.dev');
       await page.goto(path);
       await page.waitForLoadState('networkidle');
       // Let entrance animations finish: half-faded text isn't what people read.

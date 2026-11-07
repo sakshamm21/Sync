@@ -202,3 +202,56 @@ export async function resetPassword({ token, password }: { token: string; passwo
   await user.save();
   return createSession(user);
 }
+
+/**
+ * Changing email, step 1: check the password and that the new address is
+ * free (and allowed), then send a code to the new address. Nothing changes
+ * until the code comes back, so a typo can't lock anyone out.
+ */
+export async function startEmailChange(user: UserDocument, { email, password }: { email: string; password: string }) {
+  const account = await User.findById(user._id).select('+passwordHash +emailChange');
+  if (!account || !(await account.checkPassword(password)))
+    throw unauthenticated('That password is not right', 'INVALID_PASSWORD');
+  if (email === account.email) throw badRequest('That is already your email', 'SAME_EMAIL');
+  if (!emailDomainAllowed(email)) throw forbidden('Use your college email address', 'EMAIL_DOMAIN_NOT_ALLOWED');
+  if (await User.exists({ email })) throw conflict('Another account already uses that email', 'EMAIL_TAKEN');
+
+  const code = generateOtp();
+  account.emailChange = {
+    email,
+    codeHash: sha256(code),
+    expiresAt: new Date(Date.now() + CODE_TTL_MINUTES * 60 * 1000),
+    attempts: 0,
+  };
+  await account.save();
+  const delivered = await sendMail({
+    to: email,
+    ...emails.verificationCode({ name: account.name, otp: code, expiresInMinutes: CODE_TTL_MINUTES }),
+  });
+  return { pendingEmail: email, devCode: devOnly(delivered, code) };
+}
+
+/** Step 2: the code from the new inbox swaps the address. Other sessions are signed out. */
+export async function confirmEmailChange(user: UserDocument, { code }: { code: string }) {
+  const account = await User.findById(user._id).select('+emailChange');
+  const pending = account?.emailChange;
+  if (!account || !pending?.email || !pending.codeHash || !pending.expiresAt || pending.expiresAt < new Date()) {
+    throw badRequest('This code has expired. Start again.', 'CODE_EXPIRED');
+  }
+  if (pending.attempts >= CODE_MAX_ATTEMPTS)
+    throw new AppError(429, 'Too many incorrect attempts. Start again.', 'TOO_MANY_ATTEMPTS');
+  if (!safeEqual(sha256(code), pending.codeHash)) {
+    pending.attempts += 1;
+    account.markModified('emailChange');
+    await account.save();
+    throw badRequest('That code is not valid.', 'INVALID_CODE');
+  }
+  if (await User.exists({ email: pending.email, _id: { $ne: account._id } })) {
+    throw conflict('Another account already uses that email', 'EMAIL_TAKEN');
+  }
+  account.email = pending.email;
+  account.emailChange = undefined;
+  account.passwordChangedAt = new Date();
+  await account.save();
+  return createSession(account);
+}

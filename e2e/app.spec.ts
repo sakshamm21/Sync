@@ -291,10 +291,10 @@ test('a member can download their data and delete their account', async ({ page 
   expect((await download).suggestedFilename()).toBe('sync-my-data.json');
 
   await page.getByRole('button', { name: 'Delete my account' }).click();
-  await page.getByLabel('Your password').fill('wrong-password');
+  await page.getByLabel('Your password', { exact: true }).fill('wrong-password');
   await page.getByRole('button', { name: 'Delete for good' }).click();
   await expect(page.getByText('That password is not right')).toBeVisible();
-  await page.getByLabel('Your password').fill(PASSWORD);
+  await page.getByLabel('Your password', { exact: true }).fill(PASSWORD);
   await page.getByRole('button', { name: 'Delete for good' }).click();
   await expect(page.getByText('Your account has been deleted')).toBeVisible();
 });
@@ -361,4 +361,17 @@ test('members can RSVP to every date of a weekly series at once', async ({ page 
   await expect(page.getByText('Repeats · 3 upcoming dates')).toBeVisible();
   await page.getByRole('button', { name: 'RSVP to all dates' }).click();
   await expect(page.getByText("You're down for 3 of 3 dates")).toBeVisible();
+});
+
+test('a member can change their email with a code sent to the new address', async ({ page }) => {
+  // Asha isn't used by any other test, so her new address affects nothing else.
+  await signInAs(page, 'asha@syncronify.dev');
+  await page.goto('/settings');
+  await page.getByLabel('New email').fill('asha.new@example.com');
+  await page.getByLabel('Confirm with your password').fill(PASSWORD);
+  await page.getByRole('button', { name: 'Send a code' }).click();
+  const hint = await page.getByText(/the code is \d{6}/).textContent();
+  await page.getByLabel('Code').fill(hint!.match(/\d{6}/)![0]);
+  await page.getByRole('button', { name: 'Confirm new email' }).click();
+  await expect(page.getByText('You sign in with asha.new@example.com.')).toBeVisible();
 });
