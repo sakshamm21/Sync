@@ -301,17 +301,16 @@ test('a member can download their data and delete their account', async ({ page 
 
 test('admins can read the audit log', async ({ page }) => {
   const admin = await signInAs(page, 'admin@syncronify.dev');
-  const users = (
-    await (
-      await page.request.get(`${API}/api/admin/users?q=tester4%40`, { headers: { Authorization: `Bearer ${admin}` } })
-    ).json()
-  ).data;
-  await page.request.patch(`${API}/api/admin/users/${users[0].id}`, {
-    headers: { Authorization: `Bearer ${admin}` },
-    data: { status: 'suspended' },
-  });
+  const headers = { Authorization: `Bearer ${admin}` };
+  const users = (await (await page.request.get(`${API}/api/admin/users?q=tester4&limit=50`, { headers })).json()).data as {
+    id: string;
+    name: string;
+    email: string;
+  }[];
+  const target = users.find((u) => u.email === 'tester4@syncronify.dev')!;
+  await page.request.patch(`${API}/api/admin/users/${target.id}`, { headers, data: { status: 'suspended' } });
   await page.goto('/admin?tab=audit');
-  await expect(page.getByText(`Suspended ${users[0].name}`).first()).toBeVisible();
+  await expect(page.getByText(`Suspended ${target.name}`).first()).toBeVisible();
 });
 
 test('chat messages can be removed by the sender and reported by others; organisers see insights', async ({ page, browser }) => {
@@ -381,4 +380,23 @@ test('the admin overview shows weekly trends', async ({ page }) => {
   await page.goto('/admin');
   await expect(page.getByText('New people')).toBeVisible();
   await expect(page.getByRole('img', { name: /^RSVPs per week:/ })).toBeVisible();
+});
+
+test('friends see which events each other is going to', async ({ page }) => {
+  const as = (t: string) => ({ Authorization: `Bearer ${t}` });
+  const member = await tokenFor('member@syncronify.dev');
+  await signInAs(page, 'tester1@syncronify.dev');
+  await page.goto('/friends');
+  await page.getByLabel('Add a friend by email').fill('member@syncronify.dev');
+  await page.getByRole('button', { name: 'Send request' }).click();
+  await expect(page.getByText(/Waiting on:/)).toBeVisible();
+
+  const incoming = (await (await page.request.get(`${API}/api/friends`, { headers: as(member) })).json()).data.incoming;
+  await page.request.put(`${API}/api/friends/requests/${incoming[0].id}`, { headers: as(member), data: { accept: true } });
+
+  const going = (await apiGet<Ev[]>(member, '/api/me/registrations?upcoming=true')).find(
+    (e) => e.visibility === 'public' && e.viewer.registration === 'going'
+  )!;
+  await page.goto(`/events/${going.id}`);
+  await expect(page.getByText(/👋 .+ going/).first()).toBeVisible();
 });

@@ -86,6 +86,8 @@ export const NOTIFICATION_TYPES = Object.freeze({
   WAITLIST_OFFER: 'waitlist_offer',
   /** The organiser approved or declined your request to join. */
   REGISTRATION_DECISION: 'registration_decision',
+  /** Someone asked to be friends, or accepted. */
+  FRIEND_REQUEST: 'friend_request',
 } as const);
 export type NotificationType = ValueOf<typeof NOTIFICATION_TYPES>;
 

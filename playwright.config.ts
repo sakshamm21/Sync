@@ -50,6 +50,9 @@ export default defineConfig({
         DEV_MEMORY_FRESH: '1',
         CLIENT_URL: WEB,
         REALTIME: 'polling',
+        // The suite signs in as many demo accounts; the real limit is 30 per 15 minutes.
+        AUTH_RATE_LIMIT: '1000',
+        API_RATE_LIMIT: '100000',
         VAPID_PUBLIC_KEY: vapid.publicKey,
         VAPID_PRIVATE_KEY: vapid.privateKey,
       },

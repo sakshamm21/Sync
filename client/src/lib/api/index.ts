@@ -1,6 +1,7 @@
 import { saveBlob } from '../download';
 import { http } from './client';
 import type {
+  FriendsList,
   Certificate,
   EventInsights,
   MessageReport,
@@ -245,6 +246,13 @@ export const clubsApi = {
     data<ClubSuggestion[]>(
       http.get('/clubs/suggestions', { params: interests.length ? { interests: interests.join(',') } : {} })
     ),
+};
+
+export const friendsApi = {
+  list: () => data<FriendsList>(http.get('/friends')),
+  request: (email: string) => data<{ sent: true }>(http.post('/friends/requests', { email })),
+  respond: (requestId: string, accept: boolean) => data<FriendsList>(http.put(`/friends/requests/${requestId}`, { accept })),
+  remove: (userId: string) => data<FriendsList>(http.delete(`/friends/${userId}`)),
 };
 
 export const notificationsApi = {

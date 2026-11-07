@@ -2,9 +2,18 @@
  * Who can see and do what with an event, and the per-viewer view of it.
  * Shared by the events, registrations, chat, staff and notes services.
  */
+import { friendIdsOf } from '../friends/friends.service';
 import { Event, Registration, EventStaff, Interest, type EventDocument, type IEvent, type UserDocument } from '../../models';
 import { forbidden, notFound } from '../../lib/errors';
-import { ROLES, EVENT_VISIBILITY, EVENT_STATUS, STAFF_ROLES, type RegistrationStatus, type StaffRole } from '../../constants';
+import {
+  ROLES,
+  EVENT_VISIBILITY,
+  EVENT_STATUS,
+  STAFF_ROLES,
+  type RegistrationStatus,
+  type StaffRole,
+  REGISTRATION_STATUS,
+} from '../../constants';
 
 export const OWNER_FIELDS = 'name avatarUrl organization role';
 
@@ -128,6 +137,8 @@ export type PresentedEvent = Omit<IEvent, 'owner' | 'organizers'> & {
     interested: boolean;
     /** Checked in at the door (the attendance record). */
     checkedIn: boolean;
+    /** Friends going (first few names) and how many in all. */
+    friendsGoing: { names: string[]; count: number };
     /** For a held seat: claim it before this. */
     offerExpiresAt?: Date | null;
   };
@@ -152,6 +163,26 @@ export async function withViewerContext(events: EventDocument[], viewer: Viewer)
     : [];
   const roleByEvent = new Map(staff.map((s) => [String(s.event), s.role]));
 
+  // Friends going to each listed event, in two queries for the whole list.
+  const friendsByEvent = new Map<string, string[]>();
+  if (viewer) {
+    const friendIds = await friendIdsOf(viewer._id);
+    if (friendIds.length) {
+      const going = await Registration.find({
+        user: { $in: friendIds },
+        event: { $in: events.map((e) => e._id) },
+        status: REGISTRATION_STATUS.GOING,
+      })
+        .select('event user')
+        .populate<{ user: { name: string } | null }>('user', 'name');
+      for (const r of going) {
+        if (!r.user) continue;
+        const key = String(r.event);
+        friendsByEvent.set(key, [...(friendsByEvent.get(key) ?? []), r.user.name]);
+      }
+    }
+  }
+
   const interests = viewer
     ? await Interest.find({ user: viewer.id, event: { $in: events.map((e) => e._id) } }).select('event')
     : [];
@@ -175,6 +206,10 @@ export async function withViewerContext(events: EventDocument[], viewer: Viewer)
         registration,
         interested: interestedIn.has(String(event._id)),
         checkedIn: checkedIn.has(String(event._id)),
+        friendsGoing: {
+          names: (friendsByEvent.get(String(event._id)) ?? []).slice(0, 3),
+          count: friendsByEvent.get(String(event._id))?.length ?? 0,
+        },
       },
     };
   });

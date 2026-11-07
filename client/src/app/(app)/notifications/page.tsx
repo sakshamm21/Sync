@@ -27,6 +27,7 @@ const LABELS: Record<NotificationType, string> = {
   club_new_event: 'Clubs you follow',
   waitlist_offer: 'Spots held for you',
   registration_decision: 'Join requests',
+  friend_request: 'Friends',
   organizer_approved: 'Organizer approved',
   organizer_rejected: 'Organizer not approved',
 };

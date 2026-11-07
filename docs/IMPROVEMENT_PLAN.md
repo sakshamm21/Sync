@@ -66,6 +66,7 @@ Severity labels:
 | #28 | Next #8 (part): room clash warnings |
 | #29 | Next #12 (rest): change email, privacy and terms pages |
 | #30 | Next #9 (rest): platform trends, suspension reasons |
+| #31 | Next #7: friends and "friends going" |
 
 **Still open, and why:**
 
