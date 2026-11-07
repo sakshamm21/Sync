@@ -23,7 +23,9 @@ export default function InterestedButton({
   onChange: (e: SyncEvent) => void;
   className?: string;
 }) {
-  const { user } = useAuth();
+  // While the session is being restored, `user` is still null: wait rather than
+  // treating a signed-in person as a visitor and sending them to sign in.
+  const { user, status: authStatus } = useAuth();
   const router = useRouter();
   const [pending, setPending] = useState(false);
 
@@ -52,6 +54,7 @@ export default function InterestedButton({
       variant="secondary"
       size="lg"
       loading={pending}
+      disabled={authStatus === 'loading'}
       onClick={toggle}
       aria-pressed={on}
       className={cn('w-full', className)}

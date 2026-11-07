@@ -191,7 +191,8 @@ export type NotificationType =
   | 'announcement'
   | 'organizer_approved'
   | 'organizer_rejected'
-  | 'staff_invited';
+  | 'staff_invited'
+  | 'club_new_event';
 
 export interface AppNotification {
   id: string;
@@ -297,4 +298,27 @@ export interface ScanResult {
   alreadyCheckedIn: boolean;
   checkedInAt: string | null;
   attendee: { name: string; avatarUrl: string } | null;
+}
+
+/** A club's public page: an organiser account and what it runs. */
+export interface ClubProfile {
+  id: string;
+  name: string;
+  contactName: string | null;
+  bio: string;
+  avatarUrl: string;
+  followers: number;
+  following: boolean;
+  averageRating: number | null;
+  ratingCount: number;
+  upcoming: SyncEvent[];
+  past: SyncEvent[];
+}
+
+export interface ClubSuggestion {
+  id: string;
+  name: string;
+  avatarUrl: string;
+  bio: string;
+  upcomingEvents: number;
 }

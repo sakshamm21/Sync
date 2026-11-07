@@ -47,7 +47,9 @@ function celebrate(from: HTMLElement | null) {
 
 /** One button for every registration state: RSVP, join waitlist, going, waitlisted, manage. */
 export default function RsvpButton({ event, onChange, size = 'sm', className }: RsvpButtonProps) {
-  const { user } = useAuth();
+  // While the session is being restored, `user` is still null: wait rather than
+  // treating a signed-in person as a visitor and sending them to sign in.
+  const { user, status: authStatus } = useAuth();
   const router = useRouter();
   const { eventsChanged } = useEventsSync();
   const [pending, setPending] = useState(false);
@@ -213,6 +215,7 @@ export default function RsvpButton({ event, onChange, size = 'sm', className }: 
   return (
     <div ref={buttonRef} className={className}>
       <Button
+        disabled={authStatus === 'loading'}
         variant={event.spotsLeft === 0 ? 'secondary' : 'primary'}
         size={size}
         loading={pending}

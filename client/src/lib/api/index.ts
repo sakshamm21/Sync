@@ -1,6 +1,8 @@
 import { saveBlob } from '../download';
 import { http } from './client';
 import type {
+  ClubProfile,
+  ClubSuggestion,
   NotificationType,
   AppNotification,
   AttendeeList,
@@ -192,6 +194,18 @@ export const notesApi = {
 };
 
 // --- Notifications --------------------------------------------------------------
+
+export const clubsApi = {
+  get: (id: string) => data<ClubProfile>(http.get(`/clubs/${id}`)),
+  setFollowing: (id: string, follow: boolean) =>
+    data<{ following: boolean; followers: number }>(
+      follow ? http.put(`/clubs/${id}/follow`) : http.delete(`/clubs/${id}/follow`)
+    ),
+  suggestions: (interests: CategoryValue[] = []) =>
+    data<ClubSuggestion[]>(
+      http.get('/clubs/suggestions', { params: interests.length ? { interests: interests.join(',') } : {} })
+    ),
+};
 
 export const notificationsApi = {
   list: (query: { unreadOnly?: boolean; type?: NotificationType; page?: number; limit?: number } = {}) =>

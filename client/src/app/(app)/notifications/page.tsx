@@ -24,6 +24,7 @@ const LABELS: Record<NotificationType, string> = {
   waitlist_promoted: 'Waitlist',
   announcement: 'Announcements',
   staff_invited: 'Team invites',
+  club_new_event: 'Clubs you follow',
   organizer_approved: 'Organizer approved',
   organizer_rejected: 'Organizer not approved',
 };

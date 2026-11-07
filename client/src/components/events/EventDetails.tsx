@@ -5,7 +5,7 @@
  * details for the first paint; this hydrates from that same data and takes
  * over everything that depends on who is signed in.
  */
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
@@ -266,11 +266,22 @@ export default function EventDetails({
       }
   );
 
+  // Bumped by every local change (RSVP, Interested, rating), so a slower fetch
+  // that started earlier can't overwrite what the user just did.
+  const changes = useRef(0);
+  const applyChange = (next: SyncEvent) => {
+    changes.current += 1;
+    setEvent(next);
+  };
+
   useEffect(() => {
     if (status === 'loading') return;
+    const startedAt = changes.current;
     eventsApi
       .get(id)
-      .then(setEvent)
+      .then((fresh) => {
+        if (changes.current === startedAt) setEvent(fresh);
+      })
       .catch((err) => {
         // With no server copy this was a private plan or draft: if the
         // signed-in user can't see it either, it doesn't exist for them.
@@ -368,7 +379,13 @@ export default function EventDetails({
                   <div className="mt-5 flex items-center gap-2.5 text-sm">
                     <Avatar name={host} src={event.owner?.avatarUrl} size={30} />
                     <span className="text-muted">hosted by</span>
-                    <span className="font-semibold">{host}</span>
+                    {event.owner?.id ? (
+                      <Link href={`/clubs/${event.owner.id}`} className="font-semibold underline-offset-4 hover:underline">
+                        {host}
+                      </Link>
+                    ) : (
+                      <span className="font-semibold">{host}</span>
+                    )}
                   </div>
                 )}
               </FadeIn>
@@ -409,7 +426,7 @@ export default function EventDetails({
               )}
 
               {event.visibility === 'public' && (
-                <RatingPanel event={event} onRated={(r) => setEvent({ ...event, averageRating: r.average })} />
+                <RatingPanel event={event} onRated={(r) => applyChange({ ...event, averageRating: r.average })} />
               )}
 
               {event.visibility === 'public' && (
@@ -478,8 +495,8 @@ export default function EventDetails({
                       If a spot opens, you&apos;re in automatically.
                     </p>
                   )}
-                  <RsvpButton event={event} onChange={setEvent} size="xl" className="w-full" />
-                  <InterestedButton event={event} onChange={setEvent} />
+                  <RsvpButton event={event} onChange={applyChange} size="xl" className="w-full" />
+                  <InterestedButton event={event} onChange={applyChange} />
                   <div className="flex justify-around pt-1">
                     <RoundAction label="Calendar" onClick={addToCalendar}>
                       <CalendarPlus />

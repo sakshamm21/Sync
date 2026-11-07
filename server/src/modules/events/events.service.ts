@@ -21,6 +21,7 @@ import { paginationMeta, escapeRegex } from '../../lib/schemas';
 import { buildCalendar, buildEventCalendar } from '../../lib/ics';
 import * as notifications from '../notifications/notifications.service';
 import { fillFromWaitlist } from './waitlist.service';
+import * as clubs from '../clubs/clubs.service';
 import {
   OWNER_FIELDS,
   canPublishPublicEvents,
@@ -298,6 +299,7 @@ export async function create(user: UserDocument, input: CreateEventInput) {
     organizers: [user._id],
   });
   await event.populate('owner', OWNER_FIELDS);
+  if (isPublic && event.status === EVENT_STATUS.PUBLISHED) await clubs.announceNewEvent(event);
   return present(event, user);
 }
 
@@ -355,6 +357,8 @@ export async function update(user: UserDocument, id: string, changes: UpdateEven
       body: 'The time or location of an event you registered for has changed. Check the latest details.',
     });
   }
+
+  if (publishing) await clubs.announceNewEvent(event);
 
   const capacityGrew = previousCapacity !== null && (event.capacity === null || event.capacity > previousCapacity);
   if (capacityGrew) await fillFromWaitlist(event);
