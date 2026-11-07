@@ -28,6 +28,7 @@ import EventCover, { statusOf } from './EventCover';
 import { CapacityBar, DateStamp } from './EventCard';
 import EventChat from '@/components/chat/EventChat';
 import { useAuth } from '@/context/AuthContext';
+import { useEventsSync } from '@/context/EventContext';
 import { errorMessage, eventsApi, type EventRating, type ReportReason, type SyncEvent } from '@/lib/api';
 import { CATEGORY_EMOJI, formatEventWhen, formatVenue } from '@/lib/format';
 import { SITE_URL, whatsappShareUrl } from '@/lib/calendarLinks';
@@ -172,6 +173,69 @@ function RatingPanel({ event, onRated }: { event: SyncEvent; onRated: (r: EventR
           <ButtonLink href={`/certificates/${event.id}`} variant="secondary" size="sm" className="mt-4">
             Get your certificate
           </ButtonLink>
+        )}
+      </Card>
+    </section>
+  );
+}
+
+/** The other dates of a repeating event, with "RSVP to all". */
+function SeriesPanel({ event }: { event: SyncEvent }) {
+  const router = useRouter();
+  const { user } = useAuth();
+  const { eventsChanged } = useEventsSync();
+  const [dates, setDates] = useState<SyncEvent[] | null>(null);
+  const [pending, setPending] = useState(false);
+
+  useEffect(() => {
+    eventsApi
+      .series(event.id)
+      .then(setDates)
+      .catch(() => setDates(null));
+  }, [event.id]);
+
+  if (!dates || dates.length < 2) return null;
+  const canJoinAll = event.visibility === 'public' && !event.viewer.isOrganizer && !event.viewer.canCheckIn;
+
+  async function joinAll() {
+    if (!user) {
+      router.push(`/authentication?next=${encodeURIComponent(`/events/${event.id}`)}`);
+      return;
+    }
+    setPending(true);
+    try {
+      const results = await eventsApi.registerSeries(event.id);
+      const ok = results.filter((r) => r.status).length;
+      toast.success(`You're down for ${ok} of ${results.length} dates`);
+      setDates(await eventsApi.series(event.id));
+      eventsChanged();
+    } catch (err) {
+      toast.error(errorMessage(err));
+    } finally {
+      setPending(false);
+    }
+  }
+
+  return (
+    <section>
+      <Kicker className="mb-3">Repeats · {dates.length} upcoming dates</Kicker>
+      <Card className="p-5">
+        <ul className="mb-4 space-y-1.5 text-sm">
+          {dates.map((d) => (
+            <li key={d.id} className="flex items-center justify-between gap-3">
+              <Link href={`/events/${d.id}`} className={d.id === event.id ? 'font-semibold' : 'hover:text-primary'}>
+                {formatEventWhen(d)}
+              </Link>
+              <span className="text-xs text-muted">
+                {d.viewer.registration === 'going' ? "You're in" : d.viewer.registration === 'waitlisted' ? 'Waitlisted' : ''}
+              </span>
+            </li>
+          ))}
+        </ul>
+        {canJoinAll && (
+          <Button variant="secondary" size="sm" loading={pending} onClick={joinAll}>
+            RSVP to all dates
+          </Button>
         )}
       </Card>
     </section>
@@ -508,6 +572,7 @@ export default function EventDetails({
                 </section>
               )}
 
+              {event.seriesId && <SeriesPanel event={event} />}
               {event.visibility === 'public' && (
                 <RatingPanel event={event} onRated={(r) => applyChange({ ...event, averageRating: r.average })} />
               )}

@@ -120,6 +120,8 @@ export interface SyncEvent {
   questions?: EventQuestion[];
   /** RSVPs wait for the organiser's approval. */
   requiresApproval?: boolean;
+  /** Shared by every date of a repeating event. */
+  seriesId?: string | null;
   /** People who bookmarked it as "Interested". */
   interestedCount?: number;
   spotsLeft: number | null;
@@ -162,6 +164,8 @@ export interface EventInput {
   questions?: Omit<EventQuestion, 'id'>[];
   /** RSVPs wait for the organiser's approval. */
   requiresApproval?: boolean;
+  /** Only when creating: make it a series. */
+  repeat?: { every: 'week' | 'fortnight'; count: number };
 }
 
 export interface Attendee {

@@ -240,3 +240,24 @@ export async function listForUser(user: UserDocument, { upcomingOnly }: { upcomi
     .populate('owner', OWNER_FIELDS);
   return withViewerContext(events, user);
 }
+
+/** RSVPs to every upcoming date of a series at once; dates that refuse (full with approval, closed) are skipped. */
+export async function registerSeries(user: UserDocument, eventId: string) {
+  const { event } = await loadEvent(user, eventId);
+  if (!event.seriesId) throw badRequest('This event is not part of a series', 'NOT_A_SERIES');
+  const dates = await Event.find({ seriesId: event.seriesId, endsAt: { $gte: new Date() }, status: EVENT_STATUS.PUBLISHED }).sort(
+    {
+      startsAt: 1,
+    }
+  );
+  const results: { id: string; status: string | null; error?: string }[] = [];
+  for (const date of dates) {
+    try {
+      const r = await register(user, String(date._id));
+      results.push({ id: String(date._id), status: r.viewer.registration });
+    } catch (err) {
+      results.push({ id: String(date._id), status: null, error: (err as Error).message });
+    }
+  }
+  return results;
+}

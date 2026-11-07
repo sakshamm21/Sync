@@ -119,6 +119,24 @@ router.post(
   })
 );
 
+/** RSVP to every upcoming date of a repeating event. */
+router.post(
+  '/:id/registration/series',
+  authenticate,
+  validate({ params: idParams }, async (req, res) => {
+    res.json({ data: await registrations.registerSeries(currentUser(req), req.params.id) });
+  })
+);
+
+/** The other upcoming dates of a repeating event. */
+router.get(
+  '/:id/series',
+  optionalAuth,
+  validate({ params: idParams }, async (req, res) => {
+    res.json({ data: await events.seriesFor(req.user, req.params.id) });
+  })
+);
+
 router.delete(
   '/:id/registration',
   authenticate,
