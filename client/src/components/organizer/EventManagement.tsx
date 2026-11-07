@@ -11,28 +11,31 @@ import { useCreateEvent } from '@/components/events/CreateEventDialog';
 import { useEventsSync } from '@/context/EventContext';
 import EventCover from '@/components/events/EventCover';
 import EventChat from '@/components/chat/EventChat';
-import QrScanner from '@/components/events/QrTicket';
+import DoorScanner from '@/components/organizer/DoorScanner';
+import DoorMode from '@/components/organizer/DoorMode';
 import EventTeam from '@/components/organizer/EventTeam';
 import { Button, ButtonLink } from '@/components/ui/button';
 import { Avatar, Badge, Card, EmptyState, StatCard } from '@/components/ui/surface';
 import { Segmented } from '@/components/ui/tabs';
 import { cn } from '@/lib/cn';
+import { saveBlob } from '@/lib/download';
 
 type Filter = 'all' | 'going' | 'waitlisted' | 'checked-in';
 
 function downloadCsv(event: SyncEvent, attendees: Attendee[]) {
-  const escape = (value: string) => `"${value.replace(/"/g, '""')}"`;
+  // A cell starting with = + - @ (or a tab/CR) is run as a formula by Excel and
+  // Sheets; a leading apostrophe makes it plain text.
+  const escape = (value: string) => {
+    const safe = /^[=+\-@\t\r]/.test(value) ? `'${value}` : value;
+    return `"${safe.replace(/"/g, '""')}"`;
+  };
   const rows = [
     ['Name', 'Email', 'Status', 'Registered at', 'Checked in at'],
     ...attendees.map((a) => [a.user?.name ?? '', a.user?.email ?? '', a.status, a.registeredAt, a.checkedInAt ?? '']),
   ];
-  const blob = new Blob([rows.map((r) => r.map(escape).join(',')).join('\n')], { type: 'text/csv' });
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = `${event.title.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}-attendees.csv`;
-  link.click();
-  URL.revokeObjectURL(url);
+  // The byte-order mark makes Excel read the file as UTF-8, so names like "Aanya Śarma" survive.
+  const blob = new Blob(['\uFEFF', rows.map((r) => r.map(escape).join(',')).join('\r\n')], { type: 'text/csv;charset=utf-8' });
+  saveBlob(blob, `${event.title.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}-attendees.csv`);
 }
 
 /** Organiser view of one event: attendees, check-in and announcements. */
@@ -46,10 +49,14 @@ export default function EventManagement({ eventId }: { eventId: string }) {
   const [filter, setFilter] = useState<Filter>('all');
 
   const load = useCallback(() => {
-    Promise.all([eventsApi.get(eventId), eventsApi.attendees(eventId)])
-      .then(([e, a]) => {
+    // The attendee list has everyone's email, so only managers get it; door
+    // staff get door mode instead.
+    eventsApi
+      .get(eventId)
+      .then(async (e) => {
         setEvent(e);
-        setList(a);
+        if (e.viewer.canManage) setList(await eventsApi.attendees(eventId));
+        else if (!e.viewer.canCheckIn) setError('You are not on the team for this event.');
       })
       .catch((err) => setError(errorMessage(err)));
   }, [eventId]);
@@ -87,10 +94,10 @@ export default function EventManagement({ eventId }: { eventId: string }) {
   if (error) {
     return <EmptyState emoji="🫠" title="Event not available" description={error} action={<ButtonLink href="/organizer" variant="secondary">Back to organizer</ButtonLink>} />;
   }
-  if (!event || !list) return <div className="h-96 animate-pulse rounded-3xl bg-surface-muted" />;
+  if (!event) return <div className="h-96 animate-pulse rounded-3xl bg-surface-muted" />;
 
-  return (
-    <div className="space-y-8">
+  const header = (
+    <>
       <Link href="/organizer" className="inline-flex items-center gap-1.5 text-sm font-medium text-muted hover:text-foreground">
         <ArrowLeft className="size-4" /> Organizer
       </Link>
@@ -99,13 +106,14 @@ export default function EventManagement({ eventId }: { eventId: string }) {
         <EventCover event={event} stickers={false} className="aspect-[16/10] w-full shrink-0 rounded-3xl sm:w-56" />
         <div className="min-w-0 flex-1">
           {event.status === 'cancelled' && <Badge tone="danger" className="mb-2">Cancelled</Badge>}
+          {!event.viewer.canManage && <Badge className="mb-2">Door staff</Badge>}
           <h1 className="text-2xl font-semibold">{event.title}</h1>
           <p className="mt-1 text-sm text-muted">
             {formatEventWhen(event)} · {formatVenue(event)}
           </p>
         </div>
         <div className="flex shrink-0 gap-2">
-          {event.status !== 'cancelled' && (
+          {event.viewer.canManage && event.status !== 'cancelled' && (
             <Button variant="secondary" onClick={() => openCreateEvent({ event })}>
               <Pencil /> Edit
             </Button>
@@ -115,6 +123,22 @@ export default function EventManagement({ eventId }: { eventId: string }) {
           </ButtonLink>
         </div>
       </Card>
+    </>
+  );
+
+  if (!event.viewer.canManage) {
+    return (
+      <div className="space-y-8">
+        {header}
+        <DoorMode event={event} version={version} />
+      </div>
+    );
+  }
+  if (!list) return <div className="h-96 animate-pulse rounded-3xl bg-surface-muted" />;
+
+  return (
+    <div className="space-y-8">
+      {header}
 
       <div className="grid grid-cols-3 gap-4">
         <StatCard label="Going" value={`${list.counts.going}${event.capacity ? `/${event.capacity}` : ''}`} icon={<Users />} />
@@ -203,17 +227,14 @@ export default function EventManagement({ eventId }: { eventId: string }) {
         </Card>
       </div>
 
-            {event.viewer.canManage && <EventTeam eventId={event.id} />}
-
-            {event.viewer.canCheckIn && (
-              <Card className="p-5">
-                <h2 className="font-semibold">Door check-in</h2>
-                <p className="mt-0.5 mb-4 text-xs text-muted">
-                  Attendees show the code on their event page. Scanning one checks them in.
-                </p>
-                <QrScanner event={event} onScanned={load} />
-              </Card>
-            )}
-          </div>
-        );
-      }
+      <div className="grid gap-6 xl:grid-cols-2">
+        <EventTeam eventId={event.id} />
+        <Card className="p-5">
+          <h2 className="font-semibold">Door check-in</h2>
+          <p className="mb-4 mt-0.5 text-xs text-muted">Attendees show the code on their event page. Scanning one checks them in.</p>
+          <DoorScanner event={event} onScanned={load} />
+        </Card>
+      </div>
+    </div>
+  );
+}

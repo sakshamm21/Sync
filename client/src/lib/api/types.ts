@@ -286,9 +286,9 @@ export interface EventReport {
 }
 
 /** The signed code an attendee shows at the door. */
+/** What an attendee shows at the door: a short signed code (about 40 characters). */
 export interface EventTicket {
   token: string;
-  payload: { reg: string; event: string; user: string };
 }
 
 export interface ScanResult {

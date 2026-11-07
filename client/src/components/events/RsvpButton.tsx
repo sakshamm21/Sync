@@ -4,7 +4,7 @@ import { useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import confetti from 'canvas-confetti';
-import { Check, Hourglass, Settings2, Plus } from 'lucide-react';
+import { Check, Hourglass, Settings2, Plus, ScanLine } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useEventsSync } from '@/context/EventContext';
 import { errorMessage, eventsApi, type SyncEvent } from '@/lib/api';
@@ -44,6 +44,14 @@ export default function RsvpButton({ event, onChange, size = 'sm', className }: 
     return (
       <ButtonLink href={`/organizer/events/${event.id}`} variant="secondary" size={size} className={className}>
         <Settings2 /> Manage
+      </ButtonLink>
+    );
+  }
+  // Door staff run the event rather than attend it.
+  if (event.viewer.canCheckIn) {
+    return (
+      <ButtonLink href={`/organizer/events/${event.id}`} variant="secondary" size={size} className={className}>
+        <ScanLine /> Door check-in
       </ButtonLink>
     );
   }

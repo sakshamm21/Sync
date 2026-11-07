@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { toast } from 'sonner';
-import { Ban, CalendarCheck, CalendarDays, Hourglass, Pencil, Plus, Trash2, TrendingUp, Users } from 'lucide-react';
+import { Ban, CalendarCheck, CalendarDays, Hourglass, Pencil, Plus, ScanLine, Trash2, TrendingUp, Users } from 'lucide-react';
 import { useEventsSync } from '@/context/EventContext';
 import { errorMessage, eventsApi, organizerApi, type OrganizedEvent, type OrganizerOverview } from '@/lib/api';
 import { formatEventWhen, formatVenue } from '@/lib/format';
@@ -159,21 +159,24 @@ export default function OrganizerConsole() {
                 </div>
                 <div className="flex shrink-0 items-center gap-1 px-1">
                   <ButtonLink href={`/organizer/events/${event.id}`} variant="secondary" size="sm">
-                    <Users /> Attendees
+                    {event.viewer.canManage ? <><Users /> Attendees</> : <><ScanLine /> Door check-in</>}
                   </ButtonLink>
-                  {event.status !== 'cancelled' && (
+                  {event.viewer.canManage && event.status !== 'cancelled' && (
                     <Button variant="ghost" size="icon-sm" aria-label="Edit" title="Edit" onClick={() => openCreateEvent({ event })}>
                       <Pencil />
                     </Button>
                   )}
-                  {event.status === 'published' && !event.isPast && (
+                  {event.viewer.canManage && event.status === 'published' && !event.isPast && (
                     <Button variant="ghost" size="icon-sm" aria-label="Cancel event" title="Cancel event" onClick={() => { setCancelReason(''); setCancelling(event); }}>
                       <Ban />
                     </Button>
                   )}
-                  <Button variant="ghost" size="icon-sm" aria-label="Delete" title="Delete" onClick={() => setDeleting(event)} className="hover:text-danger">
-                    <Trash2 />
-                  </Button>
+                  {/* Only the owner may delete (managers can cancel instead). */}
+                  {event.viewer.isOwner && (
+                    <Button variant="ghost" size="icon-sm" aria-label="Delete" title="Delete" onClick={() => setDeleting(event)} className="hover:text-danger">
+                      <Trash2 />
+                    </Button>
+                  )}
                 </div>
               </article>
             </StaggerItem>
