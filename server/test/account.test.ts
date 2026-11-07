@@ -84,3 +84,28 @@ describe('admin audit log', () => {
     await api().get('/api/admin/audit-log').set(member.auth).expect(403);
   });
 });
+
+describe('changing email', () => {
+  it('only switches after a code from the new inbox, and signs out other sessions', async () => {
+    const member = await createUser({ email: 'old@example.com' });
+    await createUser({ email: 'taken@example.com' });
+    await api().post('/api/me/email').set(member.auth).send({ email: 'taken@example.com', password: 'password123' }).expect(409);
+    await api().post('/api/me/email').set(member.auth).send({ email: 'new@example.com', password: 'nope' }).expect(401);
+
+    const started = (
+      await api().post('/api/me/email').set(member.auth).send({ email: 'new@example.com', password: 'password123' }).expect(200)
+    ).body.data;
+    assert.equal(started.pendingEmail, 'new@example.com');
+    assert.equal((await User.findById(member.user._id))!.email, 'old@example.com', 'nothing changes yet');
+
+    await api().post('/api/me/email/confirm').set(member.auth).send({ code: '000000' }).expect(400);
+    const session = (await api().post('/api/me/email/confirm').set(member.auth).send({ code: started.devCode }).expect(200)).body
+      .data;
+    assert.equal(session.user.email, 'new@example.com');
+    await new Promise((r) => setTimeout(r, 1100));
+    await api()
+      .get('/api/me')
+      .set({ Authorization: `Bearer ${session.token}` })
+      .expect(200);
+  });
+});

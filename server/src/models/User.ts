@@ -23,6 +23,8 @@ export interface IUser {
   status: UserStatus;
   emailVerified: boolean;
   emailVerification?: { codeHash?: string; expiresAt?: Date; attempts: number; sentAt?: Date };
+  /** A new address waiting for its code before it replaces `email`. */
+  emailChange?: { email?: string; codeHash?: string; expiresAt?: Date; attempts: number };
   passwordReset?: { tokenHash?: string; expiresAt?: Date; sentAt?: Date };
   /** Tokens issued before this are refused ("sign out of all devices"). */
   sessionsRevokedAt?: Date;
@@ -74,6 +76,10 @@ const userSchema = new Schema<IUser, UserModel, UserMethods>(
       type: { codeHash: String, expiresAt: Date, attempts: { type: Number, default: 0 }, sentAt: Date },
       select: false,
     },
+    emailChange: {
+      type: { email: String, codeHash: String, expiresAt: Date, attempts: { type: Number, default: 0 } },
+      select: false,
+    },
     passwordReset: {
       type: { tokenHash: String, expiresAt: Date, sentAt: Date },
       select: false,
@@ -103,6 +109,7 @@ const userSchema = new Schema<IUser, UserModel, UserMethods>(
         delete ret._id;
         delete ret.passwordHash;
         delete ret.emailVerification;
+        delete ret.emailChange;
         delete ret.passwordReset;
         delete ret.sessionsRevokedAt;
         delete ret.calendarToken;

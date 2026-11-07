@@ -110,6 +110,11 @@ export const meApi = {
   addPushSubscription: (subscription: PushSubscriptionJSON) =>
     data<{ ok: true }>(http.post('/me/push-subscriptions', subscription)),
   removePushSubscription: (endpoint: string) => data<{ ok: true }>(http.post('/me/push-subscriptions/remove', { endpoint })),
+  /** Change email, step 1: a code goes to the new address. */
+  startEmailChange: (email: string, password: string) =>
+    data<{ pendingEmail: string; devCode?: string }>(http.post('/me/email', { email, password })),
+  /** Step 2: the code swaps the address; returns a fresh session. */
+  confirmEmailChange: (code: string) => data<Session>(http.post('/me/email/confirm', { code })),
   /** Everything Sync holds about you, as a JSON file. */
   async downloadData() {
     const response = await http.get<Blob>('/me/export', { responseType: 'blob' });

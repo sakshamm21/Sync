@@ -5,6 +5,7 @@ import { z, password, optionalUrl, queryBoolean } from '../../lib/schemas';
 import { CATEGORY_VALUES, NOTIFICATION_TYPES, type NotificationType } from '../../constants';
 import * as service from './me.service';
 import * as account from './account.service';
+import * as auth from '../auth/auth.service';
 import { assertNotDemoAccount } from '../../demo/accounts';
 import * as events from '../events/events.service';
 import * as registrations from '../events/registrations.service';
@@ -93,6 +94,23 @@ router.post(
   validate({ body: z.object({ endpoint: z.string().max(1000) }) }, async (req, res) => {
     await PushSubscription.deleteOne({ endpoint: req.body.endpoint, user: currentUser(req)._id });
     res.json({ data: { ok: true } });
+  })
+);
+
+/** Change email, step 1: password + new address; a code goes to the new inbox. */
+router.post(
+  '/email',
+  validate({ body: z.object({ email: z.email().trim().toLowerCase(), password: z.string().min(1) }) }, async (req, res) => {
+    assertNotDemoAccount(currentUser(req).email);
+    res.json({ data: await auth.startEmailChange(currentUser(req), req.body) });
+  })
+);
+
+/** Change email, step 2: the code swaps the address and returns a fresh session. */
+router.post(
+  '/email/confirm',
+  validate({ body: z.object({ code: z.string().trim().length(6) }) }, async (req, res) => {
+    res.json({ data: await auth.confirmEmailChange(currentUser(req), req.body) });
   })
 );
 
