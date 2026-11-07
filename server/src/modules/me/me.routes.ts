@@ -4,6 +4,7 @@ import validate from '../../middleware/validate';
 import { z, password, optionalUrl, queryBoolean } from '../../lib/schemas';
 import { CATEGORY_VALUES, NOTIFICATION_TYPES, type NotificationType } from '../../constants';
 import * as service from './me.service';
+import * as account from './account.service';
 import { assertNotDemoAccount } from '../../demo/accounts';
 import * as events from '../events/events.service';
 import * as registrations from '../events/registrations.service';
@@ -92,6 +93,21 @@ router.post(
   validate({ body: z.object({ endpoint: z.string().max(1000) }) }, async (req, res) => {
     await PushSubscription.deleteOne({ endpoint: req.body.endpoint, user: currentUser(req)._id });
     res.json({ data: { ok: true } });
+  })
+);
+
+/** "Download my data": everything Sync holds about you, as JSON. */
+router.get('/export', async (req, res) => {
+  const data = await account.exportData(currentUser(req));
+  res.set('Content-Disposition', 'attachment; filename="sync-my-data.json"').json(data);
+});
+
+/** Deletes the account for good; the password confirms it's really them. */
+router.post(
+  '/delete',
+  validate({ body: z.object({ password: z.string().min(1, 'Enter your password') }) }, async (req, res) => {
+    await account.deleteAccount(currentUser(req), req.body.password);
+    res.json({ data: { deleted: true } });
   })
 );
 

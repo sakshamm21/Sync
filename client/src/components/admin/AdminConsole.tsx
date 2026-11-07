@@ -22,6 +22,7 @@ import { useAuth } from '@/context/AuthContext';
 import {
   adminApi,
   errorMessage,
+  type AuditEntry,
   type EventReport,
   type OrganizerApplication,
   type PageMeta,
@@ -30,7 +31,7 @@ import {
   type User,
   type UserStatus,
 } from '@/lib/api';
-import { ROLE_LABELS, formatDay, formatRelative } from '@/lib/format';
+import { ROLE_LABELS, formatDateTime, formatDay, formatRelative } from '@/lib/format';
 import { Button } from '@/components/ui/button';
 import { Select, Textarea } from '@/components/ui/field';
 import { ConfirmDialog } from '@/components/ui/overlay';
@@ -38,7 +39,7 @@ import { Avatar, Badge, Card, EmptyState, PageHeader, StatCard } from '@/compone
 import { Segmented } from '@/components/ui/tabs';
 import { Stagger, StaggerItem } from '@/components/ui/motion';
 
-type Tab = 'overview' | 'users' | 'applications' | 'reports';
+type Tab = 'overview' | 'users' | 'applications' | 'reports' | 'audit';
 
 const REPORT_LABELS: Record<EventReport['reason'], string> = {
   misleading: 'Misleading details',
@@ -532,11 +533,61 @@ function Reports() {
   );
 }
 
+/** Every admin action, newest first: who did what to whom. */
+function AuditLog() {
+  const [entries, setEntries] = useState<AuditEntry[] | null>(null);
+  const [page, setPage] = useState(1);
+  const [hasMore, setHasMore] = useState(false);
+
+  useEffect(() => {
+    adminApi
+      .auditLog({ page, limit: 30 })
+      .then(({ items, meta }) => {
+        setEntries((prev) => (page === 1 ? items : [...(prev ?? []), ...items]));
+        setHasMore(meta.page < meta.totalPages);
+      })
+      .catch((err) => toast.error(errorMessage(err)));
+  }, [page]);
+
+  if (!entries) return <div className="h-64 animate-pulse rounded-3xl bg-surface-muted" />;
+  if (!entries.length)
+    return (
+      <EmptyState emoji="🗂️" title="No admin actions yet" description="Suspensions, approvals and takedowns will show up here." />
+    );
+  return (
+    <Card className="overflow-hidden">
+      <ul className="divide-y divide-border">
+        {entries.map((e) => (
+          <li key={e.id} className="flex items-center gap-3 px-4 py-3">
+            <Avatar name={e.actor?.name ?? '?'} src={e.actor?.avatarUrl} size={32} />
+            <div className="min-w-0 flex-1">
+              <p className="text-sm">
+                <span className="font-medium">{e.actor?.name ?? 'Deleted admin'}</span> · {e.summary}
+              </p>
+              <p className="text-xs text-muted">{formatDateTime(e.createdAt)}</p>
+            </div>
+          </li>
+        ))}
+      </ul>
+      {hasMore && (
+        <div className="border-t border-border p-3 text-center">
+          <Button variant="secondary" size="sm" onClick={() => setPage((p) => p + 1)}>
+            Load more
+          </Button>
+        </div>
+      )}
+    </Card>
+  );
+}
+
 export default function AdminConsole() {
   const router = useRouter();
   const params = useSearchParams();
   const requested = params.get('tab') as Tab | null;
-  const tab: Tab = requested === 'users' || requested === 'applications' || requested === 'reports' ? requested : 'overview';
+  const tab: Tab =
+    requested === 'users' || requested === 'applications' || requested === 'reports' || requested === 'audit'
+      ? requested
+      : 'overview';
   const setTab = (next: Tab) => router.replace(next === 'overview' ? '/admin' : `/admin?tab=${next}`, { scroll: false });
 
   return (
@@ -559,12 +610,14 @@ export default function AdminConsole() {
           { value: 'users', label: 'People' },
           { value: 'applications', label: 'Organizer requests' },
           { value: 'reports', label: 'Reports' },
+          { value: 'audit', label: 'Audit log' },
         ]}
       />
       {tab === 'overview' && <Overview onOpen={setTab} />}
       {tab === 'users' && <People />}
       {tab === 'applications' && <Applications />}
       {tab === 'reports' && <Reports />}
+      {tab === 'audit' && <AuditLog />}
     </>
   );
 }

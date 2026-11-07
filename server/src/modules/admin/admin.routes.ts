@@ -41,6 +41,14 @@ const resolveBody = z.object({
   reason: z.string().trim().max(500).default(''),
 });
 
+router.get(
+  '/audit-log',
+  validate({ query: z.object({ ...pagination }) }, async (req, res) => {
+    const { items, meta } = await service.auditLog(req.query);
+    res.json({ data: items, meta });
+  })
+);
+
 router.get('/stats', async (_req, res) => {
   res.json({ data: await service.stats() });
 });

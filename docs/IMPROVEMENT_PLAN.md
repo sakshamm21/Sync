@@ -59,6 +59,7 @@ Severity labels:
 | #21 | Now #10: cover photo upload (Vercel Blob; off until a store is connected) |
 | #22 | E3: API contract test for shared types |
 | #23 | Next #1: registration questions and organiser approval |
+| #24 | Next #12 (export and delete account), #9 (admin audit log) |
 
 **Still open, and why:**
 

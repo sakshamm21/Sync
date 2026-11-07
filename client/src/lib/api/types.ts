@@ -355,3 +355,13 @@ export interface EventQuestion {
   options: string[];
   required: boolean;
 }
+
+/** One admin action, as shown in the audit log. */
+export interface AuditEntry {
+  id: string;
+  action: string;
+  summary: string;
+  actor: { id: string; name: string; avatarUrl: string } | null;
+  target: { kind: 'user' | 'event' | 'application' | 'report'; id: string };
+  createdAt: string;
+}
