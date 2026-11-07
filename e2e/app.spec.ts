@@ -281,3 +281,33 @@ test('RSVP questions and approval work end to end', async ({ page, browser }) =>
   await expect(org.getByRole('button', { name: 'Check in' }).first()).toBeVisible();
   await org.close();
 });
+
+test('a member can download their data and delete their account', async ({ page }) => {
+  // Priya isn't used by any other test, so deleting her affects nothing else.
+  await signInAs(page, 'priya@syncronify.dev');
+  await page.goto('/settings');
+  const download = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Download my data' }).click();
+  expect((await download).suggestedFilename()).toBe('sync-my-data.json');
+
+  await page.getByRole('button', { name: 'Delete my account' }).click();
+  await page.getByLabel('Your password').fill('wrong-password');
+  await page.getByRole('button', { name: 'Delete for good' }).click();
+  await expect(page.getByText('That password is not right')).toBeVisible();
+  await page.getByLabel('Your password').fill(PASSWORD);
+  await page.getByRole('button', { name: 'Delete for good' }).click();
+  await expect(page.getByText('Your account has been deleted')).toBeVisible();
+});
+
+test('admins can read the audit log', async ({ page }) => {
+  const admin = await signInAs(page, 'admin@syncronify.dev');
+  const users = (
+    await (await page.request.get(`${API}/api/admin/users?q=tester4%40`, { headers: { Authorization: `Bearer ${admin}` } })).json()
+  ).data;
+  await page.request.patch(`${API}/api/admin/users/${users[0].id}`, {
+    headers: { Authorization: `Bearer ${admin}` },
+    data: { status: 'suspended' },
+  });
+  await page.goto('/admin?tab=audit');
+  await expect(page.getByText(`Suspended ${users[0].name}`).first()).toBeVisible();
+});

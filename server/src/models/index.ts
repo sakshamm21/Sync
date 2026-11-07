@@ -12,3 +12,4 @@ export { OutboxEmail, type IOutboxEmail, type OutboxEmailDocument } from './Outb
 export { Interest, type IInterest, type InterestDocument } from './Interest';
 export { PushSubscription, type IPushSubscription, type PushSubscriptionDocument } from './PushSubscription';
 export { Follow, type IFollow, type FollowDocument } from './Follow';
+export { AuditLog, type IAuditLog, type AuditLogDocument } from './AuditLog';

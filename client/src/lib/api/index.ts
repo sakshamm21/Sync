@@ -1,6 +1,7 @@
 import { saveBlob } from '../download';
 import { http } from './client';
 import type {
+  AuditEntry,
   ClubProfile,
   ClubSuggestion,
   NotificationType,
@@ -106,6 +107,13 @@ export const meApi = {
   addPushSubscription: (subscription: PushSubscriptionJSON) =>
     data<{ ok: true }>(http.post('/me/push-subscriptions', subscription)),
   removePushSubscription: (endpoint: string) => data<{ ok: true }>(http.post('/me/push-subscriptions/remove', { endpoint })),
+  /** Everything Sync holds about you, as a JSON file. */
+  async downloadData() {
+    const response = await http.get<Blob>('/me/export', { responseType: 'blob' });
+    saveBlob(response.data, 'sync-my-data.json');
+  },
+  /** Deletes the account for good. */
+  deleteAccount: (password: string) => data<{ deleted: true }>(http.post('/me/delete', { password })),
   /** Ends every session for this account, this device included. */
   signOutEverywhere: () => data<{ ok: true }>(http.post('/me/sign-out-everywhere')),
   calendar: (range: { from: string; to: string }) => data<SyncEvent[]>(http.get('/me/calendar', { params: range })),
@@ -248,6 +256,7 @@ export const staffApi = {
 
 export const adminApi = {
   stats: () => data<PlatformStats>(http.get('/admin/stats')),
+  auditLog: (query: { page?: number; limit?: number } = {}) => page<AuditEntry>(http.get('/admin/audit-log', { params: query })),
   users: (query: { q?: string; role?: Role; status?: UserStatus; page?: number; limit?: number } = {}) =>
     page<User>(http.get('/admin/users', { params: query })),
   updateUser: (id: string, body: { role?: Role; status?: UserStatus }) => data<User>(http.patch(`/admin/users/${id}`, body)),

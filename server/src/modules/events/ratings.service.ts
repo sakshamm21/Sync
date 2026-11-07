@@ -19,7 +19,7 @@ export interface EventRating {
 }
 
 /** Recomputes the cached totals for one event from the ratings that exist. */
-async function syncTotals(eventId: string) {
+export async function syncTotals(eventId: string) {
   // `aggregate` does not cast ids the way `find` does, so the ObjectId is
   // built explicitly; a plain string would match nothing.
   const [stats] = await Rating.aggregate([

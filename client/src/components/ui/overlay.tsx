@@ -260,6 +260,8 @@ export function ConfirmDialog({
     try {
       await onConfirm();
       onClose();
+    } catch {
+      // The action failed and said why; stay open so the user can try again.
     } finally {
       setBusy(false);
     }

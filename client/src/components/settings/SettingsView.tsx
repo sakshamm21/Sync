@@ -524,6 +524,70 @@ function SessionsSection() {
   );
 }
 
+/** Download everything we hold, or delete the account for good. */
+function DataSection() {
+  const { logout } = useAuth();
+  const [downloading, setDownloading] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [password, setPassword] = useState('');
+
+  return (
+    <Section title="Your data" description="Download a copy of everything Sync holds about you, or delete your account.">
+      <div className="flex flex-wrap gap-2">
+        <Button
+          variant="secondary"
+          loading={downloading}
+          onClick={async () => {
+            setDownloading(true);
+            try {
+              await meApi.downloadData();
+            } catch (err) {
+              toast.error(errorMessage(err));
+            } finally {
+              setDownloading(false);
+            }
+          }}
+        >
+          Download my data
+        </Button>
+        <Button variant="ghost" className="text-danger" onClick={() => setDeleting(true)}>
+          Delete my account
+        </Button>
+      </div>
+      <ConfirmDialog
+        open={deleting}
+        onClose={() => {
+          setDeleting(false);
+          setPassword('');
+        }}
+        onConfirm={async () => {
+          try {
+            await meApi.deleteAccount(password);
+            toast.success('Your account has been deleted');
+            logout();
+          } catch (err) {
+            toast.error(errorMessage(err));
+            throw err;
+          }
+        }}
+        title="Delete your account?"
+        description="Your tickets, plans, notes, messages and ratings are deleted, and events you're hosting that haven't happened yet are cancelled (attendees are told). This can't be undone."
+        confirmLabel="Delete for good"
+      >
+        <Field label="Your password" htmlFor="delete-password">
+          <Input
+            id="delete-password"
+            type="password"
+            autoComplete="current-password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
+        </Field>
+      </ConfirmDialog>
+    </Section>
+  );
+}
+
 export default function SettingsView() {
   return (
     <>
@@ -543,6 +607,7 @@ export default function SettingsView() {
         <CalendarFeedSection />
         <PasswordSection />
         <SessionsSection />
+        <DataSection />
       </div>
     </>
   );

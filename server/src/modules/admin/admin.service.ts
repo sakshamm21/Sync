@@ -13,6 +13,8 @@ import { badRequest, notFound, conflict } from '../../lib/errors';
 import { escapeRegex, paginationMeta, type Page } from '../../lib/schemas';
 import * as notifications from '../notifications/notifications.service';
 import { assertNotDemoAccount } from '../../demo/accounts';
+import { audit } from '../../lib/audit';
+import { AuditLog } from '../../models';
 import {
   ROLES,
   USER_STATUS,
@@ -77,10 +79,41 @@ export async function updateUser(admin: UserDocument, userId: string, { role, st
   const user = await User.findById(userId);
   if (!user) throw notFound('User not found');
   assertNotDemoAccount(user.email);
+  const before = { role: user.role, status: user.status };
   if (role) user.role = role;
   if (status) user.status = status;
   await user.save();
+  if (role && role !== before.role) {
+    await audit(admin, 'user.role_changed', `Changed ${user.name}'s role from ${before.role} to ${role}`, {
+      kind: 'user',
+      id: user._id,
+    });
+  }
+  if (status && status !== before.status) {
+    await audit(
+      admin,
+      status === 'suspended' ? 'user.suspended' : 'user.reactivated',
+      `${status === 'suspended' ? 'Suspended' : 'Reactivated'} ${user.name}`,
+      {
+        kind: 'user',
+        id: user._id,
+      }
+    );
+  }
   return user;
+}
+
+/** The newest admin actions first. */
+export async function auditLog({ page, limit }: Page) {
+  const [items, total] = await Promise.all([
+    AuditLog.find({})
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .populate('actor', 'name avatarUrl'),
+    AuditLog.countDocuments({}),
+  ]);
+  return { items, meta: paginationMeta({ page, limit }, total) };
 }
 
 export async function listApplications({ status, page, limit }: Page & { status?: OrganizerApplicationStatus }) {
@@ -107,6 +140,12 @@ export async function reviewApplication(admin: UserDocument, id: string, { appro
   application.reviewedAt = new Date();
   application.reviewNote = note;
   await application.save();
+  await audit(
+    admin,
+    approve ? 'application.approved' : 'application.rejected',
+    `${approve ? 'Approved' : 'Rejected'} the organiser application for ${application.organization}${note ? `: ${note}` : ''}`,
+    { kind: 'application', id: application._id }
+  );
 
   if (approve) {
     await User.updateOne(
