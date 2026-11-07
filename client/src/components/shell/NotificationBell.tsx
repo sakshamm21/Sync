@@ -19,6 +19,8 @@ import {
   Ticket,
   UserCheck,
   UserPlus,
+  AtSign,
+  Mail,
 } from 'lucide-react';
 import { useAuth, usePolling, useSocketEvent } from '@/context/AuthContext';
 import { notificationsApi, type AppNotification, type NotificationType } from '@/lib/api';
@@ -42,6 +44,8 @@ export const NOTIFICATION_ICONS: Record<NotificationType, React.ComponentType<{ 
   waitlist_offer: Ticket,
   registration_decision: UserCheck,
   friend_request: UserPlus,
+  mention: AtSign,
+  event_invite: Mail,
 };
 
 export default function NotificationBell() {

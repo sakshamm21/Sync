@@ -2,6 +2,7 @@ import { Event, Interest, Registration } from '../models';
 import logger from '../lib/logger';
 import { formatCampusTime } from '../lib/campusTime';
 import { expireOffers } from '../modules/events/waitlist.service';
+import { sendPersonalReminders } from '../modules/events/social.service';
 
 export { formatCampusTime };
 import * as notifications from '../modules/notifications/notifications.service';
@@ -72,6 +73,7 @@ export function startEventReminders(): () => void {
     try {
       const sent = await sendDueReminders();
       if (sent) logger.info({ sent }, 'Sent event reminders');
+      await sendPersonalReminders();
       const expired = await expireOffers();
       if (expired) logger.info({ expired }, 'Passed on unclaimed waitlist offers');
     } catch (err) {

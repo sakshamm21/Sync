@@ -12,6 +12,10 @@ export interface IMessage {
   replyTo: Types.ObjectId | null;
   /** Emoji reactions: who reacted with what. */
   reactions: { emoji: string; user: Types.ObjectId }[];
+  /** Pinned by an organiser to the top of the chat. */
+  pinnedAt: Date | null;
+  /** People @mentioned in the text, who get a notification. */
+  mentions: Types.ObjectId[];
   createdAt: Date;
   updatedAt: Date;
 }
@@ -29,6 +33,8 @@ const messageSchema = new Schema<IMessage>(
     removedAt: { type: Date, default: null },
     replyTo: { type: Schema.Types.ObjectId, ref: 'Message', default: null },
     reactions: { type: [{ emoji: String, user: { type: Schema.Types.ObjectId, ref: 'User' } }], default: [], _id: false },
+    pinnedAt: { type: Date, default: null },
+    mentions: { type: [{ type: Schema.Types.ObjectId, ref: 'User' }], default: [] },
   },
   { timestamps: true }
 );

@@ -88,6 +88,10 @@ export const NOTIFICATION_TYPES = Object.freeze({
   REGISTRATION_DECISION: 'registration_decision',
   /** Someone asked to be friends, or accepted. */
   FRIEND_REQUEST: 'friend_request',
+  /** Someone @mentioned you in an event chat. */
+  MENTION: 'mention',
+  /** A friend invited you to an event, or your own reminder is due. */
+  EVENT_INVITE: 'event_invite',
 } as const);
 export type NotificationType = ValueOf<typeof NOTIFICATION_TYPES>;
 

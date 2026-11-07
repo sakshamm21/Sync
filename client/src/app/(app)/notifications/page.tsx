@@ -28,6 +28,8 @@ const LABELS: Record<NotificationType, string> = {
   waitlist_offer: 'Spots held for you',
   registration_decision: 'Join requests',
   friend_request: 'Friends',
+  mention: 'Mentions',
+  event_invite: 'Invites from friends',
   organizer_approved: 'Organizer approved',
   organizer_rejected: 'Organizer not approved',
 };

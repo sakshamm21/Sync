@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { AnimatePresence, motion } from 'motion/react';
 import { Megaphone, SendHorizontal, MessagesSquare } from 'lucide-react';
@@ -33,6 +33,27 @@ export default function EventChat({ eventId, canAnnounce = false, className }: E
   const [announcement, setAnnouncement] = useState(false);
   const [replyingTo, setReplyingTo] = useState<ChatMessage | null>(null);
   const [reactingTo, setReactingTo] = useState<string | null>(null);
+  const [pins, setPins] = useState<ChatMessage[]>([]);
+  const loadPins = useCallback(() => {
+    eventsApi
+      .pinned(eventId)
+      .then(setPins)
+      .catch(() => setPins([]));
+  }, [eventId]);
+  useEffect(loadPins, [loadPins]);
+  useSocketEvent<{ event: string }>('message:pinned', (p) => {
+    if (p.event === eventId) loadPins();
+  });
+
+  async function togglePin(msg: ChatMessage) {
+    const pinned = !pins.some((p) => p.id === msg.id);
+    try {
+      await eventsApi.pin(eventId, msg.id, pinned);
+      loadPins();
+    } catch (err) {
+      toast.error(errorMessage(err));
+    }
+  }
   const [audience, setAudience] = useState<'all' | 'going' | 'waitlisted'>('all');
   const [sending, setSending] = useState(false);
   const [typing, setTyping] = useState<Record<string, string>>({});
@@ -199,6 +220,16 @@ export default function EventChat({ eventId, canAnnounce = false, className }: E
 
   return (
     <div className={cn('flex min-h-0 flex-col', className)}>
+      {pins.length > 0 && (
+        <div className="space-y-1 border-b border-border bg-surface-muted px-4 py-2 sm:px-6">
+          {pins.map((p) => (
+            <p key={p.id} className="truncate text-xs">
+              <span className="mr-1.5 font-semibold">📌 {p.sender.name}:</span>
+              {p.text}
+            </p>
+          ))}
+        </div>
+      )}
       <div ref={feedRef} className="flex-1 space-y-4 overflow-y-auto px-4 py-5 sm:px-6">
         {hasMore && (
           <div className="flex justify-center">
@@ -324,6 +355,11 @@ export default function EventChat({ eventId, canAnnounce = false, className }: E
                     <button type="button" className="hover:text-foreground" onClick={() => setReplyingTo(msg)}>
                       Reply
                     </button>
+                    {canAnnounce && (
+                      <button type="button" className="hover:text-foreground" onClick={() => togglePin(msg)}>
+                        {pins.some((p) => p.id === msg.id) ? 'Unpin' : 'Pin'}
+                      </button>
+                    )}
                     <button
                       type="button"
                       className="hover:text-foreground"

@@ -94,6 +94,8 @@ interface FormState {
   /** Team event sizes as typed; both empty = individual sign-up. */
   teamMin: string;
   teamMax: string;
+  /** Photo album link, usually added after the event. */
+  albumUrl: string;
   isPublic: boolean;
 }
 
@@ -143,6 +145,7 @@ function initialState(event: SyncEvent | undefined, canPublish: boolean, date?: 
       repeat: '',
       teamMin: event.teamSize ? String(event.teamSize.min) : '',
       teamMax: event.teamSize ? String(event.teamSize.max) : '',
+      albumUrl: event.albumUrl ?? '',
       isPublic: event.visibility === 'public',
     };
   }
@@ -169,6 +172,7 @@ function initialState(event: SyncEvent | undefined, canPublish: boolean, date?: 
     repeat: '',
     teamMin: '',
     teamMax: '',
+    albumUrl: '',
     isPublic: canPublish,
   };
 }
@@ -344,6 +348,7 @@ function EventForm({
       body.registrationOpensAt = form.registrationOpensAt ? fromDateTimeInput(form.registrationOpensAt).toISOString() : null;
       body.waitlistClaimHours = form.waitlistClaimHours ? Number(form.waitlistClaimHours) : null;
       body.requiresApproval = form.requiresApproval;
+      if (isEdit) body.albumUrl = form.albumUrl.trim();
       body.teamSize =
         form.teamMax || form.teamMin ? { min: Number(form.teamMin || 1), max: Number(form.teamMax || form.teamMin || 1) } : null;
       body.questions = form.questions
@@ -723,6 +728,16 @@ function EventForm({
               </button>
             </div>
 
+            {isEdit && (
+              <Field label="Photo album link" htmlFor="event-album" hint="After the event: Google Photos, Drive, Flickr…">
+                <Input
+                  id="event-album"
+                  placeholder="https://…"
+                  value={form.albumUrl}
+                  onChange={(e) => set('albumUrl', e.target.value)}
+                />
+              </Field>
+            )}
             <div className="grid gap-3 pt-2 sm:grid-cols-2">
               <Field label="Smallest team" htmlFor="team-min" hint="Leave both empty for individual sign-up.">
                 <Input
