@@ -19,3 +19,4 @@ export { ChatRead, type IChatRead, type ChatReadDocument } from './ChatRead';
 export { Team, type ITeam, type TeamDocument } from './Team';
 export { ClubMember, type IClubMember, type ClubMemberDocument, type ClubRole } from './ClubMember';
 export { Reminder, type IReminder, type ReminderDocument } from './Reminder';
+export { CampusVenue, type ICampusVenue, type CampusVenueDocument } from './CampusVenue';

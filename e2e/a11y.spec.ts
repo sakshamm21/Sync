@@ -4,7 +4,7 @@ import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
 import { signInAs } from './helpers';
 
-const adminPages = ['/admin'];
+const adminPages = ['/admin', '/admin?tab=venues'];
 const pages = [
   '/',
   '/authentication',

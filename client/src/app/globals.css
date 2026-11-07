@@ -208,7 +208,8 @@ body::after {
 }
 
 /* OpenStreetMap tiles are light-only; invert them for the dark theme. */
-.dark .map-frame {
+.dark .map-frame,
+.dark .leaflet-tile-pane {
   filter: invert(0.92) hue-rotate(180deg) saturate(0.7) brightness(0.95) contrast(0.9);
 }
 

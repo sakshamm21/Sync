@@ -44,6 +44,8 @@ const schema = z
     // A public demo with shared accounts: reset the demo data nightly and stop
     // visitors from changing the shared accounts' passwords or roles.
     DEMO_MODE: booleanFlag('false'),
+    // An admin approves a new organiser's first public event before it goes live.
+    REVIEW_FIRST_EVENT: booleanFlag('false'),
     // Where the campus is: place search prefers results near here and in these countries.
     CAMPUS_LATITUDE: z.coerce.number().min(-90).max(90).default(26.5123),
     CAMPUS_LONGITUDE: z.coerce.number().min(-180).max(180).default(80.2329),
@@ -146,6 +148,7 @@ const env = Object.freeze({
   realtime: raw.REALTIME,
   cronSecret: raw.CRON_SECRET,
   demoMode: raw.DEMO_MODE,
+  reviewFirstEvent: raw.REVIEW_FIRST_EVENT,
   campusTimeZone: raw.CAMPUS_TIMEZONE,
   uploads: { token: raw.BLOB_READ_WRITE_TOKEN, enabled: Boolean(raw.BLOB_READ_WRITE_TOKEN) },
   push: {

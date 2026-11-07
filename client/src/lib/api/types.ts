@@ -128,6 +128,8 @@ export interface SyncEvent {
   teamSize?: { min: number; max: number } | null;
   /** Photo album link, added after the event. */
   albumUrl?: string;
+  /** A new organiser's first event, waiting for an admin. */
+  awaitingReview?: boolean;
   /** Only on create/update responses: other events booked at the same venue and time. */
   venueClashes?: { id: string; title: string; startsAt: string; endsAt: string }[];
   /** People who bookmarked it as "Interested". */
@@ -452,4 +454,15 @@ export interface Team {
   captain: string;
   complete?: boolean;
   members: { id: string; name: string; avatarUrl: string; status: RegistrationStatus | null; checkedIn: boolean }[];
+}
+
+/** A room in the admin-kept campus venue list. */
+export interface CampusVenue {
+  id: string;
+  name: string;
+  address: string;
+  latitude: number;
+  longitude: number;
+  capacity: number | null;
+  accessibility: string;
 }
