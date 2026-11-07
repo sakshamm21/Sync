@@ -20,7 +20,7 @@ import { useAuth } from '@/context/AuthContext';
 import { errorMessage, eventsApi, type EventRating, type ReportReason, type SyncEvent } from '@/lib/api';
 import { CATEGORY_EMOJI, formatEventWhen, formatVenue } from '@/lib/format';
 import { Button, ButtonLink } from '@/components/ui/button';
-import { Avatar, Card, Kicker, Sticker } from '@/components/ui/surface';
+import { Avatar, Card, EmptyState, Kicker, Sticker } from '@/components/ui/surface';
 import { FadeIn } from '@/components/ui/motion';
 
 /** What the server rendered, before any client-side fetch. */
@@ -202,14 +202,16 @@ export default function EventDetails({
   initialCategoryLabel,
 }: {
   id: string;
-  initialEvent: ServerEvent;
+  /** Null for events the server can't show anonymously (private plans, drafts): fetched with the user's session instead. */
+  initialEvent: ServerEvent | null;
   initialCategoryLabel: string;
 }) {
   const router = useRouter();
   const { user, status } = useAuth();
   // Start from the server's copy so the page is readable before any fetch,
   // then replace it with the authenticated view once that arrives.
-  const [event, setEvent] = useState<SyncEvent | null>(() => ({
+  const [missing, setMissing] = useState(false);
+  const [event, setEvent] = useState<SyncEvent | null>(() => initialEvent && ({
     ...(initialEvent as unknown as SyncEvent),
     tags: [],
     onlineUrl: '',
@@ -228,11 +230,12 @@ export default function EventDetails({
       .get(id)
       .then(setEvent)
       .catch((err) => {
-        // A private event is only visible to its owner; the server already
-        // handled the shared-link case, so this is usually a network blip.
-        if (!event) toast.error(errorMessage(err));
+        // With no server copy this was a private plan or draft: if the
+        // signed-in user can't see it either, it doesn't exist for them.
+        if (!initialEvent) setMissing(true);
+        else toast.error(errorMessage(err));
       });
-  }, [id, status]);
+  }, [id, status, initialEvent]);
 
   async function share() {
     if (!event) return;
@@ -260,6 +263,25 @@ export default function EventDetails({
   const embed = useMemo(() => (event ? mapEmbed(event) : null), [event]);
   const badge = event && statusOf(event);
   const host = event ? event.owner?.organization || event.owner?.name || '' : '';
+
+  if (missing) {
+    return (
+      <main className="mx-auto max-w-3xl px-4 py-24">
+        <EmptyState
+          emoji="🔍"
+          title="Event not found"
+          description={user ? 'This event may have been deleted, or it is private.' : 'If this is your private plan or draft, sign in to see it.'}
+          action={
+            user ? (
+              <ButtonLink href="/explore">See what&apos;s on</ButtonLink>
+            ) : (
+              <ButtonLink href={`/authentication?next=${encodeURIComponent(`/events/${id}`)}`}>Sign in</ButtonLink>
+            )
+          }
+        />
+      </main>
+    );
+  }
 
   return (
     <>

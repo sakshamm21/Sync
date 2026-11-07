@@ -61,19 +61,54 @@ export const NOTE_TAG_EMOJI: Record<NoteTag, string> = {
   personal: '🫶',
 };
 
-const dayFormat = new Intl.DateTimeFormat(undefined, { weekday: 'short', day: 'numeric', month: 'short' });
-const timeFormat = new Intl.DateTimeFormat(undefined, { hour: 'numeric', minute: '2-digit' });
-const fullFormat = new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' });
+/**
+ * Every time in the app is shown in the campus time zone. The server renders
+ * pages on Vercel in UTC, so formatting in "whatever zone this runtime is in"
+ * showed UTC first and then jumped to local time after hydration. A fixed zone
+ * gives the same text on the server and in every browser, and on a campus app
+ * it is the zone the event actually happens in.
+ */
+export const CAMPUS_TIME_ZONE = process.env.NEXT_PUBLIC_CAMPUS_TIMEZONE || 'Asia/Kolkata';
+const LOCALE = 'en-IN';
+
+const dayFormat = new Intl.DateTimeFormat(LOCALE, { weekday: 'short', day: 'numeric', month: 'short', timeZone: CAMPUS_TIME_ZONE });
+const timeFormat = new Intl.DateTimeFormat(LOCALE, { hour: 'numeric', minute: '2-digit', timeZone: CAMPUS_TIME_ZONE });
+const fullFormat = new Intl.DateTimeFormat(LOCALE, { dateStyle: 'medium', timeStyle: 'short', timeZone: CAMPUS_TIME_ZONE });
+const longFormat = new Intl.DateTimeFormat(LOCALE, {
+  weekday: 'long',
+  day: 'numeric',
+  month: 'long',
+  hour: 'numeric',
+  minute: '2-digit',
+  timeZone: CAMPUS_TIME_ZONE,
+  timeZoneName: 'short',
+});
+const dateKeyFormat = new Intl.DateTimeFormat('en-CA', { year: 'numeric', month: '2-digit', day: '2-digit', timeZone: CAMPUS_TIME_ZONE });
 
 export const formatDay = (iso: string) => dayFormat.format(new Date(iso));
 export const formatTime = (iso: string) => timeFormat.format(new Date(iso));
 export const formatDateTime = (iso: string) => fullFormat.format(new Date(iso));
+/** "Sunday, 8 November at 10:00 am IST", for link previews and anywhere the zone must be explicit. */
+export const formatCampusDateTime = (iso: string) => longFormat.format(new Date(iso));
+const stampFormat = new Intl.DateTimeFormat(LOCALE, { weekday: 'short', day: 'numeric', month: 'short', timeZone: CAMPUS_TIME_ZONE });
+/** { weekday: 'Sun', day: '8', month: 'Nov' } in the campus zone, for date stamps. */
+export function campusDateParts(iso: string) {
+  const parts = Object.fromEntries(stampFormat.formatToParts(new Date(iso)).map((p) => [p.type, p.value]));
+  return { weekday: parts.weekday ?? '', day: parts.day ?? '', month: parts.month ?? '' };
+}
+
+/** "2026-11-08": the campus calendar day an instant falls on. */
+export const campusDateKey = (date: Date | string) => dateKeyFormat.format(new Date(date));
+
+/** The zone's short name, e.g. "IST". */
+export const campusZoneName = () =>
+  new Intl.DateTimeFormat(LOCALE, { timeZone: CAMPUS_TIME_ZONE, timeZoneName: 'short' })
+    .formatToParts(new Date())
+    .find((p) => p.type === 'timeZoneName')?.value ?? CAMPUS_TIME_ZONE;
 
 /** "Sat, 4 Oct · 10:00 – 16:00", or both dates when the event spans days. */
 export function formatEventWhen(event: Pick<SyncEvent, 'startsAt' | 'endsAt'>): string {
-  const start = new Date(event.startsAt);
-  const end = new Date(event.endsAt);
-  if (start.toDateString() === end.toDateString()) {
+  if (campusDateKey(event.startsAt) === campusDateKey(event.endsAt)) {
     return `${formatDay(event.startsAt)} · ${formatTime(event.startsAt)} – ${formatTime(event.endsAt)}`;
   }
   return `${formatDay(event.startsAt)} ${formatTime(event.startsAt)} – ${formatDay(event.endsAt)} ${formatTime(event.endsAt)}`;
@@ -98,11 +133,35 @@ export function formatRelative(iso: string): string {
   return 'just now';
 }
 
-/** Date -> value for <input type="datetime-local"> (local time, minute precision). */
-export function toDateTimeInput(date: Date): string {
-  const local = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
-  return local.toISOString().slice(0, 16);
+/** Minutes the campus zone is ahead of UTC at a given instant (330 for IST). */
+function campusOffsetMinutes(at: Date): number {
+  const parts = Object.fromEntries(
+    new Intl.DateTimeFormat('en-US', {
+      timeZone: CAMPUS_TIME_ZONE,
+      hourCycle: 'h23',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+    })
+      .formatToParts(at)
+      .map((p) => [p.type, p.value])
+  );
+  const asUtc = Date.UTC(+parts.year, +parts.month - 1, +parts.day, +parts.hour, +parts.minute);
+  return Math.round((asUtc - Math.floor(at.getTime() / 60_000) * 60_000) / 60_000);
 }
 
-/** <input type="datetime-local"> value -> Date (interpreted as local time). */
-export const fromDateTimeInput = (value: string) => new Date(value);
+/** Date -> value for <input type="datetime-local">, as a campus wall-clock time. */
+export function toDateTimeInput(date: Date): string {
+  return new Date(date.getTime() + campusOffsetMinutes(date) * 60_000).toISOString().slice(0, 16);
+}
+
+/** <input type="datetime-local"> value (campus wall-clock time) -> Date. */
+export function fromDateTimeInput(value: string): Date {
+  const asUtc = new Date(`${value}:00Z`);
+  // Two passes settle the offset across a daylight-saving change.
+  let guess = new Date(asUtc.getTime() - campusOffsetMinutes(asUtc) * 60_000);
+  guess = new Date(asUtc.getTime() - campusOffsetMinutes(guess) * 60_000);
+  return guess;
+}

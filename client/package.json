@@ -5,7 +5,8 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "test": "TZ=America/New_York node --test --experimental-strip-types --no-warnings 'src/**/*.test.ts'"
   },
   "dependencies": {
     "@fullcalendar/core": "^6.1.21",

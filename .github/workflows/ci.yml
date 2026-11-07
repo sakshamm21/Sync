@@ -46,7 +46,7 @@ jobs:
       - run: npm test
 
   client:
-    name: Web app (build)
+    name: Web app (tests + build)
     runs-on: ubuntu-latest
     timeout-minutes: 15
     defaults:
@@ -60,6 +60,7 @@ jobs:
           cache: npm
           cache-dependency-path: client/package-lock.json
       - run: npm ci
+      - run: npm test
       # `next build` also type-checks the app.
       - run: npm run build
         env:

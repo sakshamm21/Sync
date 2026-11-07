@@ -6,7 +6,7 @@ import { Check, Globe, Lock, MapPin } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useEventsSync } from '@/context/EventContext';
 import { ApiError, errorMessage, eventsApi, type CategoryValue, type EventInput, type SyncEvent } from '@/lib/api';
-import { CATEGORIES, CATEGORY_EMOJI, CATEGORY_LABELS, fromDateTimeInput, toDateTimeInput } from '@/lib/format';
+import { CATEGORIES, CATEGORY_EMOJI, CATEGORY_LABELS, campusDateKey, fromDateTimeInput, toDateTimeInput } from '@/lib/format';
 import { Dialog } from '@/components/ui/overlay';
 import { Button } from '@/components/ui/button';
 import { Field, Input, Textarea } from '@/components/ui/field';
@@ -91,8 +91,9 @@ function initialState(event: SyncEvent | undefined, canPublish: boolean, date?: 
       isPublic: event.visibility === 'public',
     };
   }
-  const start = date ? new Date(date) : new Date(Date.now() + 24 * 60 * 60 * 1000);
-  if (!date || start.getHours() === 0) start.setHours(18, 0, 0, 0);
+  let start = date ? new Date(date) : new Date(Date.now() + 24 * 60 * 60 * 1000);
+  // No time picked (a day clicked on the calendar, or "new event"): default to 6 pm campus time.
+  if (!date || start.getHours() === 0) start = fromDateTimeInput(`${campusDateKey(start)}T18:00`);
   return {
     title: '',
     description: '',
