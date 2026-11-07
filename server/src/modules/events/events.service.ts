@@ -3,6 +3,7 @@ import { Types, type FilterQuery, type SortOrder } from 'mongoose';
 import {
   Event,
   User,
+  CampusVenue,
   Registration,
   Interest,
   Message,
@@ -294,13 +295,21 @@ export async function create(user: UserDocument, input: CreateEventInput) {
 
   const isPublic = visibility === EVENT_VISIBILITY.PUBLIC;
   const { repeat, ...details } = input;
+  // Optional safeguard: a new organiser's first public event waits for an admin.
+  const needsReview =
+    env.reviewFirstEvent &&
+    isPublic &&
+    user.role === ROLES.ORGANIZER &&
+    (input.status ?? EVENT_STATUS.PUBLISHED) === EVENT_STATUS.PUBLISHED &&
+    !(await Event.exists({ owner: user._id, visibility: EVENT_VISIBILITY.PUBLIC, status: { $ne: EVENT_STATUS.DRAFT } }));
   const seriesId = repeat ? new Types.ObjectId() : null;
   const event = await Event.create({
     ...details,
     seriesId,
     visibility,
     // Personal events have no registration, so drafts and capacity don't apply.
-    status: isPublic ? (input.status ?? EVENT_STATUS.PUBLISHED) : EVENT_STATUS.PUBLISHED,
+    status: needsReview ? EVENT_STATUS.DRAFT : isPublic ? (input.status ?? EVENT_STATUS.PUBLISHED) : EVENT_STATUS.PUBLISHED,
+    awaitingReview: needsReview,
     capacity: isPublic ? (input.capacity ?? null) : null,
     owner: user._id,
     // The creator is always in `organizers` so co-ownership needs no special case.
@@ -334,6 +343,15 @@ export async function create(user: UserDocument, input: CreateEventInput) {
     const dates = seriesId ? await Event.find({ seriesId }).select('_id owner') : [event];
     for (const date of dates) await clubMembers.staffNewEvent(date);
   }
+  if (needsReview) {
+    const admins = await User.find({ role: ROLES.ADMIN, status: { $ne: 'suspended' } }).distinct('_id');
+    await notifications.notify(admins, {
+      type: NOTIFICATION_TYPES.REGISTRATION_DECISION,
+      title: `First event to review: ${event.title}`,
+      body: `${user.name}'s first public event is waiting for approval in the admin console.`,
+      eventId: event._id,
+    });
+  }
   await event.populate('owner', OWNER_FIELDS);
   if (isPublic && event.status === EVENT_STATUS.PUBLISHED) await clubs.announceNewEvent(event);
   return { ...(await present(event, user)), venueClashes: await venueClashes(event) };
@@ -358,6 +376,19 @@ export async function venueClashes(event: EventDocument) {
     });
   }
   if (!sameVenue.length || event.visibility !== EVENT_VISIBILITY.PUBLIC) return [];
+  // A curated room smaller than the event's capacity is worth a warning too.
+  const room = name?.trim() ? await CampusVenue.findOne({ name: name.trim() }).collation({ locale: 'en', strength: 2 }) : null;
+  const tooSmall =
+    room?.capacity && event.capacity && event.capacity > room.capacity
+      ? [
+          {
+            id: String(room._id),
+            title: `${room.name} holds ${room.capacity}, fewer than this event's ${event.capacity} places`,
+            startsAt: event.startsAt,
+            endsAt: event.endsAt,
+          },
+        ]
+      : [];
   const clashes = await Event.find({
     _id: { $ne: event._id },
     ...(event.seriesId ? { seriesId: { $ne: event.seriesId } } : {}),
@@ -369,7 +400,7 @@ export async function venueClashes(event: EventDocument) {
   })
     .select('title startsAt endsAt venue.name')
     .limit(5);
-  return clashes.map((c) => ({ id: c.id as string, title: c.title, startsAt: c.startsAt, endsAt: c.endsAt }));
+  return [...tooSmall, ...clashes.map((c) => ({ id: c.id as string, title: c.title, startsAt: c.startsAt, endsAt: c.endsAt }))];
 }
 
 /** The other upcoming dates of an event's series, soonest first. */
@@ -412,6 +443,9 @@ export async function update(user: UserDocument, id: string, changes: UpdateEven
   const isPublicAfter = (changes.visibility ?? event.visibility) === EVENT_VISIBILITY.PUBLIC;
   if (!isPublicAfter && changes.capacity != null) throw badRequest('Personal events have no capacity');
   const publishing = changes.status === EVENT_STATUS.PUBLISHED && event.status === EVENT_STATUS.DRAFT;
+  if (publishing && event.awaitingReview && user.role !== ROLES.ADMIN) {
+    throw forbidden('Your first event is waiting for an admin to approve it.', 'AWAITING_REVIEW');
+  }
   if (publishing && (changes.endsAt ?? event.endsAt) <= new Date()) {
     throw badRequest('This event has already ended, so it cannot be published', 'EVENT_ENDED');
   }
@@ -520,4 +554,33 @@ export async function toCalendarFile(viewer: Viewer, id: string) {
     filename: `${slug}.ics`,
     content: buildEventCalendar({ ...entryFor(event), location }),
   };
+}
+
+/** First events waiting for an admin (only when REVIEW_FIRST_EVENT is on). */
+export async function awaitingReview() {
+  const items = await Event.find({ awaitingReview: true }).sort({ createdAt: 1 }).populate('owner', OWNER_FIELDS);
+  return items.map((e) => e.toJSON());
+}
+
+/** An admin approves (publishes) or sends back a first event, with a note for the organiser. */
+export async function reviewFirstEvent(admin: UserDocument, id: string, { approve, note }: { approve: boolean; note: string }) {
+  const event = await Event.findOne({ _id: id, awaitingReview: true });
+  if (!event) throw badRequest('That event is not waiting for review');
+  event.awaitingReview = false;
+  if (approve) event.status = EVENT_STATUS.PUBLISHED;
+  await event.save();
+  await notifications.notify(
+    [event.owner],
+    {
+      type: NOTIFICATION_TYPES.REGISTRATION_DECISION,
+      title: approve ? `Approved and live: ${event.title}` : `Changes needed: ${event.title}`,
+      body: approve
+        ? `Your event is published.${note ? ` ${note}` : ''}`
+        : note || 'An admin asked for changes before it can go live.',
+      eventId: event._id,
+    },
+    { email: true }
+  );
+  if (approve) await clubs.announceNewEvent(event);
+  return event.toJSON();
 }

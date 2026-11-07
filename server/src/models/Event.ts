@@ -53,6 +53,8 @@ export interface IEvent {
   requiresApproval: boolean;
   /** Shared by every date of a repeating event (null for one-offs). */
   seriesId: Types.ObjectId | null;
+  /** A new organiser's first event, held as a draft until an admin approves it. */
+  awaitingReview: boolean;
   /** Link to the photo album, added after the event. */
   albumUrl: string;
   /** For team events: how many people a team may have. Null = individual sign-up. */
@@ -135,6 +137,7 @@ const eventSchema = new Schema<IEvent, EventModel, EventMethods, {}, EventVirtua
     requiresApproval: { type: Boolean, default: false },
     seriesId: { type: Schema.Types.ObjectId, default: null, index: true },
     albumUrl: { type: String, trim: true, default: '' },
+    awaitingReview: { type: Boolean, default: false, index: true },
     teamSize: {
       type: { min: { type: Number, min: 1, max: 20 }, max: { type: Number, min: 1, max: 20 } },
       default: null,

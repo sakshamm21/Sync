@@ -535,3 +535,18 @@ test('reminders and pins: set "remind me 1 hour before", and an organiser pins a
   await org.close();
   expect(messageId).toBeTruthy();
 });
+
+test('admins add a campus venue, which appears as a pin on the interactive map', async ({ page }) => {
+  await signInAs(page, 'admin@syncronify.dev');
+  await page.goto('/admin?tab=venues');
+  await page.getByLabel('Name', { exact: true }).fill('Test Auditorium');
+  await page.getByLabel('Latitude').fill('26.5130');
+  await page.getByLabel('Longitude').fill('80.2340');
+  await page.getByLabel('Capacity').fill('300');
+  await page.getByRole('button', { name: 'Add venue' }).click();
+  await expect(page.getByText('Test Auditorium')).toBeVisible();
+
+  await page.goto('/map');
+  await expect(page.locator('.leaflet-container')).toBeVisible();
+  await expect(page.locator('path.leaflet-interactive').first()).toBeVisible();
+});

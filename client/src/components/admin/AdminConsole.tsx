@@ -23,6 +23,9 @@ import {
   adminApi,
   errorMessage,
   type AuditEntry,
+  type CampusVenue,
+  type SyncEvent,
+  venuesApi,
   type EventReport,
   type MessageReport,
   type OrganizerApplication,
@@ -40,7 +43,7 @@ import { Avatar, Badge, Card, EmptyState, PageHeader, StatCard } from '@/compone
 import { Segmented } from '@/components/ui/tabs';
 import { Stagger, StaggerItem } from '@/components/ui/motion';
 
-type Tab = 'overview' | 'users' | 'applications' | 'reports' | 'audit';
+type Tab = 'overview' | 'users' | 'applications' | 'reports' | 'venues' | 'audit';
 
 const REPORT_LABELS: Record<EventReport['reason'], string> = {
   misleading: 'Misleading details',
@@ -647,6 +650,160 @@ function MessageReports() {
   );
 }
 
+/** The campus rooms organisers pick from, with capacity and access notes. */
+function Venues() {
+  const [venues, setVenues] = useState<CampusVenue[] | null>(null);
+  const [form, setForm] = useState({ name: '', address: '', latitude: '', longitude: '', capacity: '', accessibility: '' });
+  const load = useCallback(() => {
+    venuesApi
+      .list()
+      .then(setVenues)
+      .catch((err) => toast.error(errorMessage(err)));
+  }, []);
+  useEffect(load, [load]);
+  const field = (key: keyof typeof form, label: string, type = 'text') => (
+    <label className="block text-sm">
+      <span className="mb-1 block font-medium">{label}</span>
+      <input
+        type={type}
+        step="any"
+        value={form[key]}
+        onChange={(e) => setForm((f) => ({ ...f, [key]: e.target.value }))}
+        className="h-10 w-full rounded-xl border border-border bg-surface-muted px-3 outline-none focus:border-primary"
+      />
+    </label>
+  );
+  return (
+    <div className="grid gap-6 lg:grid-cols-[1fr_22rem]">
+      <Card className="overflow-hidden">
+        <div className="border-b border-border p-4">
+          <h2 className="font-semibold">Campus venues ({venues?.length ?? 0})</h2>
+          <p className="mt-0.5 text-xs text-muted">
+            Shown as pins on every map. Organisers are warned when an event asks for more places than a room holds.
+          </p>
+        </div>
+        <ul className="divide-y divide-border">
+          {venues?.map((v) => (
+            <li key={v.id} className="flex items-center gap-3 px-4 py-3">
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium">{v.name}</p>
+                <p className="truncate text-xs text-muted">
+                  {[v.capacity ? `holds ${v.capacity}` : null, v.accessibility, v.address].filter(Boolean).join(' · ')}
+                </p>
+              </div>
+              <button
+                type="button"
+                className="text-xs text-muted hover:text-danger"
+                onClick={async () => {
+                  try {
+                    await venuesApi.remove(v.id);
+                    load();
+                  } catch (err) {
+                    toast.error(errorMessage(err));
+                  }
+                }}
+              >
+                Remove
+              </button>
+            </li>
+          ))}
+        </ul>
+      </Card>
+      <Card className="p-4">
+        <form
+          className="space-y-3"
+          onSubmit={async (e) => {
+            e.preventDefault();
+            try {
+              await venuesApi.add({
+                name: form.name.trim(),
+                address: form.address.trim(),
+                latitude: Number(form.latitude),
+                longitude: Number(form.longitude),
+                capacity: form.capacity ? Number(form.capacity) : null,
+                accessibility: form.accessibility.trim(),
+              });
+              setForm({ name: '', address: '', latitude: '', longitude: '', capacity: '', accessibility: '' });
+              toast.success('Venue added');
+              load();
+            } catch (err) {
+              toast.error(errorMessage(err));
+            }
+          }}
+        >
+          <h3 className="font-semibold">Add a venue</h3>
+          {field('name', 'Name')}
+          {field('address', 'Address')}
+          <div className="grid grid-cols-2 gap-2">
+            {field('latitude', 'Latitude', 'number')}
+            {field('longitude', 'Longitude', 'number')}
+          </div>
+          {field('capacity', 'Capacity', 'number')}
+          {field('accessibility', 'Accessibility notes')}
+          <Button type="submit" className="w-full">
+            Add venue
+          </Button>
+        </form>
+      </Card>
+    </div>
+  );
+}
+
+/** First events from new organisers, when REVIEW_FIRST_EVENT is on. Hidden when the queue is empty. */
+function EventReviews() {
+  const [items, setItems] = useState<SyncEvent[]>([]);
+  const load = useCallback(() => {
+    adminApi
+      .eventReviews()
+      .then(setItems)
+      .catch(() => setItems([]));
+  }, []);
+  useEffect(load, [load]);
+  if (!items.length) return null;
+  return (
+    <Card className="mb-6 overflow-hidden">
+      <div className="border-b border-border p-4">
+        <h2 className="font-semibold">First events to review ({items.length})</h2>
+      </div>
+      <ul className="divide-y divide-border">
+        {items.map((e) => (
+          <li key={e.id} className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-center">
+            <div className="min-w-0 flex-1">
+              <Link href={`/events/${e.id}`} className="text-sm font-medium hover:text-primary">
+                {e.title}
+              </Link>
+              <p className="text-xs text-muted">by {(e.owner as { name?: string } | null)?.name ?? 'an organiser'}</p>
+            </div>
+            <div className="flex gap-2">
+              <Button
+                size="sm"
+                onClick={async () => {
+                  await adminApi.reviewEvent(e.id, true).catch((err) => toast.error(errorMessage(err)));
+                  load();
+                }}
+              >
+                Approve and publish
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={async () => {
+                  await adminApi
+                    .reviewEvent(e.id, false, 'Please add more detail before this goes live.')
+                    .catch((err) => toast.error(errorMessage(err)));
+                  load();
+                }}
+              >
+                Send back
+              </Button>
+            </div>
+          </li>
+        ))}
+      </ul>
+    </Card>
+  );
+}
+
 function AuditLog() {
   const [entries, setEntries] = useState<AuditEntry[] | null>(null);
   const [page, setPage] = useState(1);
@@ -698,7 +855,11 @@ export default function AdminConsole() {
   const params = useSearchParams();
   const requested = params.get('tab') as Tab | null;
   const tab: Tab =
-    requested === 'users' || requested === 'applications' || requested === 'reports' || requested === 'audit'
+    requested === 'users' ||
+    requested === 'applications' ||
+    requested === 'reports' ||
+    requested === 'venues' ||
+    requested === 'audit'
       ? requested
       : 'overview';
   const setTab = (next: Tab) => router.replace(next === 'overview' ? '/admin' : `/admin?tab=${next}`, { scroll: false });
@@ -723,18 +884,25 @@ export default function AdminConsole() {
           { value: 'users', label: 'People' },
           { value: 'applications', label: 'Organizer requests' },
           { value: 'reports', label: 'Reports' },
+          { value: 'venues', label: 'Venues' },
           { value: 'audit', label: 'Audit log' },
         ]}
       />
       {tab === 'overview' && <Overview onOpen={setTab} />}
       {tab === 'users' && <People />}
-      {tab === 'applications' && <Applications />}
+      {tab === 'applications' && (
+        <>
+          <EventReviews />
+          <Applications />
+        </>
+      )}
       {tab === 'reports' && (
         <>
           <Reports />
           <MessageReports />
         </>
       )}
+      {tab === 'venues' && <Venues />}
       {tab === 'audit' && <AuditLog />}
     </>
   );

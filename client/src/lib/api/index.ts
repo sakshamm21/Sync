@@ -1,6 +1,7 @@
 import { saveBlob } from '../download';
 import { http } from './client';
 import type {
+  CampusVenue,
   Team,
   FriendsList,
   Certificate,
@@ -286,6 +287,12 @@ export const clubsApi = {
     ),
 };
 
+export const venuesApi = {
+  list: () => data<CampusVenue[]>(http.get('/venues')),
+  add: (body: Omit<CampusVenue, 'id'>) => data<CampusVenue>(http.post('/venues', body)),
+  remove: (id: string) => http.delete(`/venues/${id}`).then(() => undefined),
+};
+
 export const teamsApi = {
   mine: (eventId: string) => data<Team | null>(http.get(`/events/${eventId}/teams/mine`)),
   create: (eventId: string, name: string) => data<Team>(http.post(`/events/${eventId}/teams`, { name })),
@@ -340,6 +347,9 @@ export const adminApi = {
   messageReports: (status?: ReportStatus) => data<MessageReport[]>(http.get('/admin/message-reports', { params: { status } })),
   resolveMessageReport: (id: string, status: 'reviewed' | 'dismissed') =>
     data<{ id: string }>(http.patch(`/admin/message-reports/${id}`, { status })),
+  eventReviews: () => data<SyncEvent[]>(http.get('/admin/event-reviews')),
+  reviewEvent: (id: string, approve: boolean, note = '') =>
+    data<SyncEvent>(http.post(`/admin/event-reviews/${id}`, { approve, note })),
   auditLog: (query: { page?: number; limit?: number } = {}) => page<AuditEntry>(http.get('/admin/audit-log', { params: query })),
   users: (query: { q?: string; role?: Role; status?: UserStatus; page?: number; limit?: number } = {}) =>
     page<User>(http.get('/admin/users', { params: query })),

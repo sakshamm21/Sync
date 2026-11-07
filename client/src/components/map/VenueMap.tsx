@@ -3,7 +3,12 @@
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { Check, LoaderCircle, MapPin, Navigation, Search } from 'lucide-react';
-import { eventsApi, type VenueSummary } from '@/lib/api';
+import { eventsApi, venuesApi, type CampusVenue, type VenueSummary } from '@/lib/api';
+import dynamic from 'next/dynamic';
+import type { MapPin as Pin } from './LeafletMap';
+
+// Leaflet needs the browser, so the map isn't server-rendered.
+const LeafletMap = dynamic(() => import('./LeafletMap'), { ssr: false });
 import { CATEGORY_LABELS, formatDay, formatTime } from '@/lib/format';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/cn';
@@ -29,12 +34,6 @@ const DEFAULT_CENTER = {
   longitude: Number(process.env.NEXT_PUBLIC_CAMPUS_LONGITUDE) || 80.2329,
 };
 
-function osmEmbedUrl(lat: number, lng: number) {
-  const d = 0.008;
-  const bbox = [lng - d, lat - d, lng + d, lat + d].join('%2C');
-  return `https://www.openstreetmap.org/export/embed.html?bbox=${bbox}&layer=mapnik&marker=${lat}%2C${lng}`;
-}
-
 const toLocation = (v: VenueSummary): PickedLocation => ({
   name: v.name,
   address: v.address,
@@ -47,6 +46,7 @@ export default function VenueMap({ onPick, className }: VenueMapProps) {
   const [venues, setVenues] = useState<VenueSummary[] | null>(null);
   const [selected, setSelected] = useState<PickedLocation | null>(null);
   const [query, setQuery] = useState('');
+  const [campusVenues, setCampusVenues] = useState<CampusVenue[]>([]);
   const { results, searching, error, clear } = usePlaceSearch(query);
 
   useEffect(() => {
@@ -57,9 +57,37 @@ export default function VenueMap({ onPick, className }: VenueMapProps) {
         setSelected((current) => current ?? (list[0] ? toLocation(list[0]) : null));
       })
       .catch(() => setVenues([]));
+    venuesApi
+      .list()
+      .then(setCampusVenues)
+      .catch(() => setCampusVenues([]));
   }, []);
 
   const center = selected ?? DEFAULT_CENTER;
+  // Pins: venues with upcoming events, the admin-kept campus venues, and the current pick.
+  const pins = useMemo<Pin[]>(() => {
+    const all = new Map<string, Pin>();
+    for (const v of campusVenues)
+      all.set(`${v.latitude}|${v.longitude}`, { key: v.id, name: v.name, latitude: v.latitude, longitude: v.longitude });
+    for (const v of venues ?? [])
+      all.set(`${v.latitude}|${v.longitude}`, {
+        key: `${v.name}-${v.latitude}`,
+        name: v.name,
+        latitude: v.latitude,
+        longitude: v.longitude,
+      });
+    if (selected) {
+      const k = `${selected.latitude}|${selected.longitude}`;
+      all.set(k, {
+        key: 'selected',
+        name: selected.name,
+        latitude: selected.latitude,
+        longitude: selected.longitude,
+        active: true,
+      });
+    }
+    return [...all.values()];
+  }, [venues, campusVenues, selected]);
   const eventsHere = useMemo(
     () => venues?.find((v) => selected && v.latitude === selected.latitude && v.longitude === selected.longitude)?.events ?? [],
     [venues, selected]
@@ -76,10 +104,17 @@ export default function VenueMap({ onPick, className }: VenueMapProps) {
   return (
     <div className={cn('grid gap-4 lg:grid-cols-[1fr_20rem]', className)}>
       <div className="relative min-h-[420px] overflow-hidden rounded-[32px] border border-border bg-surface-muted">
-        <iframe
-          title="Map"
-          src={osmEmbedUrl(center.latitude, center.longitude)}
-          className="map-frame absolute inset-0 size-full border-0"
+        <LeafletMap
+          className="absolute inset-0 z-0 size-full"
+          center={center}
+          pins={pins}
+          onSelect={(pin) => choose({ name: pin.name, address: '', latitude: pin.latitude, longitude: pin.longitude })}
+          onDrop={
+            onPick
+              ? (latitude, longitude) =>
+                  choose({ name: 'Dropped pin', address: `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`, latitude, longitude })
+              : undefined
+          }
         />
 
         <div className="absolute inset-x-3 top-3 z-10">

@@ -6,6 +6,8 @@ import { ROLES, USER_STATUS, ORGANIZER_APPLICATION_STATUS, REPORT_STATUS } from 
 import * as service from './admin.service';
 import * as reports from '../reports/reports.service';
 import * as chat from '../chat/chat.service';
+import * as events from '../events/events.service';
+import { audit } from '../../lib/audit';
 
 const router = Router();
 router.use(authenticate, requireRole(ROLES.ADMIN));
@@ -57,6 +59,30 @@ router.patch(
     { params: idParams, body: z.object({ status: z.enum([REPORT_STATUS.REVIEWED, REPORT_STATUS.DISMISSED]) }) },
     async (req, res) => {
       res.json({ data: await chat.resolveMessageReport(currentUser(req), req.params.id, req.body.status) });
+    }
+  )
+);
+
+router.get('/event-reviews', async (_req, res) => {
+  res.json({ data: await events.awaitingReview() });
+});
+
+router.post(
+  '/event-reviews/:id',
+  validate(
+    { params: idParams, body: z.object({ approve: z.boolean(), note: z.string().trim().max(500).default('') }) },
+    async (req, res) => {
+      const result = await events.reviewFirstEvent(currentUser(req), req.params.id, req.body);
+      await audit(
+        currentUser(req),
+        req.body.approve ? 'event.approved' : 'event.sent_back',
+        `${req.body.approve ? 'Approved' : 'Sent back'} "${result.title}"`,
+        {
+          kind: 'event',
+          id: result._id,
+        }
+      );
+      res.json({ data: result });
     }
   )
 );
