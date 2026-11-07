@@ -92,7 +92,6 @@ export default function LeafletMap({
     if (!map.current) return;
     void import('leaflet').then((L) => draw(L));
     map.current.panTo([center.latitude, center.longitude]);
-     
   }, [pins, center.latitude, center.longitude]);
 
   return <div ref={box} className={className} role="region" aria-label="Map" />;
