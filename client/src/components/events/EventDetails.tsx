@@ -25,7 +25,7 @@ import {
 import RsvpButton from './RsvpButton';
 import InterestedButton from './InterestedButton';
 import EventCover, { statusOf } from './EventCover';
-import { CapacityBar, DateStamp } from './EventCard';
+import { CapacityBar, DateStamp, FriendsGoing } from './EventCard';
 import EventChat from '@/components/chat/EventChat';
 import { useAuth } from '@/context/AuthContext';
 import { useEventsSync } from '@/context/EventContext';
@@ -634,6 +634,7 @@ export default function EventDetails({
                 <div className="ticket-bottom relative space-y-5 rounded-b-[28px] bg-surface p-6 pt-7">
                   <div aria-hidden="true" className="absolute inset-x-6 top-0 border-t-2 border-dashed border-border" />
                   {event.visibility === 'public' && <CapacityBar event={event} />}
+                  <FriendsGoing event={event} />
                   {event.viewer.registration === 'waitlisted' && (
                     <p className="flex gap-2 rounded-2xl bg-warning-soft p-3 text-sm text-warning">
                       <Hourglass className="mt-0.5 size-4 shrink-0" />

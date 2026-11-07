@@ -8,6 +8,7 @@ import {
   MessagesSquare,
   ShieldCheck,
   StickyNote,
+  Users,
   type LucideIcon,
 } from 'lucide-react';
 import type { Role, User } from '@/lib/api';
@@ -34,6 +35,7 @@ export const PRIMARY_NAV: NavItem[] = [
 export const SECONDARY_NAV: NavItem[] = [
   { href: '/notes', label: 'Notes', icon: StickyNote },
   { href: '/history', label: 'My events', icon: HistoryIcon },
+  { href: '/friends', label: 'Friends', icon: Users },
   { href: '/map', label: 'Map', icon: Map },
   // Organisers manage their own events here, and a member invited to help run
   // an event finds it here too. Other members would only see an empty console.

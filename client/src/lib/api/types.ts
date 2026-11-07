@@ -91,6 +91,8 @@ export interface EventViewer {
   interested?: boolean;
   /** Checked in at the door. */
   checkedIn?: boolean;
+  /** Friends going (first few names) and how many in all. */
+  friendsGoing?: { names: string[]; count: number };
   /** For a held seat: claim it before this. */
   offerExpiresAt?: string | null;
 }
@@ -226,7 +228,8 @@ export type NotificationType =
   | 'staff_invited'
   | 'club_new_event'
   | 'waitlist_offer'
-  | 'registration_decision';
+  | 'registration_decision'
+  | 'friend_request';
 
 export interface AppNotification {
   id: string;
@@ -412,4 +415,17 @@ export interface Certificate {
   host: string;
   checkedInAt: string;
   reference: string;
+}
+
+export interface FriendPerson {
+  id: string;
+  name: string;
+  avatarUrl: string;
+}
+
+/** Your friends, requests waiting for you, and requests you sent. */
+export interface FriendsList {
+  friends: { id: string; user: FriendPerson | null }[];
+  incoming: { id: string; user: FriendPerson | null }[];
+  outgoing: { id: string; user: FriendPerson | null }[];
 }

@@ -8,6 +8,20 @@ import { cn } from '@/lib/cn';
 import EventCover from './EventCover';
 import RsvpButton from './RsvpButton';
 
+/** "Aanya + 2 friends going": seeing friends attend is the strongest nudge to RSVP. */
+export function FriendsGoing({ event, className }: { event: SyncEvent; className?: string }) {
+  const going = event.viewer.friendsGoing;
+  if (!going?.count) return null;
+  const first = going.names[0];
+  const others = going.count - 1;
+  return (
+    <p className={cn('truncate text-xs font-medium text-primary-soft-foreground', className)}>
+      👋 {first}
+      {others > 0 ? ` + ${others} friend${others === 1 ? '' : 's'}` : ''} going
+    </p>
+  );
+}
+
 /** Big stamped date: weekday, giant day number, month. */
 export function DateStamp({ iso, className }: { iso: string; className?: string }) {
   const d = campusDateParts(iso);
@@ -85,6 +99,7 @@ export default function EventCard({
                 {formatTime(event.startsAt)} · {formatVenue(event)}
               </p>
               <p className="mt-0.5 truncate text-xs text-subtle">by {host}</p>
+              <FriendsGoing event={event} className="mt-1" />
             </div>
           </div>
           <div className="mt-auto flex items-end gap-3 pt-4">

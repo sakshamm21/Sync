@@ -55,6 +55,10 @@ const schema = z
     VAPID_SUBJECT: z.string().default('mailto:admin@example.com'),
     // Vercel Blob store token: lets organisers upload cover photos instead of pasting URLs.
     BLOB_READ_WRITE_TOKEN: z.string().optional(),
+    // Sign-in attempts allowed per IP per 15 minutes (raised only for automated browser tests).
+    AUTH_RATE_LIMIT: z.coerce.number().int().min(1).default(30),
+    // API requests allowed per IP per minute (likewise raised only for browser tests).
+    API_RATE_LIMIT: z.coerce.number().int().min(1).default(300),
     // Comma-separated email domains allowed to sign up (e.g. "iitk.ac.in"); empty = anyone.
     // Subdomains count too: "iitk.ac.in" also allows "cse.iitk.ac.in".
     ALLOWED_EMAIL_DOMAINS: z.string().default(''),
@@ -150,6 +154,8 @@ const env = Object.freeze({
     subject: raw.VAPID_SUBJECT,
     enabled: Boolean(raw.VAPID_PUBLIC_KEY && raw.VAPID_PRIVATE_KEY),
   },
+  authRateLimit: raw.AUTH_RATE_LIMIT,
+  apiRateLimit: raw.API_RATE_LIMIT,
   allowedEmailDomains: raw.ALLOWED_EMAIL_DOMAINS.split(',')
     .map((d) => d.trim().toLowerCase().replace(/^@/, ''))
     .filter(Boolean),

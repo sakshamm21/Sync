@@ -15,7 +15,7 @@ const tooManyRequests = (message: string) => ({
 /** Brute-force protection for credential and code endpoints. */
 export const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  limit: 30,
+  limit: env.authRateLimit,
   standardHeaders: 'draft-8',
   legacyHeaders: false,
   skip: () => env.isTest,
@@ -26,7 +26,7 @@ export const authLimiter = rateLimit({
 /** General ceiling for the whole API. */
 export const apiLimiter = rateLimit({
   windowMs: 60 * 1000,
-  limit: 300,
+  limit: env.apiRateLimit,
   standardHeaders: 'draft-8',
   legacyHeaders: false,
   skip: () => env.isTest,
