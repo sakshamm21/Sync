@@ -122,6 +122,8 @@ export interface SyncEvent {
   requiresApproval?: boolean;
   /** Shared by every date of a repeating event. */
   seriesId?: string | null;
+  /** Only on create/update responses: other events booked at the same venue and time. */
+  venueClashes?: { id: string; title: string; startsAt: string; endsAt: string }[];
   /** People who bookmarked it as "Interested". */
   interestedCount?: number;
   spotsLeft: number | null;

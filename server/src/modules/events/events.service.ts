@@ -330,7 +330,40 @@ export async function create(user: UserDocument, input: CreateEventInput) {
   }
   await event.populate('owner', OWNER_FIELDS);
   if (isPublic && event.status === EVENT_STATUS.PUBLISHED) await clubs.announceNewEvent(event);
-  return present(event, user);
+  return { ...(await present(event, user)), venueClashes: await venueClashes(event) };
+}
+
+/** Roughly 40 m in degrees: two pins this close are the same building. */
+const SAME_PLACE_DEG = 0.0004;
+
+/**
+ * Other published events booked at the same venue at an overlapping time
+ * (Roadmap "Next" #8). Matches the venue name (ignoring case) or a pin within
+ * about 40 m. A warning for the organiser, never a block.
+ */
+export async function venueClashes(event: EventDocument) {
+  const { name, latitude, longitude } = event.venue ?? {};
+  const sameVenue: FilterQuery<IEvent>[] = [];
+  if (name?.trim()) sameVenue.push({ 'venue.name': new RegExp(`^${escapeRegex(name.trim())}$`, 'i') });
+  if (latitude != null && longitude != null) {
+    sameVenue.push({
+      'venue.latitude': { $gte: latitude - SAME_PLACE_DEG, $lte: latitude + SAME_PLACE_DEG },
+      'venue.longitude': { $gte: longitude - SAME_PLACE_DEG, $lte: longitude + SAME_PLACE_DEG },
+    });
+  }
+  if (!sameVenue.length || event.visibility !== EVENT_VISIBILITY.PUBLIC) return [];
+  const clashes = await Event.find({
+    _id: { $ne: event._id },
+    ...(event.seriesId ? { seriesId: { $ne: event.seriesId } } : {}),
+    visibility: EVENT_VISIBILITY.PUBLIC,
+    status: EVENT_STATUS.PUBLISHED,
+    startsAt: { $lt: event.endsAt },
+    endsAt: { $gt: event.startsAt },
+    $or: sameVenue,
+  })
+    .select('title startsAt endsAt venue.name')
+    .limit(5);
+  return clashes.map((c) => ({ id: c.id as string, title: c.title, startsAt: c.startsAt, endsAt: c.endsAt }));
 }
 
 /** The other upcoming dates of an event's series, soonest first. */
@@ -404,7 +437,7 @@ export async function update(user: UserDocument, id: string, changes: UpdateEven
   const capacityGrew = previousCapacity !== null && (event.capacity === null || event.capacity > previousCapacity);
   if (capacityGrew) await fillFromWaitlist(event);
 
-  return getForViewer(user, id);
+  return { ...(await getForViewer(user, id)), venueClashes: await venueClashes(event) };
 }
 
 /**

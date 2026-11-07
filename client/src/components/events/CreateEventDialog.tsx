@@ -7,7 +7,15 @@ import { uploadCover } from '@/lib/uploads';
 import { useAuth } from '@/context/AuthContext';
 import { useEventsSync } from '@/context/EventContext';
 import { ApiError, errorMessage, eventsApi, metaApi, type CategoryValue, type EventInput, type SyncEvent } from '@/lib/api';
-import { CATEGORIES, CATEGORY_EMOJI, CATEGORY_LABELS, campusDateKey, fromDateTimeInput, toDateTimeInput } from '@/lib/format';
+import {
+  CATEGORIES,
+  CATEGORY_EMOJI,
+  CATEGORY_LABELS,
+  campusDateKey,
+  formatEventWhen,
+  fromDateTimeInput,
+  toDateTimeInput,
+} from '@/lib/format';
 import { ConfirmDialog, Dialog } from '@/components/ui/overlay';
 import { Button } from '@/components/ui/button';
 import { Field, Input, Textarea } from '@/components/ui/field';
@@ -356,11 +364,17 @@ function EventForm({
     setSaving(asDraft ? 'draft' : 'publish');
     setErrors({});
     try {
-      if (isEdit) await eventsApi.update(event!.id, body);
-      else await eventsApi.create(body);
+      const saved = isEdit ? await eventsApi.update(event!.id, body) : await eventsApi.create(body);
       toast.success(
         isEdit ? 'Event updated' : asDraft ? 'Draft saved' : form.isPublic ? 'Event published' : 'Added to your calendar'
       );
+      // Saved anyway, but two groups turning up to one room is worth knowing about.
+      for (const clash of saved.venueClashes ?? []) {
+        toast.warning(`${form.venueName || 'That venue'} is also booked`, {
+          description: `${clash.title}, ${formatEventWhen(clash)}. Check with the venue or the other organiser.`,
+          duration: 10_000,
+        });
+      }
       eventsChanged();
       onDone();
     } catch (err) {

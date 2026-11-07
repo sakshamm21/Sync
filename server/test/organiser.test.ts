@@ -70,3 +70,41 @@ describe('announcement audience', () => {
     assert.deepEqual(await bodies(waiting), ['A few spots may open']);
   });
 });
+
+describe('Roadmap Next #8: room clashes', () => {
+  it('warns when the same venue is booked at an overlapping time, but still saves', async () => {
+    const [a, b] = [await createUser({ role: 'organizer' }), await createUser({ role: 'organizer' })];
+    const first = (
+      await api()
+        .post('/api/events')
+        .set(a.auth)
+        .send(
+          eventInput({ title: 'Robotics Demo', venue: { name: 'LHC 101' }, startsAt: hoursFromNow(48), endsAt: hoursFromNow(50) })
+        )
+        .expect(201)
+    ).body.data;
+    assert.deepEqual(first.venueClashes, []);
+
+    const second = (
+      await api()
+        .post('/api/events')
+        .set(b.auth)
+        .send(eventInput({ title: 'Quiz', venue: { name: 'lhc 101' }, startsAt: hoursFromNow(49), endsAt: hoursFromNow(51) }))
+        .expect(201)
+    ).body.data;
+    assert.deepEqual(
+      second.venueClashes.map((c: { title: string }) => c.title),
+      ['Robotics Demo']
+    );
+
+    // Moving it to a free slot clears the warning.
+    const moved = (
+      await api()
+        .patch(`/api/events/${second.id}`)
+        .set(b.auth)
+        .send({ startsAt: hoursFromNow(52), endsAt: hoursFromNow(54) })
+        .expect(200)
+    ).body.data;
+    assert.deepEqual(moved.venueClashes, []);
+  });
+});

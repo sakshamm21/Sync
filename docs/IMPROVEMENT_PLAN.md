@@ -63,6 +63,7 @@ Severity labels:
 | #25 | Next #6 (chat moderation), #4 (organiser insights) |
 | #26 | Next #5: certificates, My events history, written feedback |
 | #27 | Next #3: recurring events |
+| #28 | Next #8 (part): room clash warnings |
 
 **Still open, and why:**
 
