@@ -60,6 +60,7 @@ Severity labels:
 | #22 | E3: API contract test for shared types |
 | #23 | Next #1: registration questions and organiser approval |
 | #24 | Next #12 (export and delete account), #9 (admin audit log) |
+| #25 | Next #6 (chat moderation), #4 (organiser insights) |
 
 **Still open, and why:**
 

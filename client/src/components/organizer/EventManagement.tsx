@@ -16,8 +16,8 @@ import {
   Search,
   Users,
 } from 'lucide-react';
-import { errorMessage, eventsApi, type Attendee, type AttendeeList, type SyncEvent } from '@/lib/api';
-import { formatDateTime, formatEventWhen, formatVenue } from '@/lib/format';
+import { errorMessage, eventsApi, type Attendee, type AttendeeList, type EventInsights, type SyncEvent } from '@/lib/api';
+import { formatDateTime, formatDay, formatEventWhen, formatVenue } from '@/lib/format';
 import { useCreateEvent } from '@/components/events/CreateEventDialog';
 import { useEventsSync } from '@/context/EventContext';
 import EventCover from '@/components/events/EventCover';
@@ -57,6 +57,47 @@ function downloadCsv(event: SyncEvent, attendees: Attendee[]) {
   // The byte-order mark makes Excel read the file as UTF-8, so names like "Aanya Śarma" survive.
   const blob = new Blob(['\uFEFF', rows.map((r) => r.map(escape).join(',')).join('\r\n')], { type: 'text/csv;charset=utf-8' });
   saveBlob(blob, `${event.title.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}-attendees.csv`);
+}
+
+/** RSVPs per day and how the event went, for its organisers. */
+function Insights({ eventId, version }: { eventId: string; version: number }) {
+  const [data, setData] = useState<EventInsights | null>(null);
+  useEffect(() => {
+    eventsApi
+      .insights(eventId)
+      .then(setData)
+      .catch(() => setData(null));
+  }, [eventId, version]);
+  if (!data || !data.rsvpsByDay.length) return null;
+  const max = Math.max(...data.rsvpsByDay.map((d) => d.count));
+  const facts = [
+    `${data.interested} interested`,
+    data.pending ? `${data.pending} awaiting approval` : null,
+    data.showUpRate != null ? `${data.showUpRate}% showed up` : null,
+    data.averageRating != null ? `rated ${data.averageRating}/5 by ${data.ratingCount}` : null,
+  ].filter(Boolean);
+  return (
+    <Card className="p-5">
+      <div className="mb-4 flex flex-wrap items-baseline justify-between gap-2">
+        <h2 className="font-semibold">RSVPs over time</h2>
+        <p className="text-sm text-muted">{facts.join(' · ')}</p>
+      </div>
+      <div className="flex h-28 items-end gap-1" role="img" aria-label={`RSVPs per day, peaking at ${max} in a day`}>
+        {data.rsvpsByDay.map((d) => (
+          <div key={d.day} className="group relative flex-1">
+            <div className="rounded-t-md bg-primary" style={{ height: `${Math.max((d.count / max) * 100, 6)}%`, minHeight: 4 }} />
+            <span className="pointer-events-none absolute -top-6 left-1/2 hidden -translate-x-1/2 whitespace-nowrap rounded bg-foreground px-1.5 py-0.5 text-[10px] text-background group-hover:block">
+              {formatDay(`${d.day}T12:00:00Z`)}: {d.count}
+            </span>
+          </div>
+        ))}
+      </div>
+      <div className="mt-1 flex justify-between font-mono text-[10px] uppercase tracking-wider text-muted">
+        <span>{formatDay(`${data.rsvpsByDay[0].day}T12:00:00Z`)}</span>
+        <span>{formatDay(`${data.rsvpsByDay[data.rsvpsByDay.length - 1].day}T12:00:00Z`)}</span>
+      </div>
+    </Card>
+  );
 }
 
 /** Organiser view of one event: attendees, check-in and announcements. */
@@ -195,6 +236,8 @@ export default function EventManagement({ eventId }: { eventId: string }) {
         <StatCard label="Waitlisted" value={list.counts.waitlisted} icon={<Hourglass />} />
         <StatCard label="Checked in" value={list.counts.checkedIn} icon={<CalendarCheck />} />
       </div>
+
+      <Insights eventId={event.id} version={version} />
 
       <div className="grid gap-6 xl:grid-cols-[1fr_26rem]">
         <Card className="overflow-hidden">

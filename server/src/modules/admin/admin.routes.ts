@@ -5,6 +5,7 @@ import { z, idParams, pagination } from '../../lib/schemas';
 import { ROLES, USER_STATUS, ORGANIZER_APPLICATION_STATUS, REPORT_STATUS } from '../../constants';
 import * as service from './admin.service';
 import * as reports from '../reports/reports.service';
+import * as chat from '../chat/chat.service';
 
 const router = Router();
 router.use(authenticate, requireRole(ROLES.ADMIN));
@@ -40,6 +41,23 @@ const resolveBody = z.object({
   // Sent to attendees and the organiser when a reviewed report cancels the event.
   reason: z.string().trim().max(500).default(''),
 });
+
+router.get(
+  '/message-reports',
+  validate({ query: z.object({ status: z.enum(REPORT_STATUS).optional() }) }, async (req, res) => {
+    res.json({ data: await chat.listMessageReports(req.query) });
+  })
+);
+
+router.patch(
+  '/message-reports/:id',
+  validate(
+    { params: idParams, body: z.object({ status: z.enum([REPORT_STATUS.REVIEWED, REPORT_STATUS.DISMISSED]) }) },
+    async (req, res) => {
+      res.json({ data: await chat.resolveMessageReport(currentUser(req), req.params.id, req.body.status) });
+    }
+  )
+);
 
 router.get(
   '/audit-log',

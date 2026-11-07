@@ -82,6 +82,31 @@ export default function EventChat({ eventId, canAnnounce = false, className }: E
     realtime === 'polling' && !loading
   );
 
+  const markRemoved = (id: string) =>
+    setMessages((prev) => prev.map((m) => (m.id === id ? { ...m, text: '', removedAt: new Date().toISOString() } : m)));
+
+  async function remove(msg: ChatMessage) {
+    try {
+      await eventsApi.removeMessage(eventId, msg.id);
+      markRemoved(msg.id);
+    } catch (err) {
+      toast.error(errorMessage(err));
+    }
+  }
+
+  async function report(msg: ChatMessage) {
+    try {
+      await eventsApi.reportMessage(eventId, msg.id);
+      toast.success('Reported', { description: 'The Sync team will take a look.' });
+    } catch (err) {
+      toast.error(errorMessage(err));
+    }
+  }
+
+  useSocketEvent<{ id: string; event: string }>('message:removed', ({ id, event }) => {
+    if (event === eventId) markRemoved(id);
+  });
+
   useSocketEvent<ChatMessage>('message:new', (message) => {
     if (message.event !== eventId) return;
     appendMessages([message]);
@@ -170,6 +195,13 @@ export default function EventChat({ eventId, canAnnounce = false, className }: E
         )}
         <AnimatePresence initial={false}>
           {messages.map((msg) => {
+            if (msg.removedAt) {
+              return (
+                <p key={msg.id} className="text-center text-xs italic text-muted">
+                  Message removed
+                </p>
+              );
+            }
             if (msg.isAnnouncement) {
               return (
                 <motion.div
@@ -179,7 +211,7 @@ export default function EventChat({ eventId, canAnnounce = false, className }: E
                   style={{ rotate: '-0.6deg' }}
                   className="rounded-3xl bg-pink p-4 text-[#09090d]"
                 >
-                  <p className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.14em] text-white/80">
+                  <p className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.14em] text-black/70">
                     <Megaphone className="size-3.5" /> Announcement · {msg.sender.name} · {formatTime(msg.createdAt)}
                   </p>
                   <p className="mt-1.5 whitespace-pre-wrap font-display text-lg font-bold leading-snug">{msg.text}</p>
@@ -215,7 +247,19 @@ export default function EventChat({ eventId, canAnnounce = false, className }: E
                   >
                     {msg.text}
                   </div>
-                  <p className="mt-1 text-[11px] text-subtle">{formatTime(msg.createdAt)}</p>
+                  <p className="mt-1 flex items-center gap-2 text-[11px] text-subtle">
+                    <span>{formatTime(msg.createdAt)}</span>
+                    {(isMe || canAnnounce) && (
+                      <button type="button" className="hover:text-danger" onClick={() => remove(msg)}>
+                        Remove
+                      </button>
+                    )}
+                    {!isMe && (
+                      <button type="button" className="hover:text-foreground" onClick={() => report(msg)}>
+                        Report
+                      </button>
+                    )}
+                  </p>
                 </div>
               </motion.div>
             );

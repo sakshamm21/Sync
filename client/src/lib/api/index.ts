@@ -1,6 +1,8 @@
 import { saveBlob } from '../download';
 import { http } from './client';
 import type {
+  EventInsights,
+  MessageReport,
   AuditEntry,
   ClubProfile,
   ClubSuggestion,
@@ -175,6 +177,12 @@ export const eventsApi = {
     http
       .get<{ data: ChatMessage[]; meta: { hasMore: boolean } }>(`/events/${id}/messages`, { params })
       .then((r) => ({ items: r.data.data, hasMore: r.data.meta.hasMore })),
+  /** Removes a chat message (the sender, an organiser or an admin). */
+  removeMessage: (id: string, messageId: string) => data<{ id: string }>(http.delete(`/events/${id}/messages/${messageId}`)),
+  reportMessage: (id: string, messageId: string, reason: ReportReason = 'inappropriate') =>
+    data<{ reported: true }>(http.post(`/events/${id}/messages/${messageId}/report`, { reason })),
+  /** RSVPs per day, show-up rate and ratings, for the event's organisers. */
+  insights: (id: string) => data<EventInsights>(http.get(`/organizer/events/${id}/insights`)),
   sendMessage: (id: string, body: { text: string; announcement?: boolean; audience?: 'all' | 'going' | 'waitlisted' }) =>
     data<ChatMessage>(http.post(`/events/${id}/messages`, body)),
 
@@ -256,6 +264,9 @@ export const staffApi = {
 
 export const adminApi = {
   stats: () => data<PlatformStats>(http.get('/admin/stats')),
+  messageReports: (status?: ReportStatus) => data<MessageReport[]>(http.get('/admin/message-reports', { params: { status } })),
+  resolveMessageReport: (id: string, status: 'reviewed' | 'dismissed') =>
+    data<{ id: string }>(http.patch(`/admin/message-reports/${id}`, { status })),
   auditLog: (query: { page?: number; limit?: number } = {}) => page<AuditEntry>(http.get('/admin/audit-log', { params: query })),
   users: (query: { q?: string; role?: Role; status?: UserStatus; page?: number; limit?: number } = {}) =>
     page<User>(http.get('/admin/users', { params: query })),

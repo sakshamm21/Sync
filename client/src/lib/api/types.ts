@@ -201,6 +201,8 @@ export interface ChatMessage {
   event: string;
   text: string;
   isAnnouncement: boolean;
+  /** Set when the message was removed; `text` is then empty. */
+  removedAt?: string | null;
   sender: { id: string; name: string; avatarUrl: string; role: Role };
   createdAt: string;
 }
@@ -364,4 +366,29 @@ export interface AuditEntry {
   actor: { id: string; name: string; avatarUrl: string } | null;
   target: { kind: 'user' | 'event' | 'application' | 'report'; id: string };
   createdAt: string;
+}
+
+/** A reported chat message, as an admin sees it. */
+export interface MessageReport {
+  id: string;
+  reason: ReportReason;
+  details: string;
+  status: ReportStatus;
+  createdAt: string;
+  event: { id: string; title: string } | null;
+  reporter: { name: string } | null;
+  message: { id: string; text: string; removed: boolean; sender: string | null } | null;
+}
+
+/** One event's numbers for its organisers. */
+export interface EventInsights {
+  rsvpsByDay: { day: string; count: number }[];
+  going: number;
+  waitlisted: number;
+  pending: number;
+  interested: number;
+  checkedIn: number;
+  showUpRate: number | null;
+  averageRating: number | null;
+  ratingCount: number;
 }
