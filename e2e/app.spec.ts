@@ -337,3 +337,12 @@ test('chat messages can be removed by the sender and reported by others; organis
   await expect(org.getByRole('heading', { name: 'RSVPs over time' })).toBeVisible();
   await org.close();
 });
+
+test('attendees of a past event can leave feedback and print a certificate', async ({ page }) => {
+  await signInAs(page, 'member@syncronify.dev');
+  await page.goto('/history');
+  await expect(page.getByRole('heading', { name: /My events/ })).toBeVisible();
+  await page.getByRole('link', { name: 'Certificate' }).first().click();
+  await expect(page.getByText('Certificate of participation')).toBeVisible();
+  await expect(page.getByText(/^Ref\. SYNC-/)).toBeVisible();
+});

@@ -62,11 +62,16 @@ function downloadCsv(event: SyncEvent, attendees: Attendee[]) {
 /** RSVPs per day and how the event went, for its organisers. */
 function Insights({ eventId, version }: { eventId: string; version: number }) {
   const [data, setData] = useState<EventInsights | null>(null);
+  const [feedback, setFeedback] = useState<{ rating: number; comment: string }[]>([]);
   useEffect(() => {
     eventsApi
       .insights(eventId)
       .then(setData)
       .catch(() => setData(null));
+    eventsApi
+      .feedback(eventId)
+      .then(setFeedback)
+      .catch(() => setFeedback([]));
   }, [eventId, version]);
   if (!data || !data.rsvpsByDay.length) return null;
   const max = Math.max(...data.rsvpsByDay.map((d) => d.count));
@@ -96,6 +101,19 @@ function Insights({ eventId, version }: { eventId: string; version: number }) {
         <span>{formatDay(`${data.rsvpsByDay[0].day}T12:00:00Z`)}</span>
         <span>{formatDay(`${data.rsvpsByDay[data.rsvpsByDay.length - 1].day}T12:00:00Z`)}</span>
       </div>
+      {feedback.length > 0 && (
+        <div className="mt-5 border-t border-border pt-4">
+          <h3 className="mb-2 text-sm font-semibold">What attendees said</h3>
+          <ul className="space-y-2">
+            {feedback.map((f, i) => (
+              <li key={i} className="rounded-xl bg-surface-muted px-3 py-2 text-sm">
+                <span className="mr-2 font-mono text-xs text-muted">{'★'.repeat(f.rating)}</span>
+                {f.comment}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
     </Card>
   );
 }
