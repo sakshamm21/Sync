@@ -10,6 +10,7 @@ import { useEventsSync } from '@/context/EventContext';
 import { errorMessage, eventsApi, type SyncEvent } from '@/lib/api';
 import { Button, ButtonLink } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/overlay';
+import { cn } from '@/lib/cn';
 import { TicketQr } from '@/components/events/QrTicket';
 import { SITE_URL, googleCalendarUrl } from '@/lib/calendarLinks';
 import { formatDay, formatTime } from '@/lib/format';
@@ -133,6 +134,42 @@ export default function RsvpButton({ event, onChange, size = 'sm', className }: 
     } catch (err) {
       toast.error(errorMessage(err));
     }
+  }
+
+  // A seat is being held: the main action is to claim it, before it passes on.
+  if (registration === 'offered') {
+    return (
+      <div ref={buttonRef} className={cn('space-y-2', className)}>
+        <Button
+          size={size}
+          loading={pending}
+          className="w-full"
+          onClick={async () => {
+            setPending(true);
+            try {
+              onChange(await eventsApi.claim(event.id));
+              eventsChanged();
+              celebrate(buttonRef.current);
+              toast.success("You're in! 🎉", { description: 'The spot is yours.' });
+            } catch (err) {
+              toast.error(errorMessage(err));
+            } finally {
+              setPending(false);
+            }
+          }}
+        >
+          {!pending && <Check />} Claim your spot
+        </Button>
+        {event.viewer.offerExpiresAt && (
+          <p className="text-center text-xs text-muted">
+            Held for you until {formatDay(event.viewer.offerExpiresAt)}, {formatTime(event.viewer.offerExpiresAt)}.{' '}
+            <button type="button" className="underline underline-offset-2" onClick={() => void leave()}>
+              No thanks
+            </button>
+          </p>
+        )}
+      </div>
+    );
   }
 
   if (registration) {

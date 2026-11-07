@@ -90,7 +90,7 @@ export interface ProfileUpdate {
   bio?: string;
   avatarUrl?: string;
   interests?: CategoryValue[];
-  preferences?: { emailNotifications?: boolean; mutedEmailTypes?: NotificationType[] };
+  preferences?: { emailNotifications?: boolean; mutedEmailTypes?: NotificationType[]; autoAcceptWaitlist?: boolean };
 }
 
 export const meApi = {
@@ -137,6 +137,8 @@ export const eventsApi = {
   cancel: (id: string, reason = '') => data<SyncEvent>(http.post(`/events/${id}/cancel`, { reason })),
   remove: (id: string) => http.delete(`/events/${id}`).then(() => undefined),
   register: (id: string) => data<RegistrationResponse>(http.post(`/events/${id}/registration`)),
+  /** Accepts a seat held for you off the waitlist. */
+  claim: (id: string) => data<RegistrationResponse>(http.post(`/events/${id}/registration/claim`)),
   /** Bookmark ("Interested") or un-bookmark; takes no seat. */
   setInterested: (id: string, interested: boolean) =>
     data<SyncEvent>(interested ? http.put(`/events/${id}/interest`) : http.delete(`/events/${id}/interest`)),

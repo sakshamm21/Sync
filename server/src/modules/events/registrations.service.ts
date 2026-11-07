@@ -1,7 +1,7 @@
 import type { FilterQuery } from 'mongoose';
 import { Event, Registration, type IEvent, type UserDocument } from '../../models';
 import { badRequest, forbidden, notFound } from '../../lib/errors';
-import { handOverSeat, hasWaitlist, clashesWith, type Clash } from './waitlist.service';
+import { handOverSeat, hasWaitlist, clashesWith, claimOffer, type Clash } from './waitlist.service';
 import { claimSeat, releaseSeat } from './seats';
 import { formatCampusTime } from '../../lib/campusTime';
 import { loadEvent, withViewerContext, present, OWNER_FIELDS, type PresentedEvent } from './events.policy';
@@ -63,6 +63,16 @@ export async function register(user: UserDocument, eventId: string): Promise<Reg
   return { ...(await present(fresh.event, user)), clashes };
 }
 
+/** Claims a seat held for this user off the waitlist. */
+export async function claim(user: UserDocument, eventId: string): Promise<RegistrationResponse> {
+  const { event } = await loadEvent(user, eventId);
+  if (!(await claimOffer(user._id, event._id))) {
+    throw badRequest('There is no spot waiting for you, or the offer has expired', 'NO_OFFER');
+  }
+  const fresh = await loadEvent(user, eventId);
+  return { ...(await present(fresh.event, user)), clashes: await clashesWith(user, fresh.event) };
+}
+
 export async function unregister(user: UserDocument, eventId: string) {
   const { event } = await loadEvent(user, eventId);
   // Once an event has started, registrations are its attendance record (check-ins,
@@ -73,7 +83,8 @@ export async function unregister(user: UserDocument, eventId: string) {
   const registration = await Registration.findOneAndDelete({ event: event._id, user: user.id });
   if (!registration) throw notFound('You are not registered for this event', 'NOT_REGISTERED');
 
-  if (registration.status === REGISTRATION_STATUS.GOING) {
+  // A held offer also holds a seat, so declining one passes it on too.
+  if (registration.status === REGISTRATION_STATUS.GOING || registration.status === REGISTRATION_STATUS.OFFERED) {
     await handOverSeat(event);
   }
   const fresh = await loadEvent(user, eventId);
@@ -102,6 +113,7 @@ export async function listForEvent(user: UserDocument, eventId: string, { status
   const counts = {
     going: items.filter((i) => i.status === REGISTRATION_STATUS.GOING).length,
     waitlisted: items.filter((i) => i.status === REGISTRATION_STATUS.WAITLISTED).length,
+    offered: items.filter((i) => i.status === REGISTRATION_STATUS.OFFERED).length,
     checkedIn: items.filter((i) => i.checkedInAt).length,
   };
   return { items, counts };

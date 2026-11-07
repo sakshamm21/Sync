@@ -9,7 +9,7 @@ export interface ProfileChanges {
   bio?: string;
   avatarUrl?: string;
   interests?: Category[];
-  preferences?: { emailNotifications?: boolean; mutedEmailTypes?: NotificationType[] };
+  preferences?: { emailNotifications?: boolean; mutedEmailTypes?: NotificationType[]; autoAcceptWaitlist?: boolean };
 }
 
 export async function updateProfile(user: UserDocument, changes: ProfileChanges) {

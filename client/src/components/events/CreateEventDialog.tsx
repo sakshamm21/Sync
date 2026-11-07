@@ -75,6 +75,8 @@ interface FormState {
   /** Optional sign-up window, as campus wall-clock datetime-local values. */
   registrationOpensAt: string;
   registrationClosesAt: string;
+  /** '' = move people in automatically; otherwise hours a freed seat is held. */
+  waitlistClaimHours: string;
   isPublic: boolean;
 }
 
@@ -113,6 +115,7 @@ function initialState(event: SyncEvent | undefined, canPublish: boolean, date?: 
       capacity: event.capacity ? String(event.capacity) : '',
       registrationOpensAt: event.registrationOpensAt ? toDateTimeInput(new Date(event.registrationOpensAt)) : '',
       registrationClosesAt: event.registrationClosesAt ? toDateTimeInput(new Date(event.registrationClosesAt)) : '',
+      waitlistClaimHours: event.waitlistClaimHours ? String(event.waitlistClaimHours) : '',
       isPublic: event.visibility === 'public',
     };
   }
@@ -133,6 +136,7 @@ function initialState(event: SyncEvent | undefined, canPublish: boolean, date?: 
     capacity: '',
     registrationOpensAt: '',
     registrationClosesAt: '',
+    waitlistClaimHours: '',
     isPublic: canPublish,
   };
 }
@@ -297,6 +301,7 @@ function EventForm({
     if (form.isPublic) {
       body.capacity = form.capacity ? Number(form.capacity) : null;
       body.registrationOpensAt = form.registrationOpensAt ? fromDateTimeInput(form.registrationOpensAt).toISOString() : null;
+      body.waitlistClaimHours = form.waitlistClaimHours ? Number(form.waitlistClaimHours) : null;
       body.registrationClosesAt = form.registrationClosesAt ? fromDateTimeInput(form.registrationClosesAt).toISOString() : null;
       // Editing keeps the current status unless the user explicitly saves a draft or publishes one.
       if (!isEdit || isDraft) body.status = asDraft ? 'draft' : 'published';
@@ -519,6 +524,24 @@ function EventForm({
                 value={form.coverImageUrl}
                 onChange={(e) => set('coverImageUrl', e.target.value)}
               />
+            </Field>
+            <Field
+              label="When a spot opens up"
+              htmlFor="event-claim"
+              hint="Holding the spot for someone to confirm cuts no-shows."
+            >
+              <select
+                id="event-claim"
+                value={form.waitlistClaimHours}
+                onChange={(e) => set('waitlistClaimHours', e.target.value)}
+                className="h-12 w-full rounded-2xl border border-border bg-surface-muted px-4 text-[15px] outline-none focus:border-primary focus:ring-4 focus:ring-ring/25"
+              >
+                <option value="">Move the next person in automatically</option>
+                <option value="2">Hold it 2 hours for them to confirm</option>
+                <option value="6">Hold it 6 hours for them to confirm</option>
+                <option value="12">Hold it 12 hours for them to confirm</option>
+                <option value="24">Hold it 24 hours for them to confirm</option>
+              </select>
             </Field>
             <Field
               label="Registration opens"

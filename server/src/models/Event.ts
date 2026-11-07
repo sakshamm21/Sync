@@ -37,6 +37,8 @@ export interface IEvent {
   /** Optional sign-up window. Waitlist promotion still runs outside it. */
   registrationOpensAt: Date | null;
   registrationClosesAt: Date | null;
+  /** Hours a freed seat is held for the next person to claim; null = move them in automatically. */
+  waitlistClaimHours: number | null;
   attendeeCount: number;
   /** People who bookmarked it as "Interested" (a cache of Interest rows). */
   interestedCount: number;
@@ -97,6 +99,7 @@ const eventSchema = new Schema<IEvent, EventModel, EventMethods, {}, EventVirtua
     capacity: { type: Number, min: 1, default: null },
     registrationOpensAt: { type: Date, default: null },
     registrationClosesAt: { type: Date, default: null },
+    waitlistClaimHours: { type: Number, min: 1, max: 72, default: null },
     attendeeCount: { type: Number, min: 0, default: 0 },
     interestedCount: { type: Number, min: 0, default: 0 },
     ratingSum: { type: Number, min: 0, default: 0 },

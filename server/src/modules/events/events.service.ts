@@ -192,6 +192,10 @@ export async function venueDirectory(): Promise<VenueListing[]> {
 export async function getForViewer(viewer: Viewer, id: string) {
   const presented = await present(await findViewableEvent(viewer, id), viewer);
   // "You're #3 in line": only worked out for the single event being viewed.
+  if (viewer && presented.viewer.registration === 'offered') {
+    const mine = await Registration.findOne({ event: presented.id, user: viewer.id }).select('offerExpiresAt');
+    return { ...presented, viewer: { ...presented.viewer, offerExpiresAt: mine?.offerExpiresAt ?? null } };
+  }
   if (viewer && presented.viewer.registration === 'waitlisted') {
     const mine = await Registration.findOne({ event: presented.id, user: viewer.id }).select('createdAt');
     if (mine) {

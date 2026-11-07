@@ -22,6 +22,7 @@ const profileBody = z
     preferences: z
       .object({
         emailNotifications: z.boolean(),
+        autoAcceptWaitlist: z.boolean(),
         mutedEmailTypes: z.array(z.enum(Object.values(NOTIFICATION_TYPES) as [NotificationType, ...NotificationType[]])).max(20),
       })
       .partial(),

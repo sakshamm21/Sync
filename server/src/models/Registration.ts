@@ -7,6 +7,8 @@ export interface IRegistration {
   status: RegistrationStatus;
   checkedInAt: Date | null;
   reminderSentAt: Date | null;
+  /** For `offered`: the seat goes to the next person after this. */
+  offerExpiresAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -20,6 +22,7 @@ const registrationSchema = new Schema<IRegistration>(
     status: { type: String, enum: Object.values(REGISTRATION_STATUS), required: true },
     checkedInAt: { type: Date, default: null },
     reminderSentAt: { type: Date, default: null },
+    offerExpiresAt: { type: Date, default: null },
   },
   { timestamps: true }
 );
@@ -27,6 +30,7 @@ const registrationSchema = new Schema<IRegistration>(
 registrationSchema.index({ event: 1, user: 1 }, { unique: true });
 // Waitlist is served first-come, first-served.
 registrationSchema.index({ event: 1, status: 1, createdAt: 1 });
-registrationSchema.index({ user: 1, status: 1 }); // "my tickets", clash checks
+registrationSchema.index({ user: 1, status: 1 });
+registrationSchema.index({ status: 1, offerExpiresAt: 1 }); // expiring offers // "my tickets", clash checks
 
 export const Registration = model<IRegistration>('Registration', registrationSchema);
