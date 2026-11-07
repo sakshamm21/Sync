@@ -21,6 +21,9 @@ interface EventChatProps {
 const TYPING_TIMEOUT_MS = 3000;
 const POLL_MS = 4000;
 
+/** Kept in step with the server's list in chat.service.ts. */
+const REACTION_CHOICES = ['👍', '❤️', '😂', '🎉', '😮', '🙏'];
+
 export default function EventChat({ eventId, canAnnounce = false, className }: EventChatProps) {
   const { user, socket, realtime } = useAuth();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -28,6 +31,8 @@ export default function EventChat({ eventId, canAnnounce = false, className }: E
   const [loading, setLoading] = useState(true);
   const [text, setText] = useState('');
   const [announcement, setAnnouncement] = useState(false);
+  const [replyingTo, setReplyingTo] = useState<ChatMessage | null>(null);
+  const [reactingTo, setReactingTo] = useState<string | null>(null);
   const [audience, setAudience] = useState<'all' | 'going' | 'waitlisted'>('all');
   const [sending, setSending] = useState(false);
   const [typing, setTyping] = useState<Record<string, string>>({});
@@ -45,6 +50,7 @@ export default function EventChat({ eventId, canAnnounce = false, className }: E
       .then(({ items, hasMore: more }) => {
         setMessages(items);
         setHasMore(more);
+        void eventsApi.markChatRead(eventId).catch(() => {});
         requestAnimationFrame(() => feedRef.current?.scrollTo({ top: feedRef.current.scrollHeight }));
       })
       .catch((err) => toast.error(errorMessage(err)))
@@ -65,6 +71,8 @@ export default function EventChat({ eventId, canAnnounce = false, className }: E
 
   const appendMessages = (incoming: ChatMessage[]) => {
     if (!incoming.length) return;
+    // The chat is open, so what arrives is read.
+    void eventsApi.markChatRead(eventId).catch(() => {});
     setMessages((prev) => [...prev, ...incoming.filter((m) => !prev.some((p) => p.id === m.id))]);
     scrollToBottom();
   };
@@ -93,6 +101,23 @@ export default function EventChat({ eventId, canAnnounce = false, className }: E
       toast.error(errorMessage(err));
     }
   }
+
+  const setReactions = (id: string, reactions: { emoji: string; user: string }[]) =>
+    setMessages((prev) => prev.map((m) => (m.id === id ? { ...m, reactions } : m)));
+
+  async function react(msg: ChatMessage, emoji: string) {
+    setReactingTo(null);
+    try {
+      const r = await eventsApi.react(eventId, msg.id, emoji);
+      setReactions(r.id, r.reactions);
+    } catch (err) {
+      toast.error(errorMessage(err));
+    }
+  }
+
+  useSocketEvent<{ id: string; event: string; reactions: { emoji: string; user: string }[] }>('message:reactions', (p) => {
+    if (p.event === eventId) setReactions(p.id, p.reactions);
+  });
 
   async function report(msg: ChatMessage) {
     try {
@@ -157,9 +182,11 @@ export default function EventChat({ eventId, canAnnounce = false, className }: E
         text: text.trim(),
         announcement,
         ...(announcement ? { audience } : {}),
+        ...(replyingTo ? { replyTo: replyingTo.id } : {}),
       });
       appendMessages([sent]);
       setText('');
+      setReplyingTo(null);
       setAnnouncement(false);
     } catch (err) {
       toast.error(errorMessage(err));
@@ -239,6 +266,11 @@ export default function EventChat({ eventId, canAnnounce = false, className }: E
                       )}
                     </p>
                   )}
+                  {msg.replyTo && (
+                    <p className="mb-1 truncate border-l-2 border-border-strong pl-2 text-left text-xs text-muted">
+                      ↩ {msg.replyTo.sender?.name ?? 'Someone'}: {msg.replyTo.removedAt ? 'Message removed' : msg.replyTo.text}
+                    </p>
+                  )}
                   <div
                     className={cn(
                       'inline-block whitespace-pre-wrap break-words rounded-3xl px-4 py-2.5 text-left text-[15px] leading-relaxed',
@@ -247,8 +279,58 @@ export default function EventChat({ eventId, canAnnounce = false, className }: E
                   >
                     {msg.text}
                   </div>
-                  <p className="mt-1 flex items-center gap-2 text-[11px] text-subtle">
+                  {msg.reactions && msg.reactions.length > 0 && (
+                    <div className={cn('mt-1 flex flex-wrap gap-1', isMe && 'justify-end')}>
+                      {Object.entries(
+                        msg.reactions.reduce<Record<string, { n: number; mine: boolean }>>((acc, r) => {
+                          const cur = acc[r.emoji] ?? { n: 0, mine: false };
+                          acc[r.emoji] = { n: cur.n + 1, mine: cur.mine || r.user === user?.id };
+                          return acc;
+                        }, {})
+                      ).map(([emoji, { n, mine }]) => (
+                        <button
+                          key={emoji}
+                          type="button"
+                          aria-pressed={mine}
+                          aria-label={`${emoji} ${n}`}
+                          onClick={() => react(msg, emoji)}
+                          className={cn(
+                            'rounded-full border px-2 py-0.5 text-xs',
+                            mine ? 'border-primary bg-primary-soft' : 'border-border bg-surface'
+                          )}
+                        >
+                          {emoji} {n}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {reactingTo === msg.id && (
+                    <div className={cn('mt-1 flex gap-1', isMe && 'justify-end')}>
+                      {REACTION_CHOICES.map((emoji) => (
+                        <button
+                          key={emoji}
+                          type="button"
+                          aria-label={`React ${emoji}`}
+                          onClick={() => react(msg, emoji)}
+                          className="rounded-full bg-surface-muted px-2 py-1 text-base hover:scale-110"
+                        >
+                          {emoji}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  <p className={cn('mt-1 flex items-center gap-2 text-[11px] text-subtle', isMe && 'justify-end')}>
                     <span>{formatTime(msg.createdAt)}</span>
+                    <button type="button" className="hover:text-foreground" onClick={() => setReplyingTo(msg)}>
+                      Reply
+                    </button>
+                    <button
+                      type="button"
+                      className="hover:text-foreground"
+                      onClick={() => setReactingTo((cur) => (cur === msg.id ? null : msg.id))}
+                    >
+                      React
+                    </button>
                     {(isMe || canAnnounce) && (
                       <button type="button" className="hover:text-danger" onClick={() => remove(msg)}>
                         Remove
@@ -311,6 +393,16 @@ export default function EventChat({ eventId, canAnnounce = false, className }: E
               <option value="waitlisted">Only the waitlist</option>
             </select>
           </label>
+        )}
+        {replyingTo && (
+          <div className="mb-2 flex items-center gap-2 rounded-xl bg-surface-muted px-3 py-1.5 text-xs text-muted">
+            <span className="min-w-0 flex-1 truncate">
+              Replying to {replyingTo.sender.name}: {replyingTo.text}
+            </span>
+            <button type="button" onClick={() => setReplyingTo(null)} className="hover:text-foreground">
+              Cancel
+            </button>
+          </div>
         )}
         <div className="flex items-center gap-2">
           <input

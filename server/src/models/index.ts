@@ -15,3 +15,4 @@ export { Follow, type IFollow, type FollowDocument } from './Follow';
 export { AuditLog, type IAuditLog, type AuditLogDocument } from './AuditLog';
 export { MessageReport, type IMessageReport, type MessageReportDocument } from './MessageReport';
 export { Friendship, type IFriendship, type FriendshipDocument } from './Friendship';
+export { ChatRead, type IChatRead, type ChatReadDocument } from './ChatRead';

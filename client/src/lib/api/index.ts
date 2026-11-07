@@ -111,6 +111,9 @@ export const meApi = {
   addPushSubscription: (subscription: PushSubscriptionJSON) =>
     data<{ ok: true }>(http.post('/me/push-subscriptions', subscription)),
   removePushSubscription: (endpoint: string) => data<{ ok: true }>(http.post('/me/push-subscriptions/remove', { endpoint })),
+  /** Unread message counts per chat. */
+  chatUnread: (eventIds: string[]) =>
+    data<Record<string, number>>(http.get('/me/chats/unread', { params: { events: eventIds.join(',') } })),
   /** Change email, step 1: a code goes to the new address. */
   startEmailChange: (email: string, password: string) =>
     data<{ pendingEmail: string; devCode?: string }>(http.post('/me/email', { email, password })),
@@ -200,8 +203,17 @@ export const eventsApi = {
     data<{ reported: true }>(http.post(`/events/${id}/messages/${messageId}/report`, { reason })),
   /** RSVPs per day, show-up rate and ratings, for the event's organisers. */
   insights: (id: string) => data<EventInsights>(http.get(`/organizer/events/${id}/insights`)),
-  sendMessage: (id: string, body: { text: string; announcement?: boolean; audience?: 'all' | 'going' | 'waitlisted' }) =>
-    data<ChatMessage>(http.post(`/events/${id}/messages`, body)),
+  /** Adds or removes your reaction on a message. */
+  react: (id: string, messageId: string, emoji: string) =>
+    data<{ id: string; reactions: { emoji: string; user: string }[] }>(
+      http.put(`/events/${id}/messages/${messageId}/reactions`, { emoji })
+    ),
+  /** Clears this chat's unread badge. */
+  markChatRead: (id: string) => data<{ ok: true }>(http.post(`/events/${id}/messages/read`)),
+  sendMessage: (
+    id: string,
+    body: { text: string; announcement?: boolean; audience?: 'all' | 'going' | 'waitlisted'; replyTo?: string }
+  ) => data<ChatMessage>(http.post(`/events/${id}/messages`, body)),
 
   /** Downloads the event as an .ics file ("Add to calendar"). */
   async downloadCalendarFile(event: Pick<SyncEvent, 'id' | 'title'>) {

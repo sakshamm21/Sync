@@ -1,4 +1,4 @@
-import { Message, MessageReport, Registration, type UserDocument } from '../../models';
+import { ChatRead, Message, MessageReport, Registration, type UserDocument } from '../../models';
 import { audit } from '../../lib/audit';
 import { badRequest, forbidden, notFound } from '../../lib/errors';
 import { emitToEvent } from '../../lib/realtime';
@@ -7,6 +7,8 @@ import { findViewableEvent, canChat, accessFor, staffRoleFor } from '../events/e
 import { NOTIFICATION_TYPES, REPORT_STATUS, type ReportReason, type ReportStatus } from '../../constants';
 
 const SENDER_FIELDS = 'name avatarUrl role';
+/** The quoted message shown above a reply. */
+const REPLY_POPULATE = { path: 'replyTo', select: 'text sender removedAt', populate: { path: 'sender', select: 'name' } };
 
 export async function findChatEvent(user: UserDocument, eventId: string) {
   const event = await findViewableEvent(user, eventId);
@@ -40,14 +42,16 @@ export async function listMessages(
     const newer = await Message.find({ event: event._id, ...cursorFilter(after, '$gt') })
       .sort({ _id: 1 })
       .limit(limit + 1)
-      .populate('sender', SENDER_FIELDS);
+      .populate('sender', SENDER_FIELDS)
+      .populate(REPLY_POPULATE);
     return { items: newer.slice(0, limit), hasMore: newer.length > limit };
   }
 
   const messages = await Message.find({ event: event._id, ...(before ? cursorFilter(before, '$lt') : {}) })
     .sort({ _id: -1 })
     .limit(limit)
-    .populate('sender', SENDER_FIELDS);
+    .populate('sender', SENDER_FIELDS)
+    .populate(REPLY_POPULATE);
   return { items: messages.reverse(), hasMore: messages.length === limit };
 }
 
@@ -56,7 +60,12 @@ export type AnnouncementAudience = 'all' | 'going' | 'waitlisted';
 export async function postMessage(
   user: UserDocument,
   eventId: string,
-  { text, announcement, audience = 'all' }: { text: string; announcement: boolean; audience?: AnnouncementAudience }
+  {
+    text,
+    announcement,
+    audience = 'all',
+    replyTo,
+  }: { text: string; announcement: boolean; audience?: AnnouncementAudience; replyTo?: string }
 ) {
   const event = await findChatEvent(user, eventId);
   // Announcements notify and email everyone, so door staff may not send them.
@@ -64,8 +73,19 @@ export async function postMessage(
     throw forbidden('Only the organiser can post announcements');
   }
 
-  const message = await Message.create({ event: event._id, sender: user._id, text, isAnnouncement: announcement });
+  // A reply must point at a message in the same chat.
+  const parent = replyTo ? await Message.findOne({ _id: replyTo, event: event._id }).select('_id') : null;
+  if (replyTo && !parent) throw badRequest('That message is not in this chat');
+  const message = await Message.create({
+    event: event._id,
+    sender: user._id,
+    text,
+    isAnnouncement: announcement,
+    replyTo: parent?._id ?? null,
+  });
   await message.populate('sender', SENDER_FIELDS);
+  await message.populate(REPLY_POPULATE);
+  await markRead(user, event._id);
   const json = message.toJSON();
   emitToEvent(event._id, 'message:new', json);
 
@@ -177,4 +197,46 @@ export async function resolveMessageReport(admin: UserDocument, id: string, stat
     await audit(admin, 'report.dismissed', 'Dismissed a chat message report', { kind: 'report', id: report._id });
   }
   return { id: report.id as string, status: report.status };
+}
+
+/** The emoji people can react with: a small set keeps it light and readable. */
+export const REACTIONS = ['👍', '❤️', '😂', '🎉', '😮', '🙏'] as const;
+
+/** Adds the user's reaction, or takes it away if it's already there. */
+export async function toggleReaction(user: UserDocument, eventId: string, messageId: string, emoji: string) {
+  const event = await findChatEvent(user, eventId);
+  const message = await Message.findOne({ _id: messageId, event: event._id, removedAt: null });
+  if (!message) throw notFound('Message not found');
+  const mine = message.reactions.findIndex((r) => r.emoji === emoji && String(r.user) === String(user._id));
+  if (mine >= 0) message.reactions.splice(mine, 1);
+  else message.reactions.push({ emoji, user: user._id });
+  await message.save();
+  const payload = { id: message.id as string, event: String(event._id), reactions: message.reactions };
+  emitToEvent(event._id, 'message:reactions', payload);
+  return payload;
+}
+
+/** Marks everything in the chat up to now as read for the user. */
+export async function markRead(user: UserDocument, eventId: unknown) {
+  await ChatRead.updateOne({ user: user._id, event: eventId }, { $set: { readAt: new Date() } }, { upsert: true });
+}
+
+/** Unread message counts per chat the user is in (announcements included, their own excluded). */
+export async function unreadCounts(user: UserDocument, eventIds: string[]) {
+  if (!eventIds.length) return {};
+  const reads = await ChatRead.find({ user: user._id, event: { $in: eventIds } });
+  const readAt = new Map(reads.map((r) => [String(r.event), r.readAt]));
+  const counts = await Promise.all(
+    eventIds.map(async (id) => {
+      const since = readAt.get(id);
+      const n = await Message.countDocuments({
+        event: id,
+        sender: { $ne: user._id },
+        removedAt: null,
+        ...(since ? { createdAt: { $gt: since } } : {}),
+      });
+      return [id, n] as const;
+    })
+  );
+  return Object.fromEntries(counts);
 }

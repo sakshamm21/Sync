@@ -213,6 +213,10 @@ export interface ChatMessage {
   isAnnouncement: boolean;
   /** Set when the message was removed; `text` is then empty. */
   removedAt?: string | null;
+  /** The message this one answers, as a short quote. */
+  replyTo?: { id: string; text: string; removedAt?: string | null; sender: { name: string } | null } | null;
+  /** Emoji reactions: who reacted with what. */
+  reactions?: { emoji: string; user: string }[];
   sender: { id: string; name: string; avatarUrl: string; role: Role };
   createdAt: string;
 }

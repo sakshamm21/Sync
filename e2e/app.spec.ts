@@ -400,3 +400,26 @@ test('friends see which events each other is going to', async ({ page }) => {
   await page.goto(`/events/${going.id}`);
   await expect(page.getByText(/👋 .+ going/).first()).toBeVisible();
 });
+
+test('chat replies and reactions', async ({ page }) => {
+  const member = await signInAs(page, 'member@syncronify.dev');
+  const going = (await apiGet<Ev[]>(member, '/api/me/registrations?upcoming=true')).find(
+    (e) => e.visibility === 'public' && e.viewer.registration === 'going'
+  )!;
+  await page.goto('/chat');
+  await page
+    .getByRole('button', { name: new RegExp(going.title) })
+    .first()
+    .click();
+  await page.getByLabel('Message').fill('Who is bringing snacks?');
+  await page.keyboard.press('Enter');
+  await expect(page.getByText('Who is bringing snacks?')).toBeVisible();
+  await page.getByRole('button', { name: 'Reply' }).last().click();
+  await expect(page.getByText(/Replying to/)).toBeVisible();
+  await page.getByLabel('Message').fill('I will!');
+  await page.keyboard.press('Enter');
+  await expect(page.getByText(/↩ .*: Who is bringing snacks\?/)).toBeVisible();
+  await page.getByRole('button', { name: 'React' }).last().click();
+  await page.getByRole('button', { name: 'React 🎉' }).click();
+  await expect(page.getByRole('button', { name: '🎉 1' })).toBeVisible();
+});
