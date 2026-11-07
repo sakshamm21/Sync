@@ -118,6 +118,9 @@ export interface EventQuery {
   to?: string;
   sort?: 'soonest' | 'popular' | 'newest';
   includePast?: boolean;
+  hasSpots?: boolean;
+  online?: boolean;
+  tag?: string;
   page?: number;
   limit?: number;
 }

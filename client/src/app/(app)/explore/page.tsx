@@ -8,6 +8,7 @@ import { errorMessage, eventsApi, type CategoryValue, type EventQuery, type Sync
 import { CATEGORIES, CATEGORY_EMOJI, CATEGORY_LABELS, campusDateKey } from '@/lib/format';
 import { DATE_PRESET_LABELS, rangeFor, type DatePreset } from '@/lib/dateRanges';
 import { toast } from 'sonner';
+import { cn } from '@/lib/cn';
 import EventCard, { EventCardSkeleton } from '@/components/events/EventCard';
 import { Button } from '@/components/ui/button';
 import { EmptyState, PageHeader } from '@/components/ui/surface';
@@ -21,6 +22,12 @@ const SORTS: Sort[] = ['soonest', 'popular', 'newest'];
 const PRESETS = Object.keys(DATE_PRESET_LABELS) as DatePreset[];
 /** A preset name or a picked day (YYYY-MM-DD). */
 type When = DatePreset | string;
+type Extra = 'spots' | 'online' | 'food';
+const EXTRAS: { key: Extra; label: string; param: string; value: string }[] = [
+  { key: 'spots', label: 'Has spots', param: 'spots', value: '1' },
+  { key: 'online', label: 'Online', param: 'online', value: '1' },
+  { key: 'food', label: 'Free food 🍕', param: 'tag', value: 'free-food' },
+];
 const isWhen = (v: string | null): v is When => !!v && (PRESETS.includes(v as DatePreset) || /^\d{4}-\d{2}-\d{2}$/.test(v));
 
 function useDebounced<T>(value: T, delay = 300) {
@@ -46,6 +53,18 @@ function Explore() {
     return s && SORTS.includes(s) ? s : 'soonest';
   });
   const [when, setWhen] = useState<When | null>(() => (isWhen(params.get('when')) ? params.get('when') : null));
+  // Quick toggles: free seats, online, free food. Each can be combined with the rest.
+  const [extras, setExtras] = useState<Set<Extra>>(
+    () => new Set(EXTRAS.filter((x) => params.get(x.param) === x.value).map((x) => x.key))
+  );
+  const toggleExtra = (key: Extra) =>
+    setExtras((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  const extrasKey = [...extras].sort().join(',');
   // Bumped whenever the filters change, so a slow "Load more" for old filters is dropped.
   const generation = useRef(0);
   const [events, setEvents] = useState<SyncEvent[] | null>(null);
@@ -67,16 +86,20 @@ function Explore() {
     if (q) next.set('q', q);
     if (category) next.set('category', category);
     if (when) next.set('when', when);
+    for (const x of EXTRAS) if (extras.has(x.key)) next.set(x.param, x.value);
     if (sort !== 'soonest') next.set('sort', sort);
     const qs = next.toString();
     if (qs !== params.toString()) router.replace(qs ? `/explore?${qs}` : '/explore', { scroll: false });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [q, category, when, sort]);
+  }, [q, category, when, sort, extrasKey]);
 
   const query = (pageNumber: number): EventQuery => ({
     q: q || undefined,
     category: category ?? undefined,
     ...(when ? rangeFor(when) : {}),
+    ...(extras.has('spots') ? { hasSpots: true } : {}),
+    ...(extras.has('online') ? { online: true } : {}),
+    ...(extras.has('food') ? { tag: 'free-food' } : {}),
     sort,
     page: pageNumber,
     limit: PAGE_SIZE,
@@ -99,7 +122,7 @@ function Explore() {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [q, category, when, sort, version]);
+  }, [q, category, when, sort, extrasKey, version]);
 
   async function loadMore() {
     const started = generation.current;
@@ -121,7 +144,7 @@ function Explore() {
     }
   }
 
-  const filtered = Boolean(q || category || when);
+  const filtered = Boolean(q || category || when || extras.size);
 
   const replace = (updated: SyncEvent) => setEvents((prev) => prev?.map((e) => (e.id === updated.id ? updated : e)) ?? prev);
 
@@ -145,7 +168,7 @@ function Explore() {
               type="search"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="hackathon, open mic, football…"
+              placeholder="hackathon, open mic, a club's name…"
               aria-label="Search events"
               className="h-14 w-full rounded-full border border-border bg-surface pl-12 pr-4 font-display text-lg font-semibold outline-none transition placeholder:font-sans placeholder:text-base placeholder:font-normal placeholder:text-subtle hover:border-border-strong focus:border-primary focus:ring-4 focus:ring-ring/25"
             />
@@ -183,6 +206,22 @@ function Explore() {
               className="bg-transparent text-foreground outline-none"
             />
           </label>
+          {EXTRAS.map((x) => (
+            <button
+              key={x.key}
+              type="button"
+              aria-pressed={extras.has(x.key)}
+              onClick={() => toggleExtra(x.key)}
+              className={cn(
+                'flex h-10 shrink-0 items-center gap-1.5 rounded-full border px-4 text-sm font-semibold transition-colors',
+                extras.has(x.key)
+                  ? 'border-transparent bg-foreground text-background'
+                  : 'border-border bg-surface text-muted hover:border-border-strong hover:text-foreground'
+              )}
+            >
+              {x.label}
+            </button>
+          ))}
         </div>
       </div>
 
@@ -207,6 +246,7 @@ function Explore() {
                   setSearch('');
                   setCategory(null);
                   setWhen(null);
+                  setExtras(new Set());
                 }}
               >
                 Clear filters
@@ -219,7 +259,7 @@ function Explore() {
           <p className="mb-6 font-mono text-xs uppercase tracking-[0.16em] text-muted">
             {total} event{total === 1 ? '' : 's'}
           </p>
-          <Stagger key={`${q}-${category}-${when}-${sort}`} className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          <Stagger key={`${q}-${category}-${when}-${sort}-${extrasKey}`} className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {events.map((event) => (
               <StaggerItem key={event.id}>
                 <EventCard event={event} onChange={replace} />

@@ -60,6 +60,12 @@ export const list = z.object({
   to: z.coerce.date().optional(),
   sort: z.enum(['soonest', 'popular', 'newest']).default('soonest'),
   includePast: queryBoolean.default(false),
+  /** Only events with a free seat (or no cap). */
+  hasSpots: queryBoolean.default(false),
+  /** Only events with an online link. */
+  online: queryBoolean.default(false),
+  /** Only events with this tag, e.g. "free-food". */
+  tag: z.string().trim().toLowerCase().max(40).optional(),
   ...pagination,
 });
 export type ListEventsQuery = z.output<typeof list>;
