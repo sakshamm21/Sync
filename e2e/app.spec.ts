@@ -499,7 +499,7 @@ test('a club adds a committee member, who can then manage its events', async ({ 
   await signInAs(page, 'cultural@syncronify.dev');
   await page.goto('/organizer');
   await page.getByLabel('Committee member email').fill('tester2@syncronify.dev');
-  await page.getByRole('button', { name: 'Add' }).click();
+  await page.getByRole('button', { name: 'Add', exact: true }).click();
   await expect(page.getByText('tester2@syncronify.dev')).toBeVisible();
 
   const helper = await tokenFor('tester2@syncronify.dev');
@@ -558,4 +558,34 @@ test('every public event has a Stories image', async ({ page, request }) => {
   const image = await request.get(`/events/${events[0].id}/story`);
   expect(image.status()).toBe(200);
   expect(image.headers()['content-type']).toBe('image/png');
+});
+
+test('club operations: a shift to volunteer for, a budget line, and a sponsor on the club page', async ({ page }) => {
+  const organizer = await signInAs(page, 'organizer@syncronify.dev');
+  const me = await apiGet<{ id: string }>(organizer, '/api/me');
+  const { events } = await apiGet<{ events: Ev[] }>(organizer, '/api/organizer/overview');
+  const event = events.find((e) => e.status === 'published' && new Date(e.startsAt) > new Date())!;
+
+  await page.goto(`/organizer/events/${event.id}`);
+  await page.getByLabel('Shift name').fill('Registration desk');
+  await page.getByRole('button', { name: 'Add shift' }).click();
+  await expect(page.getByText('Registration desk')).toBeVisible();
+  await page.getByRole('button', { name: 'Sign up' }).first().click();
+  await expect(page.getByRole('button', { name: 'Leave' }).first()).toBeVisible();
+
+  await page.getByLabel('What it was').fill('Snacks');
+  await page.getByLabel('Amount in rupees').fill('1500');
+  await page.getByRole('button', { name: 'Add to budget' }).click();
+  await expect(page.getByText('Snacks')).toBeVisible();
+  await expect(page.getByText('−₹1,500').first()).toBeVisible();
+
+  await page.goto('/organizer');
+  await page.getByLabel('Sponsor name').fill('Acme Robotics');
+  await page.getByLabel('Sponsor tier').selectOption('title');
+  await page.getByRole('button', { name: 'Add sponsor' }).click();
+  await expect(page.getByText('Acme Robotics')).toBeVisible();
+
+  await page.goto(`/clubs/${me.id}`);
+  await expect(page.getByRole('heading', { name: 'Supported by' })).toBeVisible();
+  await expect(page.getByText('Acme Robotics')).toBeVisible();
 });

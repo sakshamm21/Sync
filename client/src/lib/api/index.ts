@@ -41,6 +41,11 @@ import type {
   User,
   UserStatus,
   VenueSummary,
+  BudgetLine,
+  EventBudget,
+  Shift,
+  Sponsor,
+  SponsorTier,
 } from './types';
 
 export * from './client';
@@ -288,6 +293,25 @@ export const clubsApi = {
     data<ClubSuggestion[]>(
       http.get('/clubs/suggestions', { params: interests.length ? { interests: interests.join(',') } : {} })
     ),
+};
+
+/** Club operations: volunteer shifts, event budgets and sponsors. */
+export const opsApi = {
+  shifts: (eventId: string) => data<Shift[]>(http.get(`/ops/events/${eventId}/shifts`)),
+  addShift: (eventId: string, body: { title: string; startsAt: string; endsAt: string; slots: number }) =>
+    data<Shift[]>(http.post(`/ops/events/${eventId}/shifts`, body)),
+  removeShift: (eventId: string, shiftId: string) => data<Shift[]>(http.delete(`/ops/events/${eventId}/shifts/${shiftId}`)),
+  volunteer: (eventId: string, shiftId: string, join: boolean) =>
+    data<Shift[]>(http.put(`/ops/events/${eventId}/shifts/${shiftId}/volunteer`, { join })),
+  budget: (eventId: string) => data<EventBudget>(http.get(`/ops/events/${eventId}/budget`)),
+  addBudgetLine: (eventId: string, body: { label: string; amount: number; kind: BudgetLine['kind'] }) =>
+    data<EventBudget>(http.post(`/ops/events/${eventId}/budget`, body)),
+  removeBudgetLine: (eventId: string, lineId: string) =>
+    data<EventBudget>(http.delete(`/ops/events/${eventId}/budget/${lineId}`)),
+  sponsors: () => data<Sponsor[]>(http.get('/ops/sponsors/mine')),
+  addSponsor: (body: { name: string; url: string; logoUrl: string; tier: SponsorTier }) =>
+    data<Sponsor[]>(http.post('/ops/sponsors', body)),
+  removeSponsor: (id: string) => data<Sponsor[]>(http.delete(`/ops/sponsors/${id}`)),
 };
 
 export const venuesApi = {

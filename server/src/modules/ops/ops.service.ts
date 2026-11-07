@@ -69,8 +69,13 @@ export async function setVolunteering(user: UserDocument, eventId: string, shift
 
 // --- Sponsors: the club lists who supports it; shown on its page. ----------
 
-export const listSponsors = (clubId: string) =>
-  Sponsor.find({ club: clubId }).sort({ tier: 1, name: 1 }).collation({ locale: 'en' });
+const TIER_RANK = { title: 0, gold: 1, partner: 2 } as const;
+
+/** A club's sponsors, title sponsors first, then gold, then partners; A-Z within a tier. */
+export async function listSponsors(clubId: unknown) {
+  const sponsors = await Sponsor.find({ club: clubId }).sort({ name: 1 }).collation({ locale: 'en' });
+  return sponsors.sort((a, b) => TIER_RANK[a.tier] - TIER_RANK[b.tier]);
+}
 
 export async function addSponsor(
   user: UserDocument,

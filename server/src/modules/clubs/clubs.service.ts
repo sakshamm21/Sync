@@ -4,7 +4,7 @@
  * and how it was rated, and members can follow it to hear about new events.
  */
 import type { Types } from 'mongoose';
-import { Event, Follow, Sponsor, User, type EventDocument, type UserDocument } from '../../models';
+import { Event, Follow, User, type EventDocument, type UserDocument } from '../../models';
 import { notFound, badRequest } from '../../lib/errors';
 import { isAllowedWebhook, postEventWebhook } from '../../lib/webhooks';
 import { runInBackground } from '../../lib/background';
@@ -12,6 +12,7 @@ import { formatCampusTime } from '../../lib/campusTime';
 import env from '../../config/env';
 import * as notifications from '../notifications/notifications.service';
 import { OWNER_FIELDS, withViewerContext, type Viewer } from '../events/events.policy';
+import { listSponsors } from '../ops/ops.service';
 import { EVENT_STATUS, EVENT_VISIBILITY, NOTIFICATION_TYPES, ROLES, USER_STATUS, type Category } from '../../constants';
 
 const CLUB_ROLES = [ROLES.ORGANIZER, ROLES.ADMIN];
@@ -58,7 +59,7 @@ export async function profile(viewer: Viewer, id: string) {
     following: Boolean(following),
     averageRating: totals?.count ? Math.round((totals.sum / totals.count) * 10) / 10 : null,
     ratingCount: totals?.count ?? 0,
-    sponsors: (await Sponsor.find({ club: club._id }).sort({ tier: 1, name: 1 })).map((s) => ({
+    sponsors: (await listSponsors(club._id)).map((s) => ({
       id: s.id as string,
       name: s.name,
       url: s.url,

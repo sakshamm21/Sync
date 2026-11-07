@@ -368,6 +368,7 @@ export interface ClubProfile {
   following: boolean;
   averageRating: number | null;
   ratingCount: number;
+  sponsors: Sponsor[];
   upcoming: SyncEvent[];
   past: SyncEvent[];
 }
@@ -465,4 +466,41 @@ export interface CampusVenue {
   longitude: number;
   capacity: number | null;
   accessibility: string;
+}
+
+/** A volunteer shift on an event; the event team signs up. */
+export interface Shift {
+  id: string;
+  title: string;
+  startsAt: string;
+  endsAt: string;
+  slots: number;
+  volunteers: { id: string; name: string }[];
+}
+
+export type SponsorTier = 'title' | 'gold' | 'partner';
+
+/** Someone who supports a club; shown on its page. */
+export interface Sponsor {
+  id: string;
+  name: string;
+  url: string;
+  logoUrl: string;
+  tier: SponsorTier;
+}
+
+export interface BudgetLine {
+  id: string;
+  label: string;
+  /** Whole rupees, always positive; `kind` says which way it goes. */
+  amount: number;
+  kind: 'income' | 'expense';
+  addedBy: string | null;
+}
+
+export interface EventBudget {
+  lines: BudgetLine[];
+  income: number;
+  expense: number;
+  balance: number;
 }
