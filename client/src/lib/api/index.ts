@@ -1,6 +1,7 @@
 import { saveBlob } from '../download';
 import { http } from './client';
 import type {
+  Team,
   FriendsList,
   Certificate,
   EventInsights,
@@ -258,6 +259,17 @@ export const clubsApi = {
     data<ClubSuggestion[]>(
       http.get('/clubs/suggestions', { params: interests.length ? { interests: interests.join(',') } : {} })
     ),
+};
+
+export const teamsApi = {
+  mine: (eventId: string) => data<Team | null>(http.get(`/events/${eventId}/teams/mine`)),
+  create: (eventId: string, name: string) => data<Team>(http.post(`/events/${eventId}/teams`, { name })),
+  join: (eventId: string, code: string) => data<Team>(http.post(`/events/${eventId}/teams/join`, { code })),
+  leave: (eventId: string) => data<null>(http.delete(`/events/${eventId}/teams/mine`)),
+  list: (eventId: string) =>
+    data<{ teamSize: { min: number; max: number }; teams: Team[] }>(http.get(`/events/${eventId}/teams`)),
+  checkIn: (eventId: string, teamId: string) =>
+    data<{ checkedIn: number }>(http.put(`/events/${eventId}/teams/${teamId}/check-in`)),
 };
 
 export const friendsApi = {

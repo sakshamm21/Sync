@@ -68,6 +68,7 @@ Severity labels:
 | #30 | Next #9 (rest): platform trends, suspension reasons |
 | #31 | Next #7: friends and "friends going" |
 | #32 | Next #6 (rest): replies, reactions, unread badges |
+| #33 | Next #2: team registration |
 
 **Still open, and why:**
 

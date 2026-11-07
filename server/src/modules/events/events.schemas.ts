@@ -42,6 +42,10 @@ const fields = {
     )
     .max(5, 'Ask at most five questions'),
   requiresApproval: z.boolean(),
+  teamSize: z
+    .object({ min: z.number().int().min(1).max(20), max: z.number().int().min(1).max(20) })
+    .refine((t) => t.max >= t.min, { message: 'The largest team must be at least the smallest' })
+    .nullable(),
 };
 
 const windowInOrder = (e: { registrationOpensAt?: Date | null; registrationClosesAt?: Date | null }) =>
@@ -70,6 +74,7 @@ export const create = z
     waitlistClaimHours: fields.waitlistClaimHours.optional(),
     questions: fields.questions.optional(),
     requiresApproval: fields.requiresApproval.optional(),
+    teamSize: fields.teamSize.optional(),
     /** Create more dates: the same event every week (or two) for `count` dates in all. */
     repeat: z.object({ every: z.enum(['week', 'fortnight']), count: z.number().int().min(2).max(16) }).optional(),
   })

@@ -25,6 +25,7 @@ import EventChat from '@/components/chat/EventChat';
 import DoorScanner from '@/components/organizer/DoorScanner';
 import DoorMode from '@/components/organizer/DoorMode';
 import EventTeam from '@/components/organizer/EventTeam';
+import TeamsCard from '@/components/teams/TeamsCard';
 import { Button, ButtonLink } from '@/components/ui/button';
 import { Avatar, Badge, Card, EmptyState, StatCard } from '@/components/ui/surface';
 import { Segmented } from '@/components/ui/tabs';
@@ -240,6 +241,7 @@ export default function EventManagement({ eventId }: { eventId: string }) {
       <div className="space-y-8">
         {header}
         <DoorMode event={event} version={version} />
+        {event.teamSize && <TeamsCard eventId={event.id} />}
       </div>
     );
   }
@@ -256,6 +258,7 @@ export default function EventManagement({ eventId }: { eventId: string }) {
       </div>
 
       <Insights eventId={event.id} version={version} />
+      {event.teamSize && <TeamsCard eventId={event.id} onCheckedIn={load} />}
 
       <div className="grid gap-6 xl:grid-cols-[1fr_26rem]">
         <Card className="overflow-hidden">

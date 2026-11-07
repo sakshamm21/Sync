@@ -24,6 +24,7 @@ import {
 } from 'lucide-react';
 import RsvpButton from './RsvpButton';
 import InterestedButton from './InterestedButton';
+import TeamPanel from '@/components/teams/TeamPanel';
 import EventCover, { statusOf } from './EventCover';
 import { CapacityBar, DateStamp, FriendsGoing } from './EventCard';
 import EventChat from '@/components/chat/EventChat';
@@ -573,6 +574,7 @@ export default function EventDetails({
               )}
 
               {event.seriesId && <SeriesPanel event={event} />}
+              {event.teamSize && <TeamPanel event={event} />}
               {event.visibility === 'public' && (
                 <RatingPanel event={event} onRated={(r) => applyChange({ ...event, averageRating: r.average })} />
               )}

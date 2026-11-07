@@ -423,3 +423,39 @@ test('chat replies and reactions', async ({ page }) => {
   await page.getByRole('button', { name: 'React 🎉' }).click();
   await expect(page.getByRole('button', { name: '🎉 1' })).toBeVisible();
 });
+
+test('team events: create a team, a teammate joins with the code, the organiser checks the team in', async ({
+  page,
+  browser,
+}) => {
+  const organizer = await tokenFor('organizer@syncronify.dev');
+  const mate = await tokenFor('tester3@syncronify.dev');
+  const as = (t: string) => ({ Authorization: `Bearer ${t}` });
+  const start = new Date(Date.now() + 9 * 864e5).toISOString();
+  const end = new Date(Date.now() + 9 * 864e5 + 6 * 36e5).toISOString();
+  const { id } = (
+    await (
+      await page.request.post(`${API}/api/events`, {
+        headers: as(organizer),
+        data: { title: 'Mini Hackathon', category: 'tech', startsAt: start, endsAt: end, teamSize: { min: 2, max: 3 } },
+      })
+    ).json()
+  ).data;
+  await page.request.post(`${API}/api/events/${id}/registration`, { headers: as(mate) });
+
+  await signInAs(page, 'tester2@syncronify.dev');
+  await page.goto(`/events/${id}`);
+  await page.getByRole('button', { name: "I'm in" }).first().click();
+  await page.getByLabel('Start a team').fill('Null Pointers');
+  await page.getByRole('button', { name: 'Create team' }).click();
+  const code = (await page.getByRole('button', { name: /Team code/ }).getAttribute('aria-label'))!.match(/[A-Z0-9]{6}/)![0];
+  await expect(page.getByText('Needs 1 more.', { exact: false })).toBeVisible();
+
+  await page.request.post(`${API}/api/events/${id}/teams/join`, { headers: as(mate), data: { code } });
+  const org = await browser.newPage();
+  await org.addInitScript((t) => window.localStorage.setItem('sync.token', t), organizer);
+  await org.goto(`/organizer/events/${id}`);
+  await org.getByRole('button', { name: 'Check in team' }).click();
+  await expect(org.getByRole('button', { name: 'All checked in' })).toBeVisible();
+  await org.close();
+});

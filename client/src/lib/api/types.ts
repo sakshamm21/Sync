@@ -124,6 +124,8 @@ export interface SyncEvent {
   requiresApproval?: boolean;
   /** Shared by every date of a repeating event. */
   seriesId?: string | null;
+  /** Team events: allowed team size. */
+  teamSize?: { min: number; max: number } | null;
   /** Only on create/update responses: other events booked at the same venue and time. */
   venueClashes?: { id: string; title: string; startsAt: string; endsAt: string }[];
   /** People who bookmarked it as "Interested". */
@@ -168,6 +170,7 @@ export interface EventInput {
   questions?: Omit<EventQuestion, 'id'>[];
   /** RSVPs wait for the organiser's approval. */
   requiresApproval?: boolean;
+  teamSize?: { min: number; max: number } | null;
   /** Only when creating: make it a series. */
   repeat?: { every: 'week' | 'fortnight'; count: number };
 }
@@ -432,4 +435,14 @@ export interface FriendsList {
   friends: { id: string; user: FriendPerson | null }[];
   incoming: { id: string; user: FriendPerson | null }[];
   outgoing: { id: string; user: FriendPerson | null }[];
+}
+
+/** A team at a team event. `code` is only sent to members and organisers. */
+export interface Team {
+  id: string;
+  name: string;
+  code?: string;
+  captain: string;
+  complete?: boolean;
+  members: { id: string; name: string; avatarUrl: string; status: RegistrationStatus | null; checkedIn: boolean }[];
 }

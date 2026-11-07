@@ -21,6 +21,7 @@ import assistantRoutes from './modules/assistant/assistant.routes';
 import staffRoutes from './modules/events/staff.routes';
 import reportsRoutes from './modules/reports/reports.routes';
 import clubsRoutes from './modules/clubs/clubs.routes';
+import teamsRoutes from './modules/teams/teams.routes';
 import friendsRoutes from './modules/friends/friends.routes';
 import uploadsRoutes from './modules/uploads/uploads.routes';
 import { calendarFeed } from './modules/events/events.service';
@@ -84,6 +85,7 @@ export function createApp(): Express {
     }
     res.set('Cache-Control', 'private, max-age=300').type('text/calendar').send(content);
   });
+  app.use('/api/events/:id/teams', teamsRoutes);
   app.use('/api/events', eventsRoutes);
   app.use('/api/clubs', clubsRoutes);
   app.use('/api/friends', friendsRoutes);
