@@ -55,6 +55,8 @@ export interface ServerMeta {
   demo?: boolean;
   /** Only these email domains may sign up; empty means anyone. */
   allowedEmailDomains?: string[];
+  /** VAPID public key for Web Push, or null when push isn't set up. */
+  pushPublicKey?: string | null;
 }
 
 export const metaApi = {
@@ -96,6 +98,10 @@ export const meApi = {
   /** The secret calendar subscription URL; `reset` replaces it. */
   calendarFeed: (reset = false) =>
     data<{ url: string; webcalUrl: string }>(reset ? http.post('/me/calendar-feed/reset') : http.get('/me/calendar-feed')),
+  /** Registers / removes this browser for push notifications. */
+  addPushSubscription: (subscription: PushSubscriptionJSON) =>
+    data<{ ok: true }>(http.post('/me/push-subscriptions', subscription)),
+  removePushSubscription: (endpoint: string) => data<{ ok: true }>(http.post('/me/push-subscriptions/remove', { endpoint })),
   /** Ends every session for this account, this device included. */
   signOutEverywhere: () => data<{ ok: true }>(http.post('/me/sign-out-everywhere')),
   calendar: (range: { from: string; to: string }) => data<SyncEvent[]>(http.get('/me/calendar', { params: range })),

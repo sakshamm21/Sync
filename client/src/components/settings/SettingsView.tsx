@@ -6,13 +6,14 @@ import { toast } from 'sonner';
 import { Check, Clock, Megaphone, Monitor, Moon, Sun, XCircle } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useEventsSync } from '@/context/EventContext';
-import { errorMessage, meApi, organizerApi, type CategoryValue, type OrganizerApplication } from '@/lib/api';
+import { errorMessage, meApi, metaApi, organizerApi, type CategoryValue, type OrganizerApplication } from '@/lib/api';
 import { CATEGORIES, CATEGORY_EMOJI, CATEGORY_LABELS, ROLE_LABELS, formatDay } from '@/lib/format';
 import { Button, ButtonLink } from '@/components/ui/button';
 import { Field, Input, Textarea } from '@/components/ui/field';
 import { Avatar, Badge, Card, PageHeader } from '@/components/ui/surface';
 import { Segmented } from '@/components/ui/tabs';
 import { ConfirmDialog } from '@/components/ui/overlay';
+import { currentPushSubscription, pushSupported, subscribeToPush, useInstallPrompt } from '@/lib/device';
 import { cn } from '@/lib/cn';
 
 function Section({ title, description, children }: { title: string; description: string; children: React.ReactNode }) {
@@ -425,6 +426,75 @@ function CalendarFeedSection() {
   );
 }
 
+/** Notifications on this phone or laptop, and installing Sync like an app. */
+function DeviceSection() {
+  const [publicKey, setPublicKey] = useState<string | null | undefined>(undefined);
+  const [subscribed, setSubscribed] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const { available: canInstall, install } = useInstallPrompt();
+
+  useEffect(() => {
+    metaApi
+      .get()
+      .then((meta) => setPublicKey(meta.pushPublicKey ?? null))
+      .catch(() => setPublicKey(null));
+    currentPushSubscription()
+      .then((s) => setSubscribed(Boolean(s)))
+      .catch(() => {});
+  }, []);
+
+  async function toggle() {
+    setBusy(true);
+    try {
+      if (subscribed) {
+        const sub = await currentPushSubscription();
+        if (sub) {
+          await meApi.removePushSubscription(sub.endpoint);
+          await sub.unsubscribe();
+        }
+        setSubscribed(false);
+        toast('Notifications off on this device');
+      } else {
+        await meApi.addPushSubscription(await subscribeToPush(publicKey!));
+        setSubscribed(true);
+        toast.success('Notifications on', { description: 'Reminders and updates will pop up here, even with Sync closed.' });
+      }
+    } catch (err) {
+      toast.error(errorMessage(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const pushAvailable = Boolean(publicKey) && pushSupported();
+  return (
+    <Section
+      title="This device"
+      description="Get reminders and updates as phone or desktop notifications, and add Sync to your home screen."
+    >
+      <div className="flex flex-wrap gap-2">
+        {pushAvailable && (
+          <Button variant={subscribed ? 'secondary' : 'primary'} loading={busy} onClick={toggle}>
+            {subscribed ? 'Turn off notifications' : 'Turn on notifications'}
+          </Button>
+        )}
+        {canInstall && (
+          <Button variant="secondary" onClick={install}>
+            Install app
+          </Button>
+        )}
+      </div>
+      {publicKey !== undefined && !pushAvailable && (
+        <p className="text-sm text-muted">
+          {publicKey
+            ? 'This browser can’t show push notifications. On iPhone, add Sync to your Home Screen first.'
+            : 'Push notifications aren’t set up on this server yet.'}
+        </p>
+      )}
+    </Section>
+  );
+}
+
 function SessionsSection() {
   const { logout } = useAuth();
   const [confirming, setConfirming] = useState(false);
@@ -469,6 +539,7 @@ export default function SettingsView() {
         <ProfileSection />
         <AppearanceSection />
         <OrganizerSection />
+        <DeviceSection />
         <CalendarFeedSection />
         <PasswordSection />
         <SessionsSection />

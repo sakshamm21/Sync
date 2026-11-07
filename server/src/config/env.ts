@@ -48,6 +48,11 @@ const schema = z
     CAMPUS_LATITUDE: z.coerce.number().min(-90).max(90).default(26.5123),
     CAMPUS_LONGITUDE: z.coerce.number().min(-180).max(180).default(80.2329),
     PLACES_COUNTRY_CODES: z.string().default('in'),
+    // Web Push (phone and desktop notifications). Generate a pair once with
+    // `npx web-push generate-vapid-keys`; without them push is simply off.
+    VAPID_PUBLIC_KEY: z.string().optional(),
+    VAPID_PRIVATE_KEY: z.string().optional(),
+    VAPID_SUBJECT: z.string().default('mailto:admin@example.com'),
     // Comma-separated email domains allowed to sign up (e.g. "iitk.ac.in"); empty = anyone.
     // Subdomains count too: "iitk.ac.in" also allows "cse.iitk.ac.in".
     ALLOWED_EMAIL_DOMAINS: z.string().default(''),
@@ -136,6 +141,12 @@ const env = Object.freeze({
   cronSecret: raw.CRON_SECRET,
   demoMode: raw.DEMO_MODE,
   campusTimeZone: raw.CAMPUS_TIMEZONE,
+  push: {
+    publicKey: raw.VAPID_PUBLIC_KEY,
+    privateKey: raw.VAPID_PRIVATE_KEY,
+    subject: raw.VAPID_SUBJECT,
+    enabled: Boolean(raw.VAPID_PUBLIC_KEY && raw.VAPID_PRIVATE_KEY),
+  },
   allowedEmailDomains: raw.ALLOWED_EMAIL_DOMAINS.split(',')
     .map((d) => d.trim().toLowerCase().replace(/^@/, ''))
     .filter(Boolean),
