@@ -2,10 +2,11 @@
 
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'sonner';
-import { Check, Globe, Lock, MapPin } from 'lucide-react';
+import { Check, Globe, ImageUp, Lock, MapPin } from 'lucide-react';
+import { uploadCover } from '@/lib/uploads';
 import { useAuth } from '@/context/AuthContext';
 import { useEventsSync } from '@/context/EventContext';
-import { ApiError, errorMessage, eventsApi, type CategoryValue, type EventInput, type SyncEvent } from '@/lib/api';
+import { ApiError, errorMessage, eventsApi, metaApi, type CategoryValue, type EventInput, type SyncEvent } from '@/lib/api';
 import { CATEGORIES, CATEGORY_EMOJI, CATEGORY_LABELS, campusDateKey, fromDateTimeInput, toDateTimeInput } from '@/lib/format';
 import { ConfirmDialog, Dialog } from '@/components/ui/overlay';
 import { Button } from '@/components/ui/button';
@@ -253,6 +254,15 @@ function EventForm({
   const [errors, setErrors] = useState<Record<string, string | undefined>>({});
   const [saving, setSaving] = useState<'publish' | 'draft' | null>(null);
   const places = usePlaceSearch(venueQuery);
+  // Photo upload shows only when the server has a storage token.
+  const [uploadsOn, setUploadsOn] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  useEffect(() => {
+    metaApi
+      .get()
+      .then((meta) => setUploadsOn(Boolean(meta.uploads)))
+      .catch(() => {});
+  }, []);
 
   const set = <K extends keyof FormState>(key: K, value: FormState[K]) => setForm((prev) => ({ ...prev, [key]: value }));
 
@@ -517,13 +527,48 @@ function EventForm({
                 onChange={(e) => set('capacity', e.target.value)}
               />
             </Field>
-            <Field label="Cover image URL" htmlFor="event-cover" hint="A wide photo looks best." error={errors.coverImageUrl}>
-              <Input
-                id="event-cover"
-                placeholder="https://…"
-                value={form.coverImageUrl}
-                onChange={(e) => set('coverImageUrl', e.target.value)}
-              />
+            <Field
+              label="Cover photo"
+              htmlFor="event-cover"
+              hint={uploadsOn ? 'Upload a photo (cropped to 1200×630) or paste a link.' : 'A wide photo looks best.'}
+              error={errors.coverImageUrl}
+            >
+              <div className="flex gap-2">
+                <Input
+                  id="event-cover"
+                  placeholder="https://…"
+                  value={form.coverImageUrl}
+                  onChange={(e) => set('coverImageUrl', e.target.value)}
+                />
+                {uploadsOn && (
+                  <label
+                    className={cn(
+                      'flex h-12 shrink-0 cursor-pointer items-center gap-1.5 rounded-2xl border border-border bg-surface-muted px-4 text-sm font-semibold transition hover:border-border-strong',
+                      uploading && 'pointer-events-none opacity-60'
+                    )}
+                  >
+                    <ImageUp className="size-4" /> {uploading ? 'Uploading…' : 'Upload'}
+                    <input
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp"
+                      className="sr-only"
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        e.target.value = '';
+                        if (!file) return;
+                        setUploading(true);
+                        try {
+                          set('coverImageUrl', await uploadCover(file));
+                        } catch (err) {
+                          toast.error(errorMessage(err));
+                        } finally {
+                          setUploading(false);
+                        }
+                      }}
+                    />
+                  </label>
+                )}
+              </div>
             </Field>
             <Field
               label="When a spot opens up"

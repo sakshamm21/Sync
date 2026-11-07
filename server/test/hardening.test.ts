@@ -177,3 +177,16 @@ describe('Roadmap #12: campus-only sign-up', () => {
     assert.equal(emailDomainAllowed('a@gmail.com', []), true);
   });
 });
+
+describe('Roadmap #10: photo uploads', () => {
+  it('are off, with a clear error, until a Blob token is configured', async () => {
+    const { auth } = await createUser({ role: 'organizer' });
+    const res = await api()
+      .post('/api/uploads')
+      .set(auth)
+      .send({ type: 'blob.generate-client-token', payload: { pathname: 'covers/x.jpg', multipart: false, clientPayload: null } })
+      .expect(404);
+    assert.equal(res.body.error.code, 'UPLOADS_DISABLED');
+    await api().post('/api/uploads').send({}).expect(401);
+  });
+});

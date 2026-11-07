@@ -16,7 +16,7 @@ const csp = [
   `style-src 'self' 'unsafe-inline'${toolbar}`,
   "img-src 'self' data: blob: https:",
   "font-src 'self' data:",
-  `connect-src 'self' ${API_URL} ${API_URL.replace(/^http/, 'ws')}${isDev ? ' ws://localhost:* http://localhost:*' : ''}${toolbar}${toolbar && ' wss://ws-us3.pusher.com'}`,
+  `connect-src 'self' ${API_URL} ${API_URL.replace(/^http/, 'ws')}${isDev ? ' ws://localhost:* http://localhost:*' : ''}${toolbar}${toolbar && ' wss://ws-us3.pusher.com'} https://vercel.com https://*.blob.vercel-storage.com`,
   `frame-src https://www.openstreetmap.org${toolbar}`,
   "media-src 'self' blob:",
   "worker-src 'self' blob:",

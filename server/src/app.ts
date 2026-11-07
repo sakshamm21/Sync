@@ -21,6 +21,7 @@ import assistantRoutes from './modules/assistant/assistant.routes';
 import staffRoutes from './modules/events/staff.routes';
 import reportsRoutes from './modules/reports/reports.routes';
 import clubsRoutes from './modules/clubs/clubs.routes';
+import uploadsRoutes from './modules/uploads/uploads.routes';
 import { calendarFeed } from './modules/events/events.service';
 
 export function createApp(): Express {
@@ -63,6 +64,7 @@ export function createApp(): Express {
         allowedEmailDomains: env.allowedEmailDomains,
         // The browser needs this to subscribe; null when push isn't set up.
         pushPublicKey: env.push.enabled ? env.push.publicKey : null,
+        uploads: env.uploads.enabled,
       },
     });
   });
@@ -83,6 +85,7 @@ export function createApp(): Express {
   });
   app.use('/api/events', eventsRoutes);
   app.use('/api/clubs', clubsRoutes);
+  app.use('/api/uploads', uploadsRoutes);
   app.use('/api/event-staff', staffRoutes);
   app.use('/api/reports', reportsRoutes);
   app.use('/api/notes', notesRoutes);
