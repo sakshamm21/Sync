@@ -302,7 +302,9 @@ test('a member can download their data and delete their account', async ({ page 
 test('admins can read the audit log', async ({ page }) => {
   const admin = await signInAs(page, 'admin@syncronify.dev');
   const users = (
-    await (await page.request.get(`${API}/api/admin/users?q=tester4%40`, { headers: { Authorization: `Bearer ${admin}` } })).json()
+    await (
+      await page.request.get(`${API}/api/admin/users?q=tester4%40`, { headers: { Authorization: `Bearer ${admin}` } })
+    ).json()
   ).data;
   await page.request.patch(`${API}/api/admin/users/${users[0].id}`, {
     headers: { Authorization: `Bearer ${admin}` },
